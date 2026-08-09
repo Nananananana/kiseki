@@ -1,9 +1,8 @@
 """Specification for TimeRange."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.domain.shared.time_range import TimeRange
 
 JST = timezone(timedelta(hours=9))
@@ -34,7 +33,7 @@ class TestConstruction:
 
     def test_compares_across_offsets(self) -> None:
         """The same instant expressed in two zones is the same instant."""
-        utc = datetime(2025, 5, 3, 0, tzinfo=timezone.utc)
+        utc = datetime(2025, 5, 3, 0, tzinfo=UTC)
         assert TimeRange(utc, at(11)).duration == timedelta(hours=2)
 
 

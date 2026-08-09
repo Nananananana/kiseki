@@ -4,7 +4,6 @@ import math
 from dataclasses import FrozenInstanceError
 
 import pytest
-
 from kiseki.domain.shared.geo import EARTH_RADIUS_METERS, Distance, GeoPoint
 
 ONE_DEGREE_METERS = math.pi / 180 * EARTH_RADIUS_METERS

@@ -3,7 +3,6 @@
 from datetime import timedelta
 
 import pytest
-
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.speed import Speed
 

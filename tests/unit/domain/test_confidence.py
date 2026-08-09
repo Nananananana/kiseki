@@ -1,7 +1,6 @@
 """Specification for Confidence."""
 
 import pytest
-
 from kiseki.domain.shared.confidence import Confidence
 
 
