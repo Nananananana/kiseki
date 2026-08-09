@@ -40,10 +40,14 @@ strict = true
 warn_unreachable = true
 mypy_path = "packages/kiseki-core/src:packages/kiseki-ingest/src:packages/kiseki-conformance/src"
 
+[[tool.mypy.overrides]]
+module = ["jsonschema.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "llm: 実 LLM を呼ぶテスト。CI では実行しない",
-    "slow: 実行に時間がかかるテスト",
+    "llm: tests that call a real language model, excluded from CI",
+    "slow: tests that take a long time",
 ]
 addopts = "-m 'not llm'"
