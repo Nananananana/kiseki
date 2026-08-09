@@ -1,0 +1,43 @@
+# ---- 個人データ（配置上リポジトリ外だが二重に防御）----
+data/
+cache/
+exports/
+thumbs/
+records/
+quarantine/
+*.heic
+*.HEIC
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.png
+*.mov
+*.MOV
+*.mp4
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- 環境 ----
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+dist/
+build/
+*.egg-info/
+
+# ---- エディタ・OS ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
