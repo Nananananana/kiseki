@@ -28,6 +28,7 @@ For producers written in Python, subclass the suite and supply your output:
 import pytest
 from kiseki_conformance import PhotoRecordConformance
 
+
 class TestMyExporter(PhotoRecordConformance):
     @pytest.fixture
     def document(self):

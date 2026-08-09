@@ -18,7 +18,7 @@ kiseki-conformance = { workspace = true }
 dev = [
     "pytest>=8",
     "pytest-cov",
-    "ruff",
+    "ruff==0.16.2",
     "mypy",
     "import-linter",
     "pre-commit",
