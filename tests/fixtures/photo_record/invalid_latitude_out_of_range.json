@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "records": [
+    {
+      "id": "sha256:a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60",
+      "captured_at": "2025-05-03T10:24:31+09:00",
+      "location": { "lat": 135.6669, "lon": 35.0094 },
+      "location_source": "measured",
+      "media_type": "image",
+      "content_kind": "photo",
+      "thumbnail_ref": "2025/05/a3f2.jpg",
+      "owner": { "owner_id": "u1" },
+      "consent": { "use_for_preference": true, "use_for_story": true }
+    }
+  ]
+}

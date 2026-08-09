@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "records": [
+    {
+      "id": "sha256:a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60",
+      "captured_at": "2025-05-03T10:24:31.500+09:00",
+      "location": { "lat": 35.0094, "lon": 135.6669, "accuracy_m": 12 },
+      "location_source": "measured",
+      "media_type": "image",
+      "content_kind": "photo",
+      "thumbnail_ref": "2025/05/a3f2.jpg",
+      "place_label": "Arashiyama",
+      "is_favorite": true,
+      "owner": { "owner_id": "u1", "device_id": "d1", "platform": "ios" },
+      "consent": { "use_for_preference": true, "use_for_story": true },
+      "source": { "exporter": "kiseki-ingest", "version": "0.1.0" },
+      "extra": { "album": "Kyoto" }
+    }
+  ]
+}
