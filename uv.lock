@@ -461,14 +461,19 @@ version = "0.1.0"
 source = { editable = "packages/kiseki-ingest" }
 dependencies = [
     { name = "pillow" },
+]
+
+[package.optional-dependencies]
+heif = [
     { name = "pillow-heif" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pillow", specifier = ">=10" },
-    { name = "pillow-heif", specifier = ">=0.16" },
+    { name = "pillow-heif", marker = "extra == 'heif'", specifier = ">=0.16" },
 ]
+provides-extras = ["heif"]
 
 [[package]]
 name = "kiseki-workspace"

@@ -41,11 +41,12 @@ warn_unreachable = true
 mypy_path = "packages/kiseki-core/src:packages/kiseki-ingest/src:packages/kiseki-conformance/src"
 
 [[tool.mypy.overrides]]
-module = ["jsonschema.*"]
+module = ["jsonschema.*", "PIL.*", "pillow_heif.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 markers = [
     "llm: tests that call a real language model, excluded from CI",
     "slow: tests that take a long time",
