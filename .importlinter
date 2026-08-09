@@ -1,4 +1,5 @@
 [importlinter]
+include_external_packages = True
 root_packages =
     kiseki
     kiseki_ingest
