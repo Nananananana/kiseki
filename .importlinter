@@ -1,0 +1,47 @@
+[importlinter]
+root_packages =
+    kiseki
+    kiseki_ingest
+
+[importlinter:contract:layers]
+name = レイヤの依存方向
+type = layers
+layers =
+    kiseki.cli
+    kiseki.config
+    kiseki.adapters
+    kiseki.application
+    kiseki.ports
+    kiseki.domain
+
+[importlinter:contract:domain-purity]
+name = ドメイン層は外部ライブラリに依存しない
+type = forbidden
+source_modules =
+    kiseki.domain
+forbidden_modules =
+    httpx
+    numpy
+    PIL
+    jsonschema
+
+[importlinter:contract:domain-no-io]
+name = ドメイン層はファイルシステムに触れない
+type = forbidden
+source_modules =
+    kiseki.domain
+forbidden_modules =
+    pathlib
+    os
+    tomllib
+    sqlite3
+    kiseki.config
+
+[importlinter:contract:ingest-independence]
+name = 取り込み実装はコアのドメインに依存しない
+type = forbidden
+source_modules =
+    kiseki_ingest
+forbidden_modules =
+    kiseki.domain
+    kiseki.application
