@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "records": [
+    {
+      "id": "sha256:a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60a3f2c9d81b4e7f60",
+      "captured_at": "2025-05-03T10:24:31+09:00",
+      "location": { "lat": 35.0094, "lon": 135.6669 },
+      "location_source": "measured",
+      "media_type": "image",
+      "content_kind": "photo",
+      "thumbnail_ref": "2025/05/a3f2.jpg",
+      "owner": { "owner_id": "u1", "platform": "ios" },
+      "consent": { "use_for_preference": true, "use_for_story": true }
+    },
+    {
+      "id": "sha256:c1d2e3f4a5b60718c1d2e3f4a5b60718c1d2e3f4a5b60718c1d2e3f4a5b60718",
+      "captured_at": "2025-05-03T10:31:07+09:00",
+      "location": { "lat": 35.0101, "lon": 135.6672 },
+      "location_source": "measured",
+      "media_type": "image",
+      "content_kind": "photo",
+      "thumbnail_ref": "2025/05/c1d2.jpg",
+      "owner": { "owner_id": "u2", "platform": "android" },
+      "consent": { "use_for_preference": false, "use_for_story": true }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "records": [
+    {
+      "id": "sha256:b7e1d4a09c25f83bb7e1d4a09c25f83bb7e1d4a09c25f83bb7e1d4a09c25f83b",
+      "captured_at": "2025-05-03T13:02:00Z",
+      "location": null,
+      "media_type": "image",
+      "content_kind": "photo",
+      "thumbnail_ref": "2025/05/b7e1.jpg",
+      "owner": { "owner_id": "u1" },
+      "consent": { "use_for_preference": true, "use_for_story": true }
+    }
+  ]
+}
