@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nananananana/kiseki/schemas/photo-record-v1.json",
+  "title": "PhotoRecord v1",
+  "description": "The only input contract accepted by KISEKI. Producers on any platform emit this format.",
+  "type": "object",
+  "required": ["schema_version", "records"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/photoRecord" }
+    }
+  },
+  "$defs": {
+    "photoRecord": {
+      "type": "object",
+      "required": [
+        "id",
+        "captured_at",
+        "media_type",
+        "content_kind",
+        "thumbnail_ref",
+        "owner",
+        "consent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Content hash of the source media. Makes re-ingestion idempotent."
+        },
+        "captured_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$",
+          "description": "ISO 8601 timestamp. A UTC offset is mandatory."
+        },
+        "location": {
+          "oneOf": [
+            { "$ref": "#/$defs/geoPoint" },
+            { "type": "null" }
+          ],
+          "description": "Omitted or null when the source carries no coordinates."
+        },
+        "location_source": {
+          "enum": ["measured", "interpolated"],
+          "description": "Required whenever location is present."
+        },
+        "media_type": {
+          "enum": ["image", "video"]
+        },
+        "content_kind": {
+          "enum": ["photo", "screenshot", "document", "other"],
+          "description": "Anything other than photo is excluded from preference extraction."
+        },
+        "thumbnail_ref": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\.\\.).+$",
+          "description": "Relative reference resolved against the configured thumbnail root."
+        },
+        "place_label": {
+          "type": ["string", "null"],
+          "description": "Human readable place name, when the producer already knows it."
+        },
+        "is_favorite": {
+          "type": "boolean",
+          "default": false
+        },
+        "owner": { "$ref": "#/$defs/owner" },
+        "consent": { "$ref": "#/$defs/consent" },
+        "source": { "$ref": "#/$defs/source" },
+        "extra": {
+          "type": "object",
+          "description": "Free form producer specific data. Ignored by the core."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["location"],
+            "properties": { "location": { "type": "object" } }
+          },
+          "then": {
+            "required": ["location_source"]
+          }
+        }
+      ]
+    },
+    "geoPoint": {
+      "type": "object",
+      "required": ["lat", "lon"],
+      "additionalProperties": false,
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "accuracy_m": { "type": "number", "minimum": 0 }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "required": ["owner_id"],
+      "additionalProperties": false,
+      "properties": {
+        "owner_id": { "type": "string", "minLength": 1 },
+        "device_id": { "type": "string", "minLength": 1 },
+        "platform": { "enum": ["ios", "android", "desktop", "camera", "other"] }
+      }
+    },
+    "consent": {
+      "type": "object",
+      "required": ["use_for_preference", "use_for_story"],
+      "additionalProperties": false,
+      "properties": {
+        "use_for_preference": {
+          "type": "boolean",
+          "description": "When false the record contributes to journeys but never to a preference profile."
+        },
+        "use_for_story": {
+          "type": "boolean",
+          "description": "When false the record is ignored entirely."
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exporter": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    }
+  }
+}

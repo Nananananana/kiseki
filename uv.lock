@@ -500,7 +500,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-cov" },
-    { name = "ruff" },
+    { name = "ruff", specifier = "==0.16.2" },
 ]
 
 [[package]]
