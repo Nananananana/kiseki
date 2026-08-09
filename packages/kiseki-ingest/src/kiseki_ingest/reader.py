@@ -20,6 +20,12 @@ class RawExif:
     captured_at: str | None = None
     offset: str | None = None
     gps: dict[str, object] = field(default_factory=dict)
+    width: int | None = None
+    height: int | None = None
+
+    @property
+    def has_camera_metadata(self) -> bool:
+        return bool(self.make or self.model)
 
 
 def read_exif(path: Path) -> RawExif:
@@ -27,6 +33,7 @@ def read_exif(path: Path) -> RawExif:
         exif = image.getexif()
         detail = exif.get_ifd(EXIF_IFD)
         gps = exif.get_ifd(GPS_IFD)
+        width, height = image.size
 
         return RawExif(
             make=_text(exif.get(_BASE["Make"])),
@@ -39,6 +46,8 @@ def read_exif(path: Path) -> RawExif:
                 "longitude": gps.get(_GPS["GPSLongitude"]),
                 "longitude_ref": gps.get(_GPS["GPSLongitudeRef"]),
             },
+            width=width,
+            height=height,
         )
 
 

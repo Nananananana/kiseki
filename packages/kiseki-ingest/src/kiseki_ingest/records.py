@@ -8,8 +8,9 @@ from typing import Any
 
 from PIL import Image
 
+from kiseki_ingest.classification import MediaEvidence, classify
 from kiseki_ingest.exif import extract_location, parse_captured_at
-from kiseki_ingest.reader import RawExif, read_exif
+from kiseki_ingest.reader import read_exif
 
 READ_CHUNK = 1024 * 1024
 THUMBNAIL_MAX_EDGE = 512
@@ -58,14 +59,6 @@ def hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def classify(raw: RawExif) -> str:
-    """Camera metadata is the only signal available at this stage.
-
-    Refining this into screenshot and document detection is issue #9.
-    """
-    return "photo" if raw.make or raw.model else "other"
-
-
 def write_thumbnail(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(source) as image:
@@ -81,12 +74,16 @@ def build_record(
     consent: Consent,
     default_offset: timezone,
     thumbnail_root: Path,
+    digest: str | None = None,
 ) -> dict[str, Any]:
     """Build one PhotoRecord and write its thumbnail.
 
     Raises ValueError when the file carries no capture time. A record without a
     position in time cannot take part in a journey, so it is reported as skipped
     rather than given a guessed timestamp.
+
+    ``digest`` may be supplied by a caller that has already hashed the file for
+    duplicate detection, to avoid reading it twice.
     """
     from kiseki_ingest import __version__
 
@@ -95,15 +92,23 @@ def build_record(
         raise ValueError("no DateTimeOriginal, the record has no position in time")
 
     captured_at = parse_captured_at(raw.captured_at, raw.offset, default_offset)
-    digest = hash_file(path)
-    reference = f"{captured_at.year:04d}/{captured_at.month:02d}/{digest[:16]}.jpg"
+    content_hash = digest if digest is not None else hash_file(path)
+    reference = f"{captured_at.year:04d}/{captured_at.month:02d}/{content_hash[:16]}.jpg"
     write_thumbnail(path, thumbnail_root / reference)
 
+    evidence = MediaEvidence(
+        filename=path.name,
+        suffix=path.suffix,
+        has_camera_metadata=raw.has_camera_metadata,
+        width=raw.width,
+        height=raw.height,
+    )
+
     record: dict[str, Any] = {
-        "id": f"sha256:{digest}",
+        "id": f"sha256:{content_hash}",
         "captured_at": captured_at.isoformat(),
         "media_type": "image",
-        "content_kind": classify(raw),
+        "content_kind": classify(evidence),
         "thumbnail_ref": reference,
         "owner": owner.as_dict(),
         "consent": consent.as_dict(),

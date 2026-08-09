@@ -1,5 +1,6 @@
 """The reference producer must satisfy the contract it ships with."""
 
+import json
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -9,13 +10,13 @@ import pytest
 from fixtures.synthetic import write_photo, write_screenshot
 from kiseki_conformance import PhotoRecordConformance, check_semantics, validate_document
 from kiseki_ingest.cli import RECORDS_FILE, SKIPPED_FILE, main
-from kiseki_ingest.reader import read_exif
-from kiseki_ingest.records import Consent, Owner, build_record, classify, hash_file
+from kiseki_ingest.records import Consent, Owner, build_record, hash_file
 from PIL import Image
 
 JST = timezone(timedelta(hours=9))
 OWNER = Owner("u1", "d1", "ios")
 CONSENT = Consent(use_for_preference=True, use_for_story=True)
+BASE_ARGS = ["--owner", "u1", "--default-offset", "+09:00"]
 
 
 def build(path: Path, thumbnails: Path) -> dict[str, Any]:
@@ -26,6 +27,16 @@ def build(path: Path, thumbnails: Path) -> dict[str, Any]:
         default_offset=JST,
         thumbnail_root=thumbnails,
     )
+
+
+def read_document(output: Path) -> dict[str, Any]:
+    payload: dict[str, Any] = json.loads((output / RECORDS_FILE).read_text(encoding="utf-8"))
+    return payload
+
+
+def read_skipped(output: Path) -> list[dict[str, str]]:
+    payload: list[dict[str, str]] = json.loads((output / SKIPPED_FILE).read_text(encoding="utf-8"))
+    return payload
 
 
 @pytest.fixture
@@ -93,6 +104,9 @@ class TestBuildRecord:
         assert first["id"] == second["id"]
         assert first["id"] == f"sha256:{hash_file(library / 'kyoto.jpg')}"
 
+    def test_classifies_a_camera_photograph(self, library: Path, tmp_path: Path) -> None:
+        assert build(library / "kyoto.jpg", tmp_path / "thumbs")["content_kind"] == "photo"
+
     def test_thumbnail_reference_is_relative(self, library: Path, tmp_path: Path) -> None:
         record = build(library / "kyoto.jpg", tmp_path / "thumbs")
         assert not Path(record["thumbnail_ref"]).is_absolute()
@@ -106,30 +120,50 @@ class TestBuildRecord:
         with Image.open(written) as thumbnail:
             assert max(thumbnail.size) <= 512
 
-    def test_classifies_a_camera_photo(self, library: Path) -> None:
-        assert classify(read_exif(library / "kyoto.jpg")) == "photo"
-
 
 class TestCli:
     def test_writes_a_document_and_a_skip_report(self, library: Path, tmp_path: Path) -> None:
         output = tmp_path / "out"
-        code = main([str(library), str(output), "--owner", "u1", "--default-offset", "+09:00"])
-        assert code == 0
-        assert (output / RECORDS_FILE).exists()
-        assert (output / SKIPPED_FILE).exists()
+        assert main([str(library), str(output), *BASE_ARGS]) == EXIT_OK
+        assert len(read_document(output)["records"]) == 4
+        assert read_skipped(output)
 
     def test_reports_a_missing_source(self, tmp_path: Path) -> None:
-        code = main(
-            [
-                str(tmp_path / "absent"),
-                str(tmp_path / "out"),
-                "--owner",
-                "u1",
-                "--default-offset",
-                "+09:00",
-            ]
+        assert main([str(tmp_path / "absent"), str(tmp_path / "out"), *BASE_ARGS]) == 2
+
+    def test_skips_a_duplicate_of_an_earlier_file(self, library: Path, tmp_path: Path) -> None:
+        """Exports routinely contain the same photograph more than once."""
+        copy = library / "kyoto_copy.jpg"
+        copy.write_bytes((library / "kyoto.jpg").read_bytes())
+        output = tmp_path / "out"
+
+        main([str(library), str(output), *BASE_ARGS])
+
+        assert len(read_document(output)["records"]) == 4
+        assert any("identical content" in item["reason"] for item in read_skipped(output))
+
+    def test_applies_an_exclusion_pattern(self, library: Path, tmp_path: Path) -> None:
+        output = tmp_path / "out"
+        main([str(library), str(output), *BASE_ARGS, "--exclude", "santiago*"])
+
+        captured = [record["captured_at"] for record in read_document(output)["records"]]
+        assert not any(moment.startswith("2025-01") for moment in captured)
+        assert any("excluded by pattern" in item["reason"] for item in read_skipped(output))
+
+    def test_photos_only_drops_other_content(self, library: Path, tmp_path: Path) -> None:
+        write_photo(
+            library / "saved.jpg",
+            captured_at=datetime(2025, 5, 3, 15, 0, 0),
+            offset="+09:00",
+            make=None,
+            model=None,
         )
-        assert code == 2
+        output = tmp_path / "out"
+        main([str(library), str(output), *BASE_ARGS, "--photos-only"])
+
+        kinds = {record["content_kind"] for record in read_document(output)["records"]}
+        assert kinds == {"photo"}
+        assert any("classified as other" in item["reason"] for item in read_skipped(output))
 
 
 class TestProducedDocumentConformance(PhotoRecordConformance):
@@ -144,3 +178,6 @@ class TestProducedDocumentConformance(PhotoRecordConformance):
     def test_reports_no_violations_at_all(self, document: Mapping[str, Any]) -> None:
         assert validate_document(document) == []
         assert check_semantics(document) == []
+
+
+EXIT_OK = 0
