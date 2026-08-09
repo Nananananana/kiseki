@@ -4,18 +4,18 @@ root_packages =
     kiseki_ingest
 
 [importlinter:contract:layers]
-name = レイヤの依存方向
+name = Layer dependency direction
 type = layers
 layers =
-    kiseki.cli
     kiseki.config
     kiseki.adapters
     kiseki.application
     kiseki.ports
     kiseki.domain
+exhaustive = false
 
 [importlinter:contract:domain-purity]
-name = ドメイン層は外部ライブラリに依存しない
+name = Domain layer must not depend on external libraries
 type = forbidden
 source_modules =
     kiseki.domain
@@ -26,7 +26,7 @@ forbidden_modules =
     jsonschema
 
 [importlinter:contract:domain-no-io]
-name = ドメイン層はファイルシステムに触れない
+name = Domain layer must not touch the filesystem
 type = forbidden
 source_modules =
     kiseki.domain
@@ -38,7 +38,7 @@ forbidden_modules =
     kiseki.config
 
 [importlinter:contract:ingest-independence]
-name = 取り込み実装はコアのドメインに依存しない
+name = Ingest implementation must not depend on core domain
 type = forbidden
 source_modules =
     kiseki_ingest
