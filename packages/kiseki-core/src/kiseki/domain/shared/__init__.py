@@ -6,6 +6,7 @@ dependency outside the standard library.
 
 from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import EARTH_RADIUS_METERS, Distance, GeoPoint
+from kiseki.domain.shared.settings import StopSettings
 from kiseki.domain.shared.speed import Speed
 from kiseki.domain.shared.time_range import TimeRange
 
@@ -15,5 +16,6 @@ __all__ = [
     "Distance",
     "GeoPoint",
     "Speed",
+    "StopSettings",
     "TimeRange",
 ]
