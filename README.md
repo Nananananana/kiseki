@@ -1,38 +1,65 @@
 # KISEKI
 
-写真の時系列から行程と趣向を抽出する Python ライブラリ。
+A Python library that reconstructs journeys from photo timelines and infers
+personal preferences from them.
 
-## これは何か
+## What this is
 
-写真を 1 枚ずつ分析するのではなく、撮影日時と位置の連なりとして分析する。
-「何が好きか」ではなく「どう過ごす人か」を抽出することを目的とする。
+Most photo analysis looks at one image at a time. KISEKI reads photos as a
+sequence: it uses capture time and location to rebuild where you went, in what
+order, and for how long.
 
-- 写真の密度から滞在を切り出し、空白を移動として行程を復元する
-- 訪問頻度と時間帯から生活圏と旅行先を区別する
-- 再訪率から、行った場所だけでなく「一度きりで終わった場所」も趣向として扱う
+The goal is not to answer "what do you like" but "how do you spend your time".
 
-## 状態
+- Photo density reveals stays; gaps between them reveal movement
+- Visit frequency and time of day distinguish your daily area from travel
+  destinations
+- Revisit rate matters: a place visited once and never again is a signal too
 
-開発中。v0.1 は行程復元と分析までを対象とする。
+## Status
 
-## 設計方針
+Under development. v0.1 covers journey reconstruction and analysis.
 
-- ドメイン層は外部ライブラリに依存しない
-- 技術的関心事はすべてポートとして抽象化し、外部から注入する
-- 依存の向きは import-linter により CI で強制する
+## Design principles
 
-## プライバシー
+- The domain layer depends on nothing outside the standard library
+- Every technical concern is abstracted behind a port and injected from outside
+- Dependency direction is enforced in CI by import-linter
 
-- 個人データと画像をリポジトリに含めない
-- 座標のぼかしを既定で有効にする
-- オフラインモードにより外部通信を行わずに動作できる
+Ports are declared with `typing.Protocol`, so you can supply your own
+implementation without importing this library.
 
-## ロードマップ
+## Privacy
 
-- v0.1 行程復元、生活圏推定、分析、CLI
-- v0.2 画像の言語化、趣向プロファイル、提案、REST API、デモ
-- v1.0 宿泊判定、天気連携、複数デバイス統合、差分更新、PyPI 配布
+- No personal data or images are committed to this repository
+- Coordinate blurring is enabled by default in exports and visualizations
+- Offline mode rejects any adapter that performs network access
 
-## ライセンス
+## Input contract
+
+KISEKI does not read EXIF, HEIC, PhotoKit, or MediaStore. It accepts a single
+documented JSON contract, `PhotoRecord v1`. Any platform that can emit that
+format can feed the library. A reference implementation for EXIF is included,
+and a conformance test kit is provided for writing your own.
+
+## Roadmap
+
+| Version | Scope |
+|---|---|
+| v0.1 | Journey reconstruction, home area estimation, analytics, CLI |
+| v0.2 | Image captioning, preference profiles, suggestions, REST API, demo |
+| v1.0 | Overnight trips, weather, multi-device merging, incremental updates, PyPI |
+
+## Development
+
+```bash
+uv sync --all-packages
+uv run pytest
+uv run lint-imports
+```
+
+Tests that call a real language model are marked `llm` and excluded from CI.
+
+## License
 
 MIT

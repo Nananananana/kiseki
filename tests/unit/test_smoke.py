@@ -1,6 +1,6 @@
-"""パッケージが import できることを確認する。
+"""Verify that the package can be imported.
 
-値オブジェクトの実装は Issue #7 で追加する。
+Value objects are added in issue #7.
 """
 
 

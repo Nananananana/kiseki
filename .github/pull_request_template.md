@@ -1,16 +1,16 @@
-## 概要
+## Summary
 
-## 変更内容
+## Changes
 
-## テスト
+## Tests
 
-- [ ] ユニットテストを追加した
-- [ ] 既存テストが通る
-- [ ] import-linter の契約に違反しない
+- [ ] Unit tests added
+- [ ] Existing tests pass
+- [ ] No import-linter contract is violated
 
-## 確認事項
+## Checklist
 
-- [ ] 個人データを含んでいない
-- [ ] 絶対パスをハードコードしていない
+- [ ] No personal data included
+- [ ] No hardcoded absolute paths
 
 Closes #

@@ -1,13 +1,13 @@
-# ADR-0001 Event ではなく Outing を用いる
+# ADR-0001 Use Outing instead of Event
 
-## ステータス
+## Status
 
 Proposed
 
-## 背景
+## Context
 
-Issue #3 で記述する。
+To be written in issue #3.
 
-## 決定
+## Decision
 
-## 結果
+## Consequences

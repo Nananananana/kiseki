@@ -1,7 +1,7 @@
 [project]
 name = "kiseki"
 version = "0.1.0"
-description = "写真の時系列から行程と趣向を抽出するライブラリ"
+description = "Reconstruct journeys from photo timelines and infer preferences"
 readme = "../../README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

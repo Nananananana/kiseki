@@ -1,19 +1,19 @@
 ---
-name: 作業タスク
-about: v0.1 の作業分解に対応するタスク
+name: Task
+about: A unit of work from the v0.1 breakdown
 title: ""
 labels: ""
 ---
 
-## 目的
+## Goal
 
-## 完了条件
+## Definition of done
 
 - [ ]
 - [ ]
 
-## テスト方針
+## Test approach
 
-## 対応する作業ID
+## Related work item
 
-## 見積工数
+## Estimate

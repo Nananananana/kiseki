@@ -27,7 +27,7 @@ repos:
   - repo: local
     hooks:
       - id: forbid-personal-media
-        name: 個人データの混入を防止
-        entry: この拡張子のファイルはコミットできません
+        name: Block personal media and database files
+        entry: This file type must never be committed
         language: fail
         files: \.(heic|HEIC|jpe?g|JPE?G|mov|MOV|mp4|db|sqlite3?)$

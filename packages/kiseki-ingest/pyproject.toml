@@ -1,7 +1,7 @@
 [project]
 name = "kiseki-ingest"
 version = "0.1.0"
-description = "EXIF から PhotoRecord を生成する参考実装"
+description = "Reference implementation that turns EXIF metadata into PhotoRecord"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = ["pillow>=10", "pillow-heif>=0.16"]

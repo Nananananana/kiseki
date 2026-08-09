@@ -1,8 +1,8 @@
-# 変更履歴
+# Changelog
 
-本ファイルの形式は Keep a Changelog に従う。
+This file follows the Keep a Changelog format.
 
 ## [Unreleased]
 
 ### Added
-- リポジトリ初期構成
+- Initial repository structure

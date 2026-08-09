@@ -1,4 +1,4 @@
-# ---- 個人データ（配置上リポジトリ外だが二重に防御）----
+# ---- Personal data (kept outside the repo, blocked here as a second layer) ----
 data/
 cache/
 exports/
@@ -19,7 +19,7 @@ quarantine/
 *.sqlite
 *.sqlite3
 
-# ---- 環境 ----
+# ---- Environment ----
 .venv/
 .env
 .env.*
@@ -36,7 +36,7 @@ dist/
 build/
 *.egg-info/
 
-# ---- エディタ・OS ----
+# ---- Editors and OS ----
 .vscode/
 .idea/
 Thumbs.db

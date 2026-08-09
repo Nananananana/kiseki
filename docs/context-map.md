@@ -1,3 +1,3 @@
-# コンテキストマップ
+# Context map
 
-Issue #3 で記述する。
+To be written in issue #3.

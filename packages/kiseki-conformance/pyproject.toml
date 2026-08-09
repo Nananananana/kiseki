@@ -1,7 +1,7 @@
 [project]
 name = "kiseki-conformance"
 version = "0.1.0"
-description = "PhotoRecord 実装のための適合テストキット"
+description = "Conformance test kit for PhotoRecord producers"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = ["jsonschema>=4", "pytest>=8"]
