@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.domain.outing.stop import Stop
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.domain.shared.geo import GeoPoint

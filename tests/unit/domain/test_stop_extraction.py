@@ -139,11 +139,7 @@ class TestUnlocatedPhotographs:
             PhotoObservation(PhotoId("far"), after(200), GeoPoint(36.0, 136.0)),
         ]
         result = extract_stops(given)
-        seen = {
-            identifier.value
-            for stop in result.stops
-            for identifier in stop.photo_ids
-        }
+        seen = {identifier.value for stop in result.stops for identifier in stop.photo_ids}
         seen |= {identifier.value for identifier in result.in_transit}
         seen |= {identifier.value for identifier in result.unlocated}
         assert seen == {item.photo_id.value for item in given}

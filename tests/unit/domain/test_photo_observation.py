@@ -4,7 +4,6 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.shared.geo import GeoPoint
 
