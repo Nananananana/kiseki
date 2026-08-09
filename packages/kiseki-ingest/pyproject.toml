@@ -4,7 +4,13 @@ version = "0.1.0"
 description = "Reference implementation that turns EXIF metadata into PhotoRecord"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-dependencies = ["pillow>=10", "pillow-heif>=0.16"]
+dependencies = ["pillow>=10"]
+
+[project.optional-dependencies]
+heif = ["pillow-heif>=0.16"]
+
+[project.scripts]
+kiseki-ingest = "kiseki_ingest.cli:main"
 
 [build-system]
 requires = ["hatchling"]
