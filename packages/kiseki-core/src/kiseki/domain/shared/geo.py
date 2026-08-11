@@ -1,4 +1,4 @@
-"""Coordinates and distances.
+"""Coordinates, distances and areas.
 
 Distance on the globe is computed with the haversine formula on a spherical
 earth. The error against a proper ellipsoidal model is around 0.3 percent,
@@ -61,3 +61,19 @@ class GeoPoint:
             + cos(latitude) * cos(other_latitude) * sin(half_longitude_delta) ** 2
         )
         return Distance(2 * EARTH_RADIUS_METERS * asin(sqrt(min(1.0, chord))))
+
+
+@dataclass(frozen=True)
+class GeoArea:
+    """A circle on the surface. Used for anchors and for containment tests."""
+
+    center: GeoPoint
+    radius: Distance
+
+    def __post_init__(self) -> None:
+        if self.radius.meters <= 0:
+            raise ValueError("an area needs a positive radius")
+
+    def contains(self, point: GeoPoint) -> bool:
+        """Inclusive of the boundary."""
+        return self.center.distance_to(point) <= self.radius
