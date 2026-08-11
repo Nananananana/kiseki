@@ -1,7 +1,6 @@
 """Specification for GeoArea."""
 
 import pytest
-
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 
 CENTRE = GeoPoint(35.0094, 135.6669)

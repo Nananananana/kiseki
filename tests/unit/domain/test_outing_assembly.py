@@ -21,9 +21,7 @@ def at(day: int, hour: int, minute: int = 0) -> datetime:
     return datetime(2025, 5, day, hour, minute, tzinfo=JST)
 
 
-def stop(
-    name: str, day: int, start: int, end: int, latitude: float, longitude: float
-) -> Stop:
+def stop(name: str, day: int, start: int, end: int, latitude: float, longitude: float) -> Stop:
     return Stop(
         tuple(PhotoId(f"{name}{index}") for index in range(3)),
         TimeRange(at(day, start), at(day, end)),
@@ -52,9 +50,7 @@ class TestEmptyInput:
 
 class TestWithAnchors:
     def test_stops_at_an_anchor_delimit_an_outing(self) -> None:
-        result = assemble_outings(
-            [HOME_MORNING, PARK, LUNCH, MUSEUM, HOME_EVENING], [HOME]
-        )
+        result = assemble_outings([HOME_MORNING, PARK, LUNCH, MUSEUM, HOME_EVENING], [HOME])
         assert len(result.outings) == 1
         assert names(result.outings[0].stops) == ("park", "lunch", "museum")
 
