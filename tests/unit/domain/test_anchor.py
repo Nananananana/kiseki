@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.domain.anchor.anchor import Anchor, AnchorKind
 from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
@@ -17,9 +16,7 @@ PERIOD = TimeRange(
 )
 
 
-def anchor(
-    kind: AnchorKind = AnchorKind.PRIMARY, visits: int = 20, nights: int = 18
-) -> Anchor:
+def anchor(kind: AnchorKind = AnchorKind.PRIMARY, visits: int = 20, nights: int = 18) -> Anchor:
     return Anchor(kind, AREA, PERIOD, visits, nights, Confidence(0.9, visits))
 
 

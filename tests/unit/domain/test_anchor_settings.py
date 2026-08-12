@@ -1,7 +1,6 @@
 """Specification for the thresholds that govern anchor estimation."""
 
 import pytest
-
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings
 

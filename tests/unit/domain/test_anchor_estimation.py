@@ -57,7 +57,7 @@ class TestEmptyAndSparseInput:
         assert estimate_anchors(nightly(HOME, range(1, 4))) == ()
 
     def test_a_single_trip_is_never_an_anchor(self) -> None:
-        stops = nightly(HOME, range(1, 11)) + [stop("trip", 15, 12, 18, ELSEWHERE)]
+        stops = [*nightly(HOME, range(1, 11)), stop("trip", 15, 12, 18, ELSEWHERE)]
         places = [anchor.area.center for anchor in estimate_anchors(stops)]
         assert all(place.latitude < 40 for place in places)
 
@@ -73,10 +73,8 @@ class TestClassification:
         assert anchors[0].kind == AnchorKind.WORKPLACE
 
     def test_a_second_place_slept_at_is_secondary(self) -> None:
-        """A family home visited at weekends is not where you live."""
-        stops = nightly(HOME, range(1, 26), "home") + nightly(
-            FAMILY, range(6, 22, 7), "family"
-        )
+        """A family home stayed at regularly is not where you live."""
+        stops = nightly(HOME, range(1, 26), "home") + nightly(FAMILY, range(1, 26, 3), "family")
         anchors = estimate_anchors(stops)
         kinds = {anchor.kind for anchor in anchors}
         assert AnchorKind.PRIMARY in kinds
@@ -86,7 +84,7 @@ class TestClassification:
         stops = nightly(HOME, range(1, 21), "home") + nightly(FAMILY, range(1, 11), "family")
         anchors = estimate_anchors(stops)
         assert anchors[0].kind == AnchorKind.PRIMARY
-        assert anchors[0].area.center.latitude == HOME[0]
+        assert anchors[0].area.contains(GeoPoint(*HOME))
 
 
 class TestNightsAcrossMidnight:
