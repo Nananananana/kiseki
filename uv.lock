@@ -480,6 +480,11 @@ name = "kiseki-workspace"
 version = "0.0.0"
 source = { virtual = "." }
 
+[package.optional-dependencies]
+heif = [
+    { name = "pillow-heif" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "import-linter" },
@@ -494,6 +499,8 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "pillow-heif", marker = "extra == 'heif'", specifier = ">=1.5.0" }]
+provides-extras = ["heif"]
 
 [package.metadata.requires-dev]
 dev = [

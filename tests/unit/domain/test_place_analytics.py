@@ -116,9 +116,7 @@ class TestCountingVisits:
 
 class TestGrouping:
     def test_nearby_stops_are_the_same_place(self) -> None:
-        outings = [
-            visit(f"n{index}", 4, index + 1, NEARBY, jitter=0.001) for index in range(3)
-        ]
+        outings = [visit(f"n{index}", 4, index + 1, NEARBY, jitter=0.001) for index in range(3)]
         assert len(summarise_places(outings, RADIUS).places) == 1
 
     def test_distant_stops_are_different_places(self) -> None:

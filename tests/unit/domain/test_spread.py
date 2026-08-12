@@ -1,7 +1,6 @@
 """Specification for Spread."""
 
 import pytest
-
 from kiseki.domain.analytics.analytics import Spread
 
 

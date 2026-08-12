@@ -7,7 +7,6 @@ are what a preference profile is eventually written from.
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.domain.analytics.analytics import summarise_habits
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.outing.stop import Stop
