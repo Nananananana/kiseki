@@ -47,10 +47,16 @@ class TestEmptyAndTrivialInput:
 
 
 class TestFormingAStop:
-    def test_three_photographs_in_one_place_form_a_stop(self) -> None:
-        result = extract_stops([observation(f"a{i}", i, 0.00001 * i) for i in range(3)])
+    def test_a_burst_in_one_place_forms_a_stop(self) -> None:
+        """A deliberate burst at a viewpoint is a stay even when it is brief."""
+        result = extract_stops([observation(f"a{i}", i, 0.00001 * i) for i in range(5)])
         assert len(result.stops) == 1
-        assert result.stops[0].photograph_count == 3
+        assert result.stops[0].photograph_count == 5
+
+    def test_a_shorter_burst_is_not_enough(self) -> None:
+        """Three photographs is one ordinary burst, as likely in motion as at rest."""
+        result = extract_stops([observation(f"a{i}", i, 0.00001 * i) for i in range(3)])
+        assert result.stops == ()
 
     def test_two_photographs_over_a_long_enough_period_form_a_stop(self) -> None:
         result = extract_stops([observation("a", 0), observation("b", 20, 0.0002)])

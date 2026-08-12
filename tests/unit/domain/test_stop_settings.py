@@ -16,11 +16,11 @@ class TestDefaults:
 
     def test_are_documented_values_rather_than_magic_numbers(self) -> None:
         settings = StopSettings()
-        assert settings.stay_radius == Distance(150)
+        assert settings.stay_radius == Distance(300)
         assert settings.drift_speed == Speed.from_kilometers_per_hour(1.5)
         assert settings.max_gap == timedelta(minutes=90)
         assert settings.min_duration == timedelta(minutes=10)
-        assert settings.min_photographs == 3
+        assert settings.min_photographs == 5
 
 
 class TestConstraints:

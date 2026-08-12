@@ -11,11 +11,11 @@ from datetime import timedelta
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.speed import Speed
 
-DEFAULT_STAY_RADIUS = Distance(150)
+DEFAULT_STAY_RADIUS = Distance(300)
 DEFAULT_DRIFT_SPEED = Speed.from_kilometers_per_hour(1.5)
 DEFAULT_MAX_GAP = timedelta(minutes=90)
 DEFAULT_MIN_DURATION = timedelta(minutes=10)
-DEFAULT_MIN_PHOTOGRAPHS = 3
+DEFAULT_MIN_PHOTOGRAPHS = 5
 DEFAULT_MAX_ABSENCE = timedelta(hours=8)
 
 
