@@ -74,6 +74,8 @@ def _pipeline_for(args: argparse.Namespace) -> Pipeline:
         SqliteOutingRepository(connection),
         SqliteAnchorRepository(connection),
         profiles=SqliteProfileRepository(connection),
+        captions=SqliteCaptionRepository(connection),
+        subjects=SqliteSubjectRepository(connection),
     )
 
 
@@ -215,7 +217,7 @@ def _print_profile(profile: Profile) -> None:
     print(f"  interests     {len(profile.interests)}")
 
     if profile.interests:
-        print("\n  places returned to, read as interests")
+        print("\n  read as interests")
         for interest in profile.ranked():
             print(
                 f"    {interest.topic:<32}"
