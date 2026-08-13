@@ -2,7 +2,6 @@
 
 from kiseki.adapters.fake.profiles import FakeProfileRepository
 from kiseki.ports.profiles import ProfileRepository
-
 from profile_contract import ProfileRepositoryContract
 
 

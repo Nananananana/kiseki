@@ -4,7 +4,7 @@ Any implementation, fake or real, inherits these tests unchanged, so
 the fake cannot drift from the behaviour the application relies on.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.domain.interests import (
     EvidenceKind,
@@ -35,7 +35,7 @@ def build_profile(generated_at: datetime, topic: str = "anchor-1") -> Profile:
 
 
 def _at(day: int) -> datetime:
-    return datetime(2026, 3, day, 12, tzinfo=timezone.utc)
+    return datetime(2026, 3, day, 12, tzinfo=UTC)
 
 
 class ProfileRepositoryContract:

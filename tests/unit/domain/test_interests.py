@@ -5,11 +5,10 @@ that could not be checked: no evidence, no interest. See ADR-0016.
 """
 
 from dataclasses import FrozenInstanceError
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -19,7 +18,7 @@ from kiseki.domain.interests import (
 
 
 def _when(hour: int = 12) -> datetime:
-    return datetime(2026, 3, 1, hour, tzinfo=timezone.utc)
+    return datetime(2026, 3, 1, hour, tzinfo=UTC)
 
 
 def _evidence(reference: str = "anchor-1") -> InterestEvidence:
