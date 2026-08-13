@@ -1,7 +1,10 @@
 """What the domain knows about a single photograph.
 
 The domain does not read files, thumbnails or EXIF. It works with the time and
-place a photograph was taken, and an identifier to refer back to it.
+place a photograph was taken, and references to refer back to it: the photo id
+names the photograph, and the thumbnail reference names a reduced copy of it,
+relative to a root the domain knows nothing about. Both are opaque here; an
+adapter resolves them. See ADR-0018.
 """
 
 from dataclasses import dataclass
@@ -28,6 +31,11 @@ class PhotoObservation:
     photo_id: PhotoId
     captured_at: datetime
     location: GeoPoint | None = None
+    thumbnail_ref: str | None = None
+    """Relative reference to a reduced copy of the image, from
+    PhotoRecord v1. None for records stored before the field was
+    carried; such photographs cannot be captioned, and nothing else
+    about them changes."""
 
     def __post_init__(self) -> None:
         if self.captured_at.tzinfo is None:

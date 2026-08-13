@@ -1,10 +1,21 @@
 """Ingesting through the CLI carries the thumbnail reference into storage."""
 
 import json
+import os
 from pathlib import Path
 
+import pytest
 from kiseki.adapters.sqlite.store import SqlitePhotoRepository, connect
 from kiseki.interfaces.cli import EXIT_OK, main
+
+
+@pytest.fixture(autouse=True)
+def isolated_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the test away from the developer's .env and KISEKI_* environment."""
+    for key in [name for name in os.environ if name.startswith("KISEKI_")]:
+        monkeypatch.delenv(key)
+    monkeypatch.chdir(tmp_path)
+
 
 DOCUMENT = {
     "schema_version": "1.0",

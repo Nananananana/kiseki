@@ -2,17 +2,16 @@
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.memory.repositories import InMemoryPhotoRepository
 from kiseki.adapters.sqlite.store import SqlitePhotoRepository, connect
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.ports.repositories import PhotoRepository
 
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
 
 
 def _observation(identifier: str, thumbnail_ref: str | None) -> PhotoObservation:

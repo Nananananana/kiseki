@@ -9,7 +9,6 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.sqlite.store import SCHEMA_VERSION, SqlitePhotoRepository, connect
 
 V1_TABLES = """
