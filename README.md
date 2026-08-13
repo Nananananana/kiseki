@@ -37,9 +37,9 @@ Given two years of an ordinary photo library, it reports things like:
 
 ```
 places returned to
-  (34.7567, 135.4611)    52 days   304 photos   night   6%  weekday 100%  daytime  90%
-  (34.7909, 135.4736)    12 days    61 photos   night   8%  weekday  33%  daytime  75%
-  (34.7858, 135.4555)    10 days    94 photos   night  60%  weekday  40%  daytime  30%
+  (35.6581, 139.7017)    52 days   304 photos   night   6%  weekday 100%  daytime  90%
+  (35.7148, 139.7967)    12 days    61 photos   night   8%  weekday  33%  daytime  75%
+  (35.6329, 139.8804)    10 days    94 photos   night  60%  weekday  40%  daytime  30%
 
 distinct places      131
 never returned to    85%
