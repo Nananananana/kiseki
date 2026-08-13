@@ -8,7 +8,6 @@ to work without being told.
 from pathlib import Path
 
 import pytest
-
 from kiseki.config.paths import StoragePaths, resolve_paths
 
 
@@ -29,22 +28,16 @@ class TestDefaults:
 class TestOverrides:
     def test_an_individual_path_can_be_moved(self) -> None:
         """Bulk storage and fast storage are often different drives."""
-        paths = StoragePaths.derive(
-            Path("/bulk"), {"db_path": Path("/fast/kiseki.sqlite3")}
-        )
+        paths = StoragePaths.derive(Path("/bulk"), {"db_path": Path("/fast/kiseki.sqlite3")})
         assert paths.db_path == Path("/fast/kiseki.sqlite3")
 
     def test_the_others_still_follow_the_root(self) -> None:
-        paths = StoragePaths.derive(
-            Path("/bulk"), {"db_path": Path("/fast/kiseki.sqlite3")}
-        )
+        paths = StoragePaths.derive(Path("/bulk"), {"db_path": Path("/fast/kiseki.sqlite3")})
         assert paths.thumbs_dir == Path("/bulk/thumbs")
 
 
 class TestPrecedence:
-    def test_an_environment_variable_sets_the_root(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_an_environment_variable_sets_the_root(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("KISEKI_DATA_ROOT", "/from/env")
         assert resolve_paths().data_root == Path("/from/env")
 
@@ -106,9 +99,7 @@ class TestParsing:
         assert resolve_paths(dotenv=tmp_path / ".env").data_root == Path("/from/dotenv")
 
     def test_quotes_are_stripped(self, tmp_path: Path) -> None:
-        (tmp_path / ".env").write_text(
-            'KISEKI_DATA_ROOT="/from/dotenv"\n', encoding="utf-8"
-        )
+        (tmp_path / ".env").write_text('KISEKI_DATA_ROOT="/from/dotenv"\n', encoding="utf-8")
         assert resolve_paths(dotenv=tmp_path / ".env").data_root == Path("/from/dotenv")
 
     def test_a_missing_file_is_not_an_error(self, tmp_path: Path) -> None:

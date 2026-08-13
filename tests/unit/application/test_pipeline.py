@@ -8,7 +8,6 @@ ADR-0004.
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from kiseki.adapters.memory.repositories import (
     InMemoryAnchorRepository,
     InMemoryOutingRepository,
@@ -28,9 +27,7 @@ def pipeline() -> Pipeline:
     )
 
 
-def observation(
-    name: str, day: int, hour: int, minute: int, latitude: float
-) -> PhotoObservation:
+def observation(name: str, day: int, hour: int, minute: int, latitude: float) -> PhotoObservation:
     return PhotoObservation(
         PhotoId(f"{name}_{day}_{hour}_{minute}"),
         datetime(2026, 5, day, hour, minute, tzinfo=JST),

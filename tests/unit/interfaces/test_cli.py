@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from kiseki.interfaces.cli import EXIT_BAD_INPUT, EXIT_OK, main
 
 RECORDS = {
@@ -28,6 +27,13 @@ RECORDS = {
 
 @pytest.fixture
 def data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Isolate from the developer's own .env as well as their environment.
+
+    The command line reads a dotenv file from the working directory. A test that
+    did not move out of the repository would pick up whatever the developer has
+    configured, and pass or fail depending on their machine.
+    """
+    monkeypatch.chdir(tmp_path)
     root = tmp_path / "data"
     monkeypatch.setenv("KISEKI_DATA_ROOT", str(root))
     return root

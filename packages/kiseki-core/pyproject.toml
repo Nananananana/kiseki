@@ -10,7 +10,7 @@ dependencies = []
 geocoding = ["httpx>=0.27"]
 
 [project.scripts]
-kiseki = "kiseki.cli:main"
+kiseki = "kiseki.interfaces.cli:main"
 
 [build-system]
 requires = ["hatchling"]

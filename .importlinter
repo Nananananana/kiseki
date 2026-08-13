@@ -8,6 +8,7 @@ root_packages =
 name = Layer dependency direction
 type = layers
 layers =
+    kiseki.interfaces
     kiseki.config
     kiseki.adapters
     kiseki.application
