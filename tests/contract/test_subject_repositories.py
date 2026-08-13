@@ -2,11 +2,10 @@
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.fake.subjects import FakeSubjectRepository
 from kiseki.adapters.sqlite.store import SqliteSubjectRepository, connect
 from kiseki.domain.caption.caption import CaptionKey
@@ -14,7 +13,7 @@ from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.ports.subjects import SubjectRepository
 
-WHEN = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _reading(identifier: str = "sha256:aa", refused: str | None = None) -> SubjectExtraction:

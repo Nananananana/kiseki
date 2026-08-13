@@ -1,7 +1,7 @@
 """Stage two: read each caption once, name its subjects, resumably."""
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.adapters.fake.captions import FakeCaptionRepository
 from kiseki.adapters.fake.models import FakeLanguageModel
@@ -15,7 +15,7 @@ from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.ports.models import Completion, ModelRefusedError, Usage
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _caption(identifier: str, text: str = "a bowl of ramen", refused: str | None = None) -> Caption:

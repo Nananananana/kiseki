@@ -1,14 +1,13 @@
 """One reading of what a caption was about."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.caption import CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.photo.observation import PhotoId
 
-WHEN = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
 KEY = CaptionKey.of([PhotoId("sha256:aa")])
 
 
