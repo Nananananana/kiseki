@@ -4,7 +4,9 @@ Going back is the clearest statement of having liked somewhere, so
 this service derives interests from places visited on more than one
 day. It deliberately reads the return pattern rather than the anchors:
 anchors include the places a life is anchored to, and an interest in
-one's own home is not a finding. See ADR-0017.
+one's own home is not a finding. For the same reason, places that sit
+inside an anchor's own area are left out -- they are the same
+circumstances, seen through the outings. See ADR-0017.
 
 Everything here is deterministic. No model is consulted; the numbers
 come from counting, and the tests pin them exactly.
@@ -12,9 +14,11 @@ come from counting, and the tests pin them exactly.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime, time
 
 from kiseki.domain.analytics.analytics import PlacePreference, PlaceVisits
+from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -38,17 +42,34 @@ confidence reaches one half. A pattern squeezed into one week may be
 a phase; the same visits spread over a year are a habit."""
 
 
-def derive_interests(places: PlacePreference, generated_at: datetime) -> Profile:
+def derive_interests(
+    places: PlacePreference,
+    generated_at: datetime,
+    anchors: Sequence[Anchor] = (),
+) -> Profile:
     """Read every returned-to place as an interest.
 
     Places seen on a single day are excluded: a single visit is not
     yet a return pattern, and single photographs are a separate source
-    of evidence that arrives with captioning (FR-507). The given
-    ranking is kept; the measures already ordered the places, and
-    interpretation must not quietly reorder what was measured.
+    of evidence that arrives with captioning (FR-507). Places inside
+    an anchor's area are excluded too: frequent presence around home
+    or work is circumstance, not choice. The given ranking is kept;
+    the measures already ordered the places, and interpretation must
+    not quietly reorder what was measured.
     """
-    interests = tuple(_interest_from(place) for place in places.places if place.was_returned_to)
+    interests = tuple(
+        _interest_from(place)
+        for place in places.places
+        if place.was_returned_to and not _anchored(place, anchors)
+    )
     return Profile(generated_at=generated_at, interests=interests)
+
+
+def _anchored(place: PlaceVisits, anchors: Sequence[Anchor]) -> bool:
+    """Whether the place sits inside any anchor's own area."""
+    return any(
+        place.centre.distance_to(anchor.area.center) <= anchor.area.radius for anchor in anchors
+    )
 
 
 def _interest_from(place: PlaceVisits) -> Interest:

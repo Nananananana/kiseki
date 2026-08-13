@@ -6,7 +6,7 @@ own area are the same circumstances seen through the outings, so the
 derivation leaves them out.
 """
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from kiseki.domain.analytics.analytics import PlacePreference, PlaceVisits
 from kiseki.domain.anchor.anchor import Anchor
@@ -15,7 +15,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-GENERATED = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+GENERATED = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _place(latitude: float, longitude: float) -> PlaceVisits:
@@ -43,8 +43,8 @@ def _anchor(latitude: float, longitude: float, radius_m: float = 500) -> Anchor:
     return Anchor(
         area=GeoArea(GeoPoint(latitude, longitude), Distance(radius_m)),
         period=TimeRange(
-            datetime(2026, 1, 1, tzinfo=timezone.utc),
-            datetime(2026, 6, 1, tzinfo=timezone.utc),
+            datetime(2026, 1, 1, tzinfo=UTC),
+            datetime(2026, 6, 1, tzinfo=UTC),
         ),
         visit_days=50,
         night_days=45,
@@ -86,6 +86,4 @@ class TestAnchoredExclusion:
             GENERATED,
             anchors=(_anchor(35.0, 135.0), _anchor(35.1, 135.1)),
         )
-        assert [interest.topic for interest in profile.interests] == [
-            "place:43.00000,141.00000"
-        ]
+        assert [interest.topic for interest in profile.interests] == ["place:43.00000,141.00000"]
