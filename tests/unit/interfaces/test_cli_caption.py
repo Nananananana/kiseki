@@ -7,7 +7,6 @@ so this stays in CI. A run over real photographs is an llm concern.
 from pathlib import Path
 
 import pytest
-
 from kiseki.interfaces.cli import EXIT_OK, main
 
 

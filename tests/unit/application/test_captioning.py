@@ -6,10 +6,9 @@ recorded so it is not asked again. See ADR-0019.
 """
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.adapters.fake.captions import FakeCaptionRepository
 from kiseki.adapters.fake.models import FakeImageCaptioner
 from kiseki.adapters.fake.thumbnails import FakeThumbnailSource
@@ -35,11 +34,11 @@ from kiseki.ports.models import (
     Usage,
 )
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _at(hour: int) -> datetime:
-    return datetime(2026, 5, 3, hour, tzinfo=timezone.utc)
+    return datetime(2026, 5, 3, hour, tzinfo=UTC)
 
 
 def _stop(identifiers: Sequence[str], hour: int) -> Stop:
@@ -74,7 +73,11 @@ class World:
             self.outings.replace_all([Outing.of(list(stops))])
         self.captions = FakeCaptionRepository()
         self.thumbnails = FakeThumbnailSource(
-            {reference: b"pixels-" + reference.encode() for reference in references.values() if reference}
+            {
+                reference: b"pixels-" + reference.encode()
+                for reference in references.values()
+                if reference
+            }
         )
 
     def run(self, captioner: object, **kwargs: object) -> CaptionRunReport:

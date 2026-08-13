@@ -5,14 +5,13 @@ photographs are content hashes and never change. A caption keyed on
 them survives every rebuild that reforms the same stay. See ADR-0019.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.photo.observation import PhotoId
 
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
 
 
 class TestCaptionKey:

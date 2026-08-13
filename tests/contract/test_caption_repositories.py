@@ -2,18 +2,17 @@
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.fake.captions import FakeCaptionRepository
 from kiseki.adapters.sqlite.store import SqliteCaptionRepository, connect
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.ports.captions import CaptionRepository
 
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
 
 
 def _caption(identifier: str = "sha256:aa", refused: str | None = None) -> Caption:

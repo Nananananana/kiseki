@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.fake.thumbnails import FakeThumbnailSource
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
 from kiseki.ports.thumbnails import ThumbnailMissingError

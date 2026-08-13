@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -91,6 +92,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     generated_at TEXT NOT NULL,
     document     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS captions (
+    key        TEXT PRIMARY KEY,
+    photo_ids  TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT
 );
 """
 
@@ -390,3 +400,60 @@ class SqliteProfileRepository:
     def history(self) -> tuple[Profile, ...]:
         cursor = self._connection.execute("SELECT document FROM profiles ORDER BY id")
         return tuple(_profile_from(row[0]) for row in cursor)
+
+
+def _to_caption(row: tuple[Any, ...]) -> Caption:
+    key, photo_ids, text, model, created_at, refused = row
+    return Caption(
+        key=CaptionKey(key),
+        photo_ids=tuple(PhotoId(value) for value in json.loads(photo_ids)),
+        text=text,
+        model=model,
+        created_at=datetime.fromisoformat(created_at),
+        refused=refused,
+    )
+
+
+class SqliteCaptionRepository:
+    """Captions accumulate, keyed by the photographs they describe.
+
+    Never replaced wholesale: a caption costs model time measured in
+    hours, and its key already changes exactly when the stay it
+    describes is a different stay. The table is additive to schema
+    version 2, so an existing database gains it on connect. See
+    ADR-0019.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, caption: Caption) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO captions"
+                " (key, photo_ids, text, model, created_at, refused)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    caption.key.value,
+                    json.dumps([identifier.value for identifier in caption.photo_ids]),
+                    caption.text,
+                    caption.model,
+                    caption.created_at.isoformat(),
+                    caption.refused,
+                ),
+            )
+
+    def get(self, key: CaptionKey) -> Caption | None:
+        row = self._connection.execute(
+            "SELECT key, photo_ids, text, model, created_at, refused FROM captions WHERE key = ?",
+            (key.value,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_caption(row)
+
+    def all(self) -> tuple[Caption, ...]:
+        cursor = self._connection.execute(
+            "SELECT key, photo_ids, text, model, created_at, refused FROM captions ORDER BY rowid"
+        )
+        return tuple(_to_caption(row) for row in cursor)
