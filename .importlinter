@@ -35,7 +35,6 @@ forbidden_modules =
     pathlib
     os
     tomllib
-    sqlite3
     kiseki.config
 
 [importlinter:contract:ingest-independence]
