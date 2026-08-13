@@ -13,13 +13,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
+from kiseki.adapters.ollama.models import OllamaImageCaptioner
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
+    SqliteCaptionRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
     connect,
 )
+from kiseki.application.captioning import run_captioning
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.interests import Profile
@@ -228,6 +232,27 @@ def _command_profile(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_caption(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    report = run_captioning(
+        outings=SqliteOutingRepository(connection),
+        photos=SqlitePhotoRepository(connection),
+        captions=SqliteCaptionRepository(connection),
+        thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
+        captioner=OllamaImageCaptioner(),
+        limit=args.limit,
+    )
+    print(RULE)
+    print(f"  captioned     {report.captioned}")
+    print(f"  already done  {report.already_captioned}")
+    print(f"  refused       {report.refused}")
+    print(f"  unreferenced  {report.unreferenced}")
+    if report.paused:
+        print("\n  paused: the model was unavailable; run again to resume")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -255,6 +280,10 @@ def build_parser() -> argparse.ArgumentParser:
     profile = commands.add_parser("profile", help="read the measures as interests")
     profile.add_argument("--json", action="store_true", help="machine readable output")
     profile.set_defaults(run=_command_profile)
+
+    caption = commands.add_parser("caption", help="describe the stays with a vision model")
+    caption.add_argument("--limit", type=int, default=None, help="caption at most this many stays")
+    caption.set_defaults(run=_command_caption)
 
     return parser
 
