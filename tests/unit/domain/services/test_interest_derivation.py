@@ -6,16 +6,15 @@ once does not: single photographs are a different source of evidence
 and arrive with captioning (FR-507). See ADR-0017.
 """
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
-
 from kiseki.domain.analytics.analytics import PlacePreference, PlaceVisits
 from kiseki.domain.interests import EvidenceKind
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.shared.geo import GeoPoint
 
-GENERATED = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+GENERATED = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _place(
