@@ -17,13 +17,16 @@ from kiseki.domain.analytics.analytics import (
     summarise_rhythm,
 )
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.interests import Profile
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
+from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.outing_assembly import assemble_outings
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
+from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
     AnchorRepository,
     OutingRepository,
@@ -72,11 +75,13 @@ class Pipeline:
         outings: OutingRepository,
         anchors: AnchorRepository,
         settings: PipelineSettings | None = None,
+        profiles: ProfileRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
         self._anchors = anchors
         self._settings = settings if settings is not None else PipelineSettings()
+        self._profiles = profiles
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -115,6 +120,20 @@ class Pipeline:
             habits=summarise_habits(outings) if outings else None,
             rhythm=summarise_rhythm(outings),
         )
+
+    def profile(self, generated_at: datetime | None = None) -> Profile:
+        """Read the built measures as interests, and keep the reading.
+
+        Reads storage like report(); does not recompute. When a profile
+        repository was given, every reading is saved, so the history a
+        trend will one day be computed from starts accumulating now.
+        """
+        outings = self._outings.all()
+        places = summarise_places(outings, self._settings.place_radius)
+        profile = derive_interests(places, generated_at or datetime.now())
+        if self._profiles is not None:
+            self._profiles.save(profile)
+        return profile
 
     def _select(
         self, since: datetime | None, until: datetime | None
