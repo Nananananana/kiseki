@@ -18,6 +18,7 @@ from typing import Any
 
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.caption.caption import Caption, CaptionKey
+from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -98,6 +99,14 @@ CREATE TABLE IF NOT EXISTS captions (
     key        TEXT PRIMARY KEY,
     photo_ids  TEXT NOT NULL,
     text       TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS subjects (
+    key        TEXT PRIMARY KEY,
+    labels     TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     refused    TEXT
@@ -457,3 +466,55 @@ class SqliteCaptionRepository:
             "SELECT key, photo_ids, text, model, created_at, refused FROM captions ORDER BY rowid"
         )
         return tuple(_to_caption(row) for row in cursor)
+
+
+def _to_subjects(row: tuple[Any, ...]) -> SubjectExtraction:
+    key, labels, model, created_at, refused = row
+    return SubjectExtraction(
+        key=CaptionKey(key),
+        labels=tuple(json.loads(labels)),
+        model=model,
+        created_at=datetime.fromisoformat(created_at),
+        refused=refused,
+    )
+
+
+class SqliteSubjectRepository:
+    """Subject readings accumulate, keyed by the caption they read.
+
+    The table is additive to schema version 2, so an existing database
+    gains it on connect. See ADR-0020.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, reading: SubjectExtraction) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO subjects"
+                " (key, labels, model, created_at, refused)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (
+                    reading.key.value,
+                    json.dumps(list(reading.labels)),
+                    reading.model,
+                    reading.created_at.isoformat(),
+                    reading.refused,
+                ),
+            )
+
+    def get(self, key: CaptionKey) -> SubjectExtraction | None:
+        row = self._connection.execute(
+            "SELECT key, labels, model, created_at, refused FROM subjects WHERE key = ?",
+            (key.value,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_subjects(row)
+
+    def all(self) -> tuple[SubjectExtraction, ...]:
+        cursor = self._connection.execute(
+            "SELECT key, labels, model, created_at, refused FROM subjects ORDER BY rowid"
+        )
+        return tuple(_to_subjects(row) for row in cursor)

@@ -14,17 +14,19 @@ from pathlib import Path
 from typing import Any
 
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
-from kiseki.adapters.ollama.models import OllamaImageCaptioner
+from kiseki.adapters.ollama.models import OllamaImageCaptioner, OllamaLanguageModel
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
+    SqliteSubjectRepository,
     connect,
 )
 from kiseki.application.captioning import run_captioning
 from kiseki.application.pipeline import Pipeline, Report
+from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -253,6 +255,23 @@ def _command_caption(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_subjects(args: argparse.Namespace) -> int:
+    connection = connect(_paths_for(args).db_path)
+    report = run_subject_extraction(
+        captions=SqliteCaptionRepository(connection),
+        subjects=SqliteSubjectRepository(connection),
+        language_model=OllamaLanguageModel(),
+        limit=args.limit,
+    )
+    print(RULE)
+    print(f"  extracted     {report.extracted}")
+    print(f"  already done  {report.already_extracted}")
+    print(f"  refused       {report.refused}")
+    if report.paused:
+        print("\n  paused: the model was unavailable; run again to resume")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -284,6 +303,10 @@ def build_parser() -> argparse.ArgumentParser:
     caption = commands.add_parser("caption", help="describe the stays with a vision model")
     caption.add_argument("--limit", type=int, default=None, help="caption at most this many stays")
     caption.set_defaults(run=_command_caption)
+
+    subjects = commands.add_parser("subjects", help="name the subjects of the captions")
+    subjects.add_argument("--limit", type=int, default=None, help="read at most this many captions")
+    subjects.set_defaults(run=_command_subjects)
 
     return parser
 
