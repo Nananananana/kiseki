@@ -1,6 +1,6 @@
 """The narrative stage speaks only from a closed list of facts."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.adapters.fake.models import FakeLanguageModel
 from kiseki.adapters.memory.repositories import (
@@ -17,8 +17,8 @@ from kiseki.domain.interests import (
     Profile,
 )
 
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
-LATER = datetime(2026, 6, 3, 10, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
+LATER = datetime(2026, 6, 3, 10, tzinfo=UTC)
 
 
 def _report() -> Report:
