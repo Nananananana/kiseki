@@ -25,12 +25,14 @@ from kiseki.adapters.sqlite.store import (
     connect,
 )
 from kiseki.application.captioning import run_captioning
+from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.shared.geo import GeoPoint
+from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 
 EXIT_OK = 0
 EXIT_BAD_INPUT = 2
@@ -274,6 +276,19 @@ def _command_subjects(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_tell(args: argparse.Namespace) -> int:
+    pipeline = _pipeline_for(args)
+    report = pipeline.report()
+    profile = pipeline.profile()
+    try:
+        story = tell(profile, report, OllamaLanguageModel(), language=args.lang)
+    except (ModelRefusedError, ModelUnavailableError) as error:
+        print(f"the model could not answer: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    print(story)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -309,6 +324,10 @@ def build_parser() -> argparse.ArgumentParser:
     subjects = commands.add_parser("subjects", help="name the subjects of the captions")
     subjects.add_argument("--limit", type=int, default=None, help="read at most this many captions")
     subjects.set_defaults(run=_command_subjects)
+
+    telling = commands.add_parser("tell", help="say what the profile says, in prose")
+    telling.add_argument("--lang", default="ja", choices=["ja", "en"], help="output language")
+    telling.set_defaults(run=_command_tell)
 
     return parser
 
