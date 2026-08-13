@@ -30,16 +30,17 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS photos (
-    id           TEXT PRIMARY KEY,
-    captured_at  TEXT NOT NULL,
-    latitude     REAL,
-    longitude    REAL
+    id            TEXT PRIMARY KEY,
+    captured_at   TEXT NOT NULL,
+    latitude      REAL,
+    longitude     REAL,
+    thumbnail_ref TEXT
 );
 CREATE INDEX IF NOT EXISTS photos_captured_at ON photos (captured_at);
 
@@ -108,6 +109,8 @@ def connect(path: Path) -> sqlite3.Connection:
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
     if stored is None:
         connection.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+    elif stored[0] == 1:
+        _migrate_v1_to_v2(connection)
     elif stored[0] != SCHEMA_VERSION:
         connection.close()
         raise ValueError(f"database is at schema {stored[0]}, expected {SCHEMA_VERSION}")
@@ -116,10 +119,26 @@ def connect(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def _migrate_v1_to_v2(connection: sqlite3.Connection) -> None:
+    """The one change from 1 to 2: photos gained a thumbnail reference.
+
+    Additive and explicit. Existing rows keep NULL, meaning the record
+    predates the field; any version this code does not know is still
+    refused rather than guessed at. See ADR-0018.
+    """
+    connection.execute("ALTER TABLE photos ADD COLUMN thumbnail_ref TEXT")
+    connection.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
+
+
 def _to_observation(row: tuple[Any, ...]) -> PhotoObservation:
-    identifier, captured_at, latitude, longitude = row
+    identifier, captured_at, latitude, longitude, thumbnail_ref = row
     place = GeoPoint(latitude, longitude) if latitude is not None else None
-    return PhotoObservation(PhotoId(identifier), datetime.fromisoformat(captured_at), place)
+    return PhotoObservation(
+        PhotoId(identifier),
+        datetime.fromisoformat(captured_at),
+        place,
+        thumbnail_ref=thumbnail_ref,
+    )
 
 
 class SqlitePhotoRepository:
@@ -133,26 +152,29 @@ class SqlitePhotoRepository:
                 item.captured_at.isoformat(),
                 item.location.latitude if item.location else None,
                 item.location.longitude if item.location else None,
+                item.thumbnail_ref,
             )
             for item in observations
         ]
         with self._connection:
             self._connection.executemany(
-                "INSERT OR REPLACE INTO photos (id, captured_at, latitude, longitude)"
-                " VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO photos"
+                " (id, captured_at, latitude, longitude, thumbnail_ref)"
+                " VALUES (?, ?, ?, ?, ?)",
                 rows,
             )
         return len(rows)
 
     def all(self) -> tuple[PhotoObservation, ...]:
         cursor = self._connection.execute(
-            "SELECT id, captured_at, latitude, longitude FROM photos ORDER BY captured_at"
+            "SELECT id, captured_at, latitude, longitude, thumbnail_ref FROM photos"
+            " ORDER BY captured_at"
         )
         return tuple(_to_observation(row) for row in cursor)
 
     def between(self, start: datetime, end: datetime) -> tuple[PhotoObservation, ...]:
         cursor = self._connection.execute(
-            "SELECT id, captured_at, latitude, longitude FROM photos"
+            "SELECT id, captured_at, latitude, longitude, thumbnail_ref FROM photos"
             " WHERE captured_at >= ? AND captured_at <= ? ORDER BY captured_at",
             (start.isoformat(), end.isoformat()),
         )

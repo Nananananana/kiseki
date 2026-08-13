@@ -1,10 +1,19 @@
 """The profile command reads the measures as interests and prints them."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 from kiseki.interfaces.cli import EXIT_OK, main
+
+
+@pytest.fixture(autouse=True)
+def isolated_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the test away from the developer's .env and KISEKI_* environment."""
+    for key in [name for name in os.environ if name.startswith("KISEKI_")]:
+        monkeypatch.delenv(key)
+    monkeypatch.chdir(tmp_path)
 
 
 def _run(tmp_path: Path, *arguments: str) -> int:
