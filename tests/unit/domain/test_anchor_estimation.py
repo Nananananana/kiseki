@@ -21,6 +21,9 @@ WORKPLACE = (34.7020, 135.4960)
 FAMILY = (35.0116, 135.7681)
 ELSEWHERE = (43.0687, 141.3508)
 
+WEEKEND_DAYS = (6, 7, 13, 14, 20, 21, 27, 28)
+WEEKDAY_DAYS = (1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23, 24, 25)
+
 
 def stop(
     name: str,
@@ -148,3 +151,38 @@ class TestSettings:
     def test_defaults_apply_when_none_are_given(self) -> None:
         stops = nightly(HOME, range(1, 11))
         assert estimate_anchors(stops) == estimate_anchors(stops, AnchorSettings())
+
+
+class TestFrequentPlacesThatAreNotBases:
+    """A place can be visited often and still not be somewhere you operate from."""
+
+    def test_a_regular_haunt_visited_at_weekends_is_not_an_anchor(self) -> None:
+        """A favourite cafe is somewhere chosen, not somewhere lived from.
+
+        Classifying it as an anchor would remove it from the outings, and with
+        it the clearest evidence of what the person likes. See ADR-0011.
+        """
+        home = nightly(HOME, range(1, 26), "home")
+        cafe = [stop("cafe", day, 13, 15, FAMILY) for day in WEEKEND_DAYS]
+        anchors = estimate_anchors([*home, *cafe])
+
+        assert len(anchors) == 1
+        assert anchors[0].kind == AnchorKind.PRIMARY
+
+    def test_weekend_frequency_alone_never_makes_an_anchor(self) -> None:
+        """Neither slept at nor worked at, however many times it was visited."""
+        afternoons = [stop("spot", day, 13, 15, HOME) for day in WEEKEND_DAYS]
+        assert estimate_anchors(afternoons) == ()
+
+    def test_weekday_afternoons_are_a_workplace_not_nothing(self) -> None:
+        """The exception that proves the rule: work is somewhere you act from."""
+        afternoons = [stop("office", day, 13, 15, HOME) for day in WEEKDAY_DAYS]
+        anchors = estimate_anchors(afternoons)
+        assert len(anchors) == 1
+        assert anchors[0].kind == AnchorKind.WORKPLACE
+
+    def test_but_sleeping_there_does(self) -> None:
+        home = nightly(HOME, range(1, 26), "home")
+        elsewhere = nightly(FAMILY, range(1, 26, 3), "elsewhere")
+        kinds = {anchor.kind for anchor in estimate_anchors([*home, *elsewhere])}
+        assert kinds == {AnchorKind.PRIMARY, AnchorKind.SECONDARY}
