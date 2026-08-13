@@ -5,7 +5,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-
 from conftest import observation, outing, stop
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
@@ -63,9 +62,7 @@ class TestPersistence:
         assert SqlitePhotoRepository(second).count() == 2
         second.close()
 
-    def test_replacing_outings_removes_their_stops(
-        self, connection: sqlite3.Connection
-    ) -> None:
+    def test_replacing_outings_removes_their_stops(self, connection: sqlite3.Connection) -> None:
         """Orphaned rows would silently inflate every later query."""
         outings = SqliteOutingRepository(connection)
         outings.replace_all([outing(stop("a", 9, 11, 35.0, 135.0))])

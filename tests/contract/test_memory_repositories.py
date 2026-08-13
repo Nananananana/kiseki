@@ -1,7 +1,6 @@
 """The in-memory fakes must satisfy the same contract as the real thing."""
 
 import pytest
-
 from kiseki.adapters.memory.repositories import (
     InMemoryAnchorRepository,
     InMemoryOutingRepository,

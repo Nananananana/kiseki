@@ -8,7 +8,6 @@ suite against both is what stops that happening.
 from datetime import timedelta
 
 import pytest
-
 from conftest import anchor, at, observation, outing, photo_id, stop
 from kiseki.ports.repositories import (
     AnchorRepository,
@@ -55,9 +54,7 @@ class PhotoRepositoryContract:
         photos.save_all([observation(0, 9, located=False)])
         assert photos.all()[0].location is None
 
-    def test_saving_the_same_photograph_twice_stores_it_once(
-        self, photos: PhotoRepository
-    ) -> None:
+    def test_saving_the_same_photograph_twice_stores_it_once(self, photos: PhotoRepository) -> None:
         """Ingestion runs overlap. Re-importing must not duplicate."""
         photos.save_all([observation(0, 9)])
         photos.save_all([observation(0, 9)])

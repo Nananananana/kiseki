@@ -48,9 +48,7 @@ def outing(*stops: Stop) -> Outing:
 def anchor(visits: int = 52, nights: int = 3) -> Anchor:
     return Anchor(
         area=GeoArea(GeoPoint(34.7810, 135.4700), Distance(500)),
-        period=TimeRange(
-            datetime(2025, 1, 1, tzinfo=JST), datetime(2026, 8, 1, tzinfo=JST)
-        ),
+        period=TimeRange(datetime(2025, 1, 1, tzinfo=JST), datetime(2026, 8, 1, tzinfo=JST)),
         visit_days=visits,
         night_days=nights,
         weekday_days=visits,
