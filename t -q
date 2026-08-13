@@ -1,0 +1,134 @@
+[1mdiff --git a/packages/kiseki-core/src/kiseki/application/pipeline.py b/packages/kiseki-core/src/kiseki/application/pipeline.py[m
+[1mindex 602c6e6..bc7d674 100644[m
+[1m--- a/packages/kiseki-core/src/kiseki/application/pipeline.py[m
+[1m+++ b/packages/kiseki-core/src/kiseki/application/pipeline.py[m
+[36m@@ -17,13 +17,16 @@[m [mfrom kiseki.domain.analytics.analytics import ([m
+     summarise_rhythm,[m
+ )[m
+ from kiseki.domain.anchor.anchor import Anchor[m
+[32m+[m[32mfrom kiseki.domain.interests import Profile[m
+ from kiseki.domain.outing.outing import Outing[m
+ from kiseki.domain.photo.observation import PhotoObservation[m
+ from kiseki.domain.services.anchor_estimation import estimate_anchors[m
+[32m+[m[32mfrom kiseki.domain.services.interest_derivation import derive_interests[m
+ from kiseki.domain.services.outing_assembly import assemble_outings[m
+ from kiseki.domain.services.stop_extraction import extract_stops[m
+ from kiseki.domain.shared.geo import Distance[m
+ from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings[m
+[32m+[m[32mfrom kiseki.ports.profiles import ProfileRepository[m
+ from kiseki.ports.repositories import ([m
+     AnchorRepository,[m
+     OutingRepository,[m
+[36m@@ -72,11 +75,13 @@[m [mclass Pipeline:[m
+         outings: OutingRepository,[m
+         anchors: AnchorRepository,[m
+         settings: PipelineSettings | None = None,[m
+[32m+[m[32m        profiles: ProfileRepository | None = None,[m
+     ) -> None:[m
+         self._photos = photos[m
+         self._outings = outings[m
+         self._anchors = anchors[m
+         self._settings = settings if settings is not None else PipelineSettings()[m
+[32m+[m[32m        self._profiles = profiles[m
+ [m
+     def ingest(self, observations: Sequence[PhotoObservation]) -> int:[m
+         """Take photographs in. Safe to run over an overlapping export."""[m
+[36m@@ -116,6 +121,20 @@[m [mclass Pipeline:[m
+             rhythm=summarise_rhythm(outings),[m
+         )[m
+ [m
+[32m+[m[32m    def profile(self, generated_at: datetime | None = None) -> Profile:[m
+[32m+[m[32m        """Read the built measures as interests, and keep the reading.[m
+[32m+[m
+[32m+[m[32m        Reads storage like report(); does not recompute. When a profile[m
+[32m+[m[32m        repository was given, every reading is saved, so the history a[m
+[32m+[m[32m        trend will one day be computed from starts accumulating now.[m
+[32m+[m[32m        """[m
+[32m+[m[32m        outings = self._outings.all()[m
+[32m+[m[32m        places = summarise_places(outings, self._settings.place_radius)[m
+[32m+[m[32m        profile = derive_interests(places, generated_at or datetime.now())[m
+[32m+[m[32m        if self._profiles is not None:[m
+[32m+[m[32m            self._profiles.save(profile)[m
+[32m+[m[32m        return profile[m
+[32m+[m
+     def _select([m
+         self, since: datetime | None, until: datetime | None[m
+     ) -> tuple[PhotoObservation, ...]:[m
+[1mdiff --git a/packages/kiseki-core/src/kiseki/interfaces/cli.py b/packages/kiseki-core/src/kiseki/interfaces/cli.py[m
+[1mindex d1e6f7e..2a3d807 100644[m
+[1m--- a/packages/kiseki-core/src/kiseki/interfaces/cli.py[m
+[1m+++ b/packages/kiseki-core/src/kiseki/interfaces/cli.py[m
+[36m@@ -21,6 +21,7 @@[m [mfrom kiseki.adapters.sqlite.store import ([m
+ )[m
+ from kiseki.application.pipeline import Pipeline, Report[m
+ from kiseki.config.paths import StoragePaths, resolve_paths[m
+[32m+[m[32mfrom kiseki.domain.interests import Profile[m
+ from kiseki.domain.photo.observation import PhotoId, PhotoObservation[m
+ from kiseki.domain.shared.geo import GeoPoint[m
+ [m
+[36m@@ -176,6 +177,54 @@[m [mdef _command_report(args: argparse.Namespace) -> int:[m
+     return EXIT_OK[m
+ [m
+ [m
+[32m+[m[32mdef _profile_payload(profile: Profile) -> dict[str, Any]:[m
+[32m+[m[32m    return {[m
+[32m+[m[32m        "generated_at": profile.generated_at.isoformat(),[m
+[32m+[m[32m        "interests": [[m
+[32m+[m[32m            {[m
+[32m+[m[32m                "topic": interest.topic,[m
+[32m+[m[32m                "score": interest.score,[m
+[32m+[m[32m                "confidence": interest.confidence,[m
+[32m+[m[32m                "first_seen": interest.first_seen.isoformat(),[m
+[32m+[m[32m                "last_seen": interest.last_seen.isoformat(),[m
+[32m+[m[32m                "evidence": [[m
+[32m+[m[32m                    {[m
+[32m+[m[32m                        "kind": evidence.kind.value,[m
+[32m+[m[32m                        "reference": evidence.reference,[m
+[32m+[m[32m                        "observed_at": evidence.observed_at.isoformat(),[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                    for evidence in interest.evidence[m
+[32m+[m[32m                ],[m
+[32m+[m[32m            }[m
+[32m+[m[32m            for interest in profile.ranked()[m
+[32m+[m[32m        ],[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _print_profile(profile: Profile) -> None:[m
+[32m+[m[32m    print(RULE)[m
+[32m+[m[32m    print(f"  interests     {len(profile.interests)}")[m
+[32m+[m
+[32m+[m[32m    if profile.interests:[m
+[32m+[m[32m        print("\n  places returned to, read as interests")[m
+[32m+[m[32m        for interest in profile.ranked():[m
+[32m+[m[32m            print([m
+[32m+[m[32m                f"    {interest.topic:<32}"[m
+[32m+[m[32m                f"  score {interest.score:>5.2f}"[m
+[32m+[m[32m                f"  confidence {interest.confidence:>5.2f}"[m
+[32m+[m[32m                f"  evidence {len(interest.evidence)}"[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _command_profile(args: argparse.Namespace) -> int:[m
+[32m+[m[32m    profile = _pipeline_for(args).profile()[m
+[32m+[m[32m    if args.json:[m
+[32m+[m[32m        print(json.dumps(_profile_payload(profile), indent=2))[m
+[32m+[m[32m    else:[m
+[32m+[m[32m        _print_profile(profile)[m
+[32m+[m[32m    return EXIT_OK[m
+[32m+[m
+[32m+[m
+ def build_parser() -> argparse.ArgumentParser:[m
+     parser = argparse.ArgumentParser([m
+         prog="kiseki",[m
+[36m@@ -200,6 +249,10 @@[m [mdef build_parser() -> argparse.ArgumentParser:[m
+     report.add_argument("--json", action="store_true", help="machine readable output")[m
+     report.set_defaults(run=_command_report)[m
+ [m
+[32m+[m[32m    profile = commands.add_parser("profile", help="read the measures as interests")[m
+[32m+[m[32m    profile.add_argument("--json", action="store_true", help="machine readable output")[m
+[32m+[m[32m    profile.set_defaults(run=_command_profile)[m
+[32m+[m
+     return parser[m
+ [m
+ [m
