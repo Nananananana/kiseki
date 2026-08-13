@@ -6,23 +6,22 @@ for both.
 """
 
 import pytest
-
-from kiseki.ports.models import ModelRefused, ModelUnavailable
+from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 
 
 class TestModelErrors:
     def test_unavailable_means_retrying_may_work(self) -> None:
         """A timeout, a rate limit, a model still loading."""
-        assert issubclass(ModelUnavailable, RuntimeError)
+        assert issubclass(ModelUnavailableError, RuntimeError)
 
     def test_refused_means_retrying_will_not(self) -> None:
         """A malformed request, an image too large, content declined."""
-        assert issubclass(ModelRefused, RuntimeError)
+        assert issubclass(ModelRefusedError, RuntimeError)
 
     def test_they_are_distinct(self) -> None:
-        assert not issubclass(ModelRefused, ModelUnavailable)
-        assert not issubclass(ModelUnavailable, ModelRefused)
+        assert not issubclass(ModelRefusedError, ModelUnavailableError)
+        assert not issubclass(ModelUnavailableError, ModelRefusedError)
 
     def test_both_carry_a_message(self) -> None:
-        with pytest.raises(ModelUnavailable, match="took too long"):
-            raise ModelUnavailable("the model took too long to answer")
+        with pytest.raises(ModelUnavailableError, match="took too long"):
+            raise ModelUnavailableError("the model took too long to answer")

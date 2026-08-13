@@ -1,7 +1,6 @@
 """Specification for the values that cross the model ports."""
 
 import pytest
-
 from kiseki.ports.models import CaptionRequest, Completion, Usage
 
 

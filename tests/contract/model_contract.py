@@ -6,7 +6,6 @@ ordering, usage accounting, and which exception means retry.
 """
 
 import pytest
-
 from kiseki.ports.models import (
     CaptionRequest,
     ImageCaptioner,

@@ -1,13 +1,12 @@
 """The fakes must satisfy the same contract a real adapter will."""
 
 import pytest
-
 from kiseki.adapters.fake.models import (
     FakeImageCaptioner,
     FakeLanguageModel,
     FakeTextEmbedder,
 )
-from kiseki.ports.models import CaptionRequest, ModelUnavailable
+from kiseki.ports.models import CaptionRequest, ModelUnavailableError
 from model_contract import (
     ImageCaptionerContract,
     LanguageModelContract,
@@ -53,12 +52,12 @@ class TestFakesAreControllable:
     def test_a_failure_can_be_provoked(self) -> None:
         """Resumable batching cannot be tested without a way to fail."""
         captioner = FakeImageCaptioner(fail_on=lambda request: b"bad" in request.images[0])
-        with pytest.raises(ModelUnavailable):
+        with pytest.raises(ModelUnavailableError):
             captioner.caption([CaptionRequest((b"bad image",), "describe")])
 
     def test_a_failure_is_counted(self) -> None:
         captioner = FakeImageCaptioner(fail_on=lambda request: True)
-        with pytest.raises(ModelUnavailable):
+        with pytest.raises(ModelUnavailableError):
             captioner.caption([CaptionRequest((b"image",), "describe")])
         assert captioner.usage.failures == 1
 
