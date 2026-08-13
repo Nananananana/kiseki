@@ -1,10 +1,11 @@
 """The fake profile repository honours the shared contract."""
 
+import pytest
 from kiseki.adapters.fake.profiles import FakeProfileRepository
-from kiseki.ports.profiles import ProfileRepository
 from profile_contract import ProfileRepositoryContract
 
 
 class TestFakeProfileRepository(ProfileRepositoryContract):
-    def make_repository(self) -> ProfileRepository:
+    @pytest.fixture
+    def profiles(self) -> FakeProfileRepository:
         return FakeProfileRepository()

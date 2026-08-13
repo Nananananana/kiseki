@@ -17,6 +17,7 @@ from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
+    SqliteProfileRepository,
     connect,
 )
 from kiseki.application.pipeline import Pipeline, Report
@@ -65,6 +66,7 @@ def _pipeline_for(args: argparse.Namespace) -> Pipeline:
         SqlitePhotoRepository(connection),
         SqliteOutingRepository(connection),
         SqliteAnchorRepository(connection),
+        profiles=SqliteProfileRepository(connection),
     )
 
 

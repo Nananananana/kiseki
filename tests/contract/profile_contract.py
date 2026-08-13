@@ -1,11 +1,13 @@
 """Shared contract for every ProfileRepository implementation.
 
-Any implementation, fake or real, inherits these tests unchanged, so
-the fake cannot drift from the behaviour the application relies on.
+Applied to both the fake and the SQLite implementation, in the same
+fixture style as the other repository contracts. A fake that drifts
+from the real thing is worse than no fake at all.
 """
 
 from datetime import UTC, datetime
 
+import pytest
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -39,45 +41,38 @@ def _at(day: int) -> datetime:
 
 
 class ProfileRepositoryContract:
-    """Inherit and implement make_repository to join the contract."""
+    @pytest.fixture
+    def profiles(self) -> ProfileRepository:
+        raise NotImplementedError("override the 'profiles' fixture")
 
-    def make_repository(self) -> ProfileRepository:
-        raise NotImplementedError
+    def test_latest_is_none_before_any_save(self, profiles: ProfileRepository) -> None:
+        assert profiles.latest() is None
 
-    def test_latest_is_none_before_any_save(self) -> None:
-        repository = self.make_repository()
-        assert repository.latest() is None
+    def test_history_is_empty_before_any_save(self, profiles: ProfileRepository) -> None:
+        assert profiles.history() == ()
 
-    def test_history_is_empty_before_any_save(self) -> None:
-        repository = self.make_repository()
-        assert repository.history() == ()
-
-    def test_latest_returns_the_saved_profile(self) -> None:
-        repository = self.make_repository()
+    def test_latest_returns_the_saved_profile(self, profiles: ProfileRepository) -> None:
         profile = build_profile(_at(1))
-        repository.save(profile)
-        assert repository.latest() == profile
+        profiles.save(profile)
+        assert profiles.latest() == profile
 
-    def test_latest_returns_the_most_recent_save(self) -> None:
-        repository = self.make_repository()
+    def test_latest_returns_the_most_recent_save(self, profiles: ProfileRepository) -> None:
         earlier = build_profile(_at(1))
         later = build_profile(_at(2))
-        repository.save(earlier)
-        repository.save(later)
-        assert repository.latest() == later
+        profiles.save(earlier)
+        profiles.save(later)
+        assert profiles.latest() == later
 
-    def test_history_keeps_every_save_oldest_first(self) -> None:
-        repository = self.make_repository()
+    def test_history_keeps_every_save_oldest_first(self, profiles: ProfileRepository) -> None:
         first = build_profile(_at(1))
         second = build_profile(_at(2))
-        repository.save(first)
-        repository.save(second)
-        assert repository.history() == (first, second)
+        profiles.save(first)
+        profiles.save(second)
+        assert profiles.history() == (first, second)
 
-    def test_a_saved_profile_keeps_its_evidence(self) -> None:
-        repository = self.make_repository()
-        repository.save(build_profile(_at(1), topic="anchor-7"))
-        recalled = repository.latest()
+    def test_a_saved_profile_keeps_its_evidence(self, profiles: ProfileRepository) -> None:
+        profiles.save(build_profile(_at(1), topic="anchor-7"))
+        recalled = profiles.latest()
         assert recalled is not None
         interest = recalled.interests[0]
         assert interest.topic == "anchor-7"
