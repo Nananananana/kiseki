@@ -130,7 +130,9 @@ class Pipeline:
         """
         outings = self._outings.all()
         places = summarise_places(outings, self._settings.place_radius)
-        profile = derive_interests(places, generated_at or datetime.now())
+        profile = derive_interests(
+            places, generated_at or datetime.now(), anchors=self._anchors.all()
+        )
         if self._profiles is not None:
             self._profiles.save(profile)
         return profile
