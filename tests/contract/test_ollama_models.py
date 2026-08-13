@@ -13,8 +13,6 @@ runnable against real adapters is a refinement for later.
 from io import BytesIO
 
 import pytest
-from PIL import Image
-
 from kiseki.adapters.ollama.models import (
     OllamaImageCaptioner,
     OllamaLanguageModel,
@@ -22,6 +20,7 @@ from kiseki.adapters.ollama.models import (
 )
 from kiseki.ports.models import CaptionRequest
 from model_contract import LanguageModelContract, TextEmbedderContract
+from PIL import Image
 
 pytestmark = pytest.mark.llm
 
