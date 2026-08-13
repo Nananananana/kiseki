@@ -170,6 +170,10 @@ uv run kiseki-ingest ~/photos ~/kiseki-data \
 uv run kiseki ingest ~/kiseki-data/photo-records.json
 uv run kiseki build
 uv run kiseki report
+uv run kiseki caption    # describe each stay with a local vision model
+uv run kiseki subjects   # name what the captions were about
+uv run kiseki profile    # read the measures and subjects as interests
+uv run kiseki tell       # a cited narration of the profile, in Japanese
 ```
 
 `kiseki report --json` prints the same measures as a document.
@@ -203,7 +207,7 @@ can check it.
 ## Development
 
 ```bash
-uv run pytest          # 404 tests, none of which call a model
+uv run pytest          # 618 tests, none of which call a model
 uv run mypy packages   # strict
 uv run lint-imports    # the architecture, as four enforced contracts
 ```
