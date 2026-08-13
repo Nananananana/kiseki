@@ -144,10 +144,17 @@ class TestTheEvidence:
     def test_is_capped_at_the_ends_of_the_pattern(self) -> None:
         readings, captions, photos = [], [], []
         for index in range(12):
-            caption = _caption(f"sha256:{index:02d}")
+            caption = _caption(f"sha256:r{index:02d}")
             captions.append(caption)
-            photos.append(_photo(f"sha256:{index:02d}", index + 1))
-            readings.append(_reading(caption, "ramen", f"unique-{index}"))
+            photos.append(_photo(f"sha256:r{index:02d}", index + 1))
+            readings.append(_reading(caption, "ramen"))
+        # Enough other readings that twelve sightings stay at a quarter,
+        # so the cap is what this test exercises, not the ambient rule.
+        for index in range(36):
+            caption = _caption(f"sha256:f{index:02d}")
+            captions.append(caption)
+            photos.append(_photo(f"sha256:f{index:02d}", 20))
+            readings.append(_reading(caption, f"unique-{index}"))
         interest = next(
             item
             for item in derive_subject_interests(readings, captions, photos)
@@ -155,4 +162,4 @@ class TestTheEvidence:
         )
         assert len(interest.evidence) == 10
         assert interest.evidence[0].observed_at == photos[0].captured_at
-        assert interest.evidence[-1].observed_at == photos[-1].captured_at
+        assert interest.evidence[-1].observed_at == photos[11].captured_at
