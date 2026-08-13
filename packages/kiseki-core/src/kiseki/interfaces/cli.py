@@ -21,6 +21,7 @@ from kiseki.adapters.sqlite.store import (
 )
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.config.paths import StoragePaths, resolve_paths
+from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.shared.geo import GeoPoint
 
@@ -176,6 +177,54 @@ def _command_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _profile_payload(profile: Profile) -> dict[str, Any]:
+    return {
+        "generated_at": profile.generated_at.isoformat(),
+        "interests": [
+            {
+                "topic": interest.topic,
+                "score": interest.score,
+                "confidence": interest.confidence,
+                "first_seen": interest.first_seen.isoformat(),
+                "last_seen": interest.last_seen.isoformat(),
+                "evidence": [
+                    {
+                        "kind": evidence.kind.value,
+                        "reference": evidence.reference,
+                        "observed_at": evidence.observed_at.isoformat(),
+                    }
+                    for evidence in interest.evidence
+                ],
+            }
+            for interest in profile.ranked()
+        ],
+    }
+
+
+def _print_profile(profile: Profile) -> None:
+    print(RULE)
+    print(f"  interests     {len(profile.interests)}")
+
+    if profile.interests:
+        print("\n  places returned to, read as interests")
+        for interest in profile.ranked():
+            print(
+                f"    {interest.topic:<32}"
+                f"  score {interest.score:>5.2f}"
+                f"  confidence {interest.confidence:>5.2f}"
+                f"  evidence {len(interest.evidence)}"
+            )
+
+
+def _command_profile(args: argparse.Namespace) -> int:
+    profile = _pipeline_for(args).profile()
+    if args.json:
+        print(json.dumps(_profile_payload(profile), indent=2))
+    else:
+        _print_profile(profile)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -199,6 +248,10 @@ def build_parser() -> argparse.ArgumentParser:
     report = commands.add_parser("report", help="print what the measures say")
     report.add_argument("--json", action="store_true", help="machine readable output")
     report.set_defaults(run=_command_report)
+
+    profile = commands.add_parser("profile", help="read the measures as interests")
+    profile.add_argument("--json", action="store_true", help="machine readable output")
+    profile.set_defaults(run=_command_profile)
 
     return parser
 
