@@ -104,7 +104,14 @@ def _group(stops: Sequence[Stop], radius: Distance) -> list[_Cluster]:
 
 def _classify(
     cluster: _Cluster, nights: int, is_most_slept_at: bool, settings: AnchorSettings
-) -> AnchorKind:
+) -> AnchorKind | None:
+    """Decide what sort of base this is, or that it is not a base at all.
+
+    Returning None matters as much as the three kinds. A cafe visited every
+    weekend is frequent, but it is somewhere the person chose to go, not
+    somewhere they operate from. Calling it an anchor would remove it from the
+    outings and with it the strongest evidence of what they like.
+    """
     if is_most_slept_at and nights > 0:
         return AnchorKind.PRIMARY
     if nights >= settings.secondary_min_nights:
@@ -115,7 +122,8 @@ def _classify(
     mostly_working_hours = cluster.stops_within(settings.working_hours) > total / 2
     if mostly_weekdays and mostly_working_hours:
         return AnchorKind.WORKPLACE
-    return AnchorKind.SECONDARY
+
+    return None
 
 
 def _area(cluster: _Cluster, settings: AnchorSettings) -> GeoArea:
@@ -148,11 +156,15 @@ def estimate_anchors(
 
     anchors = []
     for index, (cluster, nights) in enumerate(ranked):
+        kind = _classify(cluster, nights, index == 0, rules)
+        if kind is None:
+            continue
+
         visits = len(cluster.visit_days)
         saturation = rules.min_visits * CONFIDENCE_SATURATES_AT
         anchors.append(
             Anchor(
-                kind=_classify(cluster, nights, index == 0, rules),
+                kind=kind,
                 area=_area(cluster, rules),
                 period=cluster.period(),
                 visit_count=visits,
