@@ -24,7 +24,6 @@ DEFAULT_CLUSTER_RADIUS = Distance(500)
 DEFAULT_MIN_VISITS = 5
 DEFAULT_NIGHT_HOURS = (20, 6)
 DEFAULT_WORKING_HOURS = (10, 17)
-DEFAULT_SECONDARY_MIN_NIGHTS = 2
 
 
 @dataclass(frozen=True)
@@ -93,20 +92,15 @@ class AnchorSettings:
     night_hours
         The window that makes a visit a night. Wraps past midnight.
     working_hours
-        The window that, on weekdays and without nights, marks a workplace.
-    secondary_min_nights
-        Nights needed at a place other than the primary one for it to count as
-        a second base rather than an unusually long visit.
+        The window reported as the daytime share.
+
     """
 
     cluster_radius: Distance = DEFAULT_CLUSTER_RADIUS
     min_visits: int = DEFAULT_MIN_VISITS
     night_hours: tuple[int, int] = DEFAULT_NIGHT_HOURS
     working_hours: tuple[int, int] = DEFAULT_WORKING_HOURS
-    secondary_min_nights: int = DEFAULT_SECONDARY_MIN_NIGHTS
 
     def __post_init__(self) -> None:
         if self.min_visits < 1:
             raise ValueError("min_visits must be at least 1")
-        if self.secondary_min_nights < 1:
-            raise ValueError("secondary_min_nights must be at least 1")

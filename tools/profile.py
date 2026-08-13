@@ -132,10 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     anchors = estimate_anchors(extraction.stops, AnchorSettings(min_visits=args.min_visits))
-    assembly = assemble_outings(
-        extraction.stops, [anchor.area for anchor in anchors], OutingSettings()
-    )
-    outings = assembly.outings
+    outings = assemble_outings(extraction.stops, OutingSettings())
 
     moments = sorted(item.captured_at for item in observations)
     days = (moments[-1] - moments[0]).days or 1
@@ -149,19 +146,19 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  outings                {len(outings)}")
     print(f"  in transit             {len(extraction.in_transit)}")
     print(f"  without coordinates    {len(extraction.unlocated)}")
-    print(f"  at an anchor           {len(assembly.at_anchor)}")
 
     print()
     print(HEAVY)
-    print("WHERE THEY ARE BASED")
+    print("PLACES THEY KEEP RETURNING TO")
     print(LIGHT)
     if not anchors:
-        print("  no place was slept at or worked at often enough to count")
+        print("  no place was photographed on enough separate days")
     for anchor in anchors:
         print(
-            f"  {anchor.kind.value:10} ({anchor.area.center.latitude:.4f}, "
-            f"{anchor.area.center.longitude:.4f})  {anchor.visit_count:>4} days, "
-            f"{anchor.night_count:>4} nights, confidence {anchor.confidence.value:.2f}"
+            f"  ({anchor.area.center.latitude:.4f}, {anchor.area.center.longitude:.4f})"
+            f"  {anchor.visit_days:>4} days  {anchor.photograph_count:>5} photos"
+            f"   night {anchor.night_share:>4.0%}  weekday {anchor.weekday_share:>4.0%}"
+            f"  daytime {anchor.daytime_share:>4.0%}"
         )
 
     if not outings:
