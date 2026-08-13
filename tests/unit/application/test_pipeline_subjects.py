@@ -1,6 +1,6 @@
 """The pipeline merges subject interests into the one profile."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.adapters.fake.captions import FakeCaptionRepository
 from kiseki.adapters.fake.profiles import FakeProfileRepository
@@ -15,8 +15,8 @@ from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
 
 
 def _seeded() -> tuple[Pipeline, FakeProfileRepository]:

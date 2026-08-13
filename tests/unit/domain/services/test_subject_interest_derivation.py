@@ -6,10 +6,9 @@ choice, so they are excluded once there are enough readings to tell.
 See ADR-0021.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.interests import EvidenceKind
@@ -18,13 +17,11 @@ from kiseki.domain.services.subject_interest_derivation import (
     derive_subject_interests,
 )
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _photo(identifier: str, day: int) -> PhotoObservation:
-    return PhotoObservation(
-        PhotoId(identifier), datetime(2026, 1, day, 10, tzinfo=timezone.utc)
-    )
+    return PhotoObservation(PhotoId(identifier), datetime(2026, 1, day, 10, tzinfo=UTC))
 
 
 def _caption(identifier: str) -> Caption:
@@ -54,8 +51,8 @@ class TestWhatBecomesAnInterest:
         # score: 2 / (2 + 2); confidence: (2 / 6) * (30 / 60).
         assert interest.score == pytest.approx(0.5)
         assert interest.confidence == pytest.approx(1 / 6)
-        assert interest.first_seen == datetime(2026, 1, 1, 10, tzinfo=timezone.utc)
-        assert interest.last_seen == datetime(2026, 1, 31, 10, tzinfo=timezone.utc)
+        assert interest.first_seen == datetime(2026, 1, 1, 10, tzinfo=UTC)
+        assert interest.last_seen == datetime(2026, 1, 31, 10, tzinfo=UTC)
 
     def test_a_single_sighting_scores_but_earns_no_trust(self) -> None:
         caption = _caption("sha256:aa")

@@ -24,14 +24,17 @@ from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.outing_assembly import assemble_outings
 from kiseki.domain.services.stop_extraction import extract_stops
+from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
+from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
     AnchorRepository,
     OutingRepository,
     PhotoRepository,
 )
+from kiseki.ports.subjects import SubjectRepository
 
 DEFAULT_PLACE_RADIUS = Distance(500)
 
@@ -76,12 +79,16 @@ class Pipeline:
         anchors: AnchorRepository,
         settings: PipelineSettings | None = None,
         profiles: ProfileRepository | None = None,
+        captions: CaptionRepository | None = None,
+        subjects: SubjectRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
         self._anchors = anchors
         self._settings = settings if settings is not None else PipelineSettings()
         self._profiles = profiles
+        self._captions = captions
+        self._subjects = subjects
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -133,6 +140,14 @@ class Pipeline:
         profile = derive_interests(
             places, generated_at or datetime.now(), anchors=self._anchors.all()
         )
+        if self._captions is not None and self._subjects is not None:
+            profile = Profile(
+                generated_at=profile.generated_at,
+                interests=profile.interests
+                + derive_subject_interests(
+                    self._subjects.all(), self._captions.all(), self._photos.all()
+                ),
+            )
         if self._profiles is not None:
             self._profiles.save(profile)
         return profile
