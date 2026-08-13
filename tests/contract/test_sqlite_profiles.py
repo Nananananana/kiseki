@@ -2,11 +2,10 @@
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.sqlite.store import SqliteProfileRepository, connect
 from profile_contract import ProfileRepositoryContract, build_profile
 
@@ -29,7 +28,7 @@ class TestProfilePersistence:
 
     def test_a_profile_survives_reopening(self, tmp_path: Path) -> None:
         path = tmp_path / "kiseki.sqlite3"
-        saved = build_profile(datetime(2026, 3, 1, 12, tzinfo=timezone.utc))
+        saved = build_profile(datetime(2026, 3, 1, 12, tzinfo=UTC))
 
         first = connect(path)
         SqliteProfileRepository(first).save(saved)

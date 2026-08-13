@@ -3,8 +3,13 @@
 Timestamps are stored as ISO 8601 text including the offset. SQLite has no date
 type, and text sorts correctly for a fixed offset while keeping the offset
 itself, which the contract requires.
+
+Profiles are stored whole, as JSON documents. A profile is read and replaced
+as a unit and nothing yet queries inside one, so a document column carries it
+with less machinery than a normalised shape would.
 """
 
+import json
 import sqlite3
 from collections.abc import Sequence
 from datetime import datetime
@@ -12,6 +17,12 @@ from pathlib import Path
 from typing import Any
 
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.interests import (
+    EvidenceKind,
+    Interest,
+    InterestEvidence,
+    Profile,
+)
 from kiseki.domain.outing.outing import Outing, OutingId
 from kiseki.domain.outing.stop import Stop
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -73,6 +84,12 @@ CREATE TABLE IF NOT EXISTS anchors (
     photograph_count INTEGER NOT NULL,
     confidence       REAL NOT NULL,
     sample_size      INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TEXT NOT NULL,
+    document     TEXT NOT NULL
 );
 """
 
@@ -269,3 +286,85 @@ class SqliteAnchorRepository:
             )
             for row in cursor
         )
+
+
+def _profile_document(profile: Profile) -> dict[str, Any]:
+    return {
+        "generated_at": profile.generated_at.isoformat(),
+        "interests": [
+            {
+                "topic": interest.topic,
+                "score": interest.score,
+                "confidence": interest.confidence,
+                "first_seen": interest.first_seen.isoformat(),
+                "last_seen": interest.last_seen.isoformat(),
+                "evidence": [
+                    {
+                        "kind": evidence.kind.value,
+                        "reference": evidence.reference,
+                        "observed_at": evidence.observed_at.isoformat(),
+                    }
+                    for evidence in interest.evidence
+                ],
+            }
+            for interest in profile.interests
+        ],
+    }
+
+
+def _profile_from(document: str) -> Profile:
+    data = json.loads(document)
+    interests = tuple(
+        Interest(
+            topic=item["topic"],
+            score=item["score"],
+            confidence=item["confidence"],
+            evidence=tuple(
+                InterestEvidence(
+                    kind=EvidenceKind(entry["kind"]),
+                    reference=entry["reference"],
+                    observed_at=datetime.fromisoformat(entry["observed_at"]),
+                )
+                for entry in item["evidence"]
+            ),
+            first_seen=datetime.fromisoformat(item["first_seen"]),
+            last_seen=datetime.fromisoformat(item["last_seen"]),
+        )
+        for item in data["interests"]
+    )
+    return Profile(
+        generated_at=datetime.fromisoformat(data["generated_at"]),
+        interests=interests,
+    )
+
+
+class SqliteProfileRepository:
+    """Profiles accumulate like photographs: every reading is kept.
+
+    The history is the raw material a trend will be computed from, so
+    nothing is replaced. Each profile is one JSON document; the table
+    is additive to schema version 1, so an existing database gains it
+    on connect without a migration.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, profile: Profile) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO profiles (generated_at, document) VALUES (?, ?)",
+                (profile.generated_at.isoformat(), json.dumps(_profile_document(profile))),
+            )
+
+    def latest(self) -> Profile | None:
+        row = self._connection.execute(
+            "SELECT document FROM profiles ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return _profile_from(row[0])
+
+    def history(self) -> tuple[Profile, ...]:
+        cursor = self._connection.execute("SELECT document FROM profiles ORDER BY id")
+        return tuple(_profile_from(row[0]) for row in cursor)

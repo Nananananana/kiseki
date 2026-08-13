@@ -5,10 +5,9 @@ fixture style as the other repository contracts. A fake that drifts
 from the real thing is worse than no fake at all.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -38,7 +37,7 @@ def build_profile(generated_at: datetime, topic: str = "anchor-1") -> Profile:
 
 
 def _at(day: int) -> datetime:
-    return datetime(2026, 3, day, 12, tzinfo=timezone.utc)
+    return datetime(2026, 3, day, 12, tzinfo=UTC)
 
 
 class ProfileRepositoryContract:
