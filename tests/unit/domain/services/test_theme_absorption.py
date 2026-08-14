@@ -5,7 +5,7 @@ stop speaking solo. Ambient labels stay silent even inside a theme --
 ADR-0021 applies everywhere. See ADR-0024.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from kiseki.domain.caption.caption import Caption, CaptionKey
@@ -20,7 +20,9 @@ NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _photo(identifier: str, day: int) -> PhotoObservation:
-    return PhotoObservation(PhotoId(identifier), datetime(2026, 1, day, 10, tzinfo=UTC))
+    return PhotoObservation(
+        PhotoId(identifier), datetime(2026, 1, 1, 10, tzinfo=UTC) + timedelta(days=day - 1)
+    )
 
 
 def _caption(identifier: str) -> Caption:
