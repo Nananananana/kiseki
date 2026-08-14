@@ -8,7 +8,6 @@ order. Callers see one batch in, one list out, exactly as before.
 from typing import Any
 
 import pytest
-
 from kiseki.adapters.ollama import models
 from kiseki.adapters.ollama.models import OllamaTextEmbedder
 from kiseki.ports.models import ModelRefusedError
@@ -27,9 +26,7 @@ class EchoingPost:
         # Encode each text's global index in its vector so order
         # survives concatenation checks.
         return {
-            "embeddings": [
-                [1.0, 0.0] if text.endswith("even") else [0.0, 1.0] for text in texts
-            ]
+            "embeddings": [[1.0, 0.0] if text.endswith("even") else [0.0, 1.0] for text in texts]
         }
 
 
@@ -58,9 +55,7 @@ class TestEmbedChunking:
         OllamaTextEmbedder(dimensions=2, post=post).embed(["one-even", "two-odd"])
         assert post.sizes == [2]
 
-    def test_a_short_answer_for_a_chunk_is_refused(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_a_short_answer_for_a_chunk_is_refused(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(models, "EMBED_BATCH_SIZE", 2)
 
         def starving(path: str, payload: dict[str, Any]) -> dict[str, Any]:

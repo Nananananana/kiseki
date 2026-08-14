@@ -118,6 +118,9 @@ Read `docs/adr/` (0001-0022) before changing anything they cover.
   middling-similarity joins; named from a closed member list with a
   deterministic fallback; `kiseki themes` computes and stores the
   set, keyed by the label universe.
+- Fixed: the embed adapter sends chunked requests (32 inputs each);
+  a ~300-input batch crashed Ollama's bge-m3 runner on Windows,
+  reproduced with a bare HTTP call.
 - Next (v0.2.x, in order): merge themes into the profile (theme
   interests aggregate their members' sightings; member labels are
   absorbed); trend (rising/declining from the stored profile
