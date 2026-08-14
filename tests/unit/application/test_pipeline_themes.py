@@ -1,6 +1,6 @@
 """The pipeline applies the latest stored theme set to the profile."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.adapters.fake.captions import FakeCaptionRepository
 from kiseki.adapters.fake.subjects import FakeSubjectRepository
@@ -16,8 +16,8 @@ from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
-WHEN = datetime(2026, 5, 3, 10, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
+WHEN = datetime(2026, 5, 3, 10, tzinfo=UTC)
 
 
 def _pipeline(themes: FakeThemeSetRepository | None) -> Pipeline:

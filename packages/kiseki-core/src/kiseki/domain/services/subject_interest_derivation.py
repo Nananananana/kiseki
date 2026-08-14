@@ -1,15 +1,16 @@
 """Reads the subject readings as interests.
 
 One label becomes one interest, with PHOTOGRAPH evidence pointing at
-the captions the label was read from. This is where interests gain
-human-readable topics, as ADR-0017 promised: the label describes what
-was photographed, not what a place is for.
+the captions the label was read from. When themes are given, a theme
+speaks for its members: the theme aggregates their sightings (a
+shared stay counts once) and the absorbed members stop speaking solo.
+See ADR-0021 and ADR-0024.
 
-Ambient labels are excluded by share: something that appears in more
-than a quarter of the readings describes the world the photographs
-were taken in, not a choice. The exclusion waits for enough readings
-to tell the difference. Everything here is deterministic; see
-ADR-0021.
+Ambient labels are excluded by share -- everywhere. They neither
+become solo interests nor contribute through a theme; a theme left
+with fewer than two contributing members is not emitted, and its
+remaining member speaks for itself again. Everything here is
+deterministic.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from datetime import datetime
 
 from kiseki.domain.caption.caption import Caption
 from kiseki.domain.caption.subjects import SubjectExtraction
+from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import EvidenceKind, Interest, InterestEvidence
 from kiseki.domain.photo.observation import PhotoObservation
 
@@ -47,13 +49,18 @@ MAX_EVIDENCE = 10
 capped. The full record always remains in the caption and subject
 stores; the evidence here is for showing, not for storage."""
 
+MIN_CONTRIBUTING_MEMBERS = 2
+"""A theme needs at least this many non-ambient members with
+sightings to be emitted; otherwise its members speak for themselves."""
+
 
 def derive_subject_interests(
     readings: Sequence[SubjectExtraction],
     captions: Sequence[Caption],
     photos: Sequence[PhotoObservation],
+    themes: Sequence[Theme] = (),
 ) -> tuple[Interest, ...]:
-    """Read every non-ambient label as an interest, strongest first.
+    """Read themes and non-ambient labels as interests, strongest first.
 
     A reading contributes one sighting per label, dated by the
     earliest photograph of its caption. Readings that were refused,
@@ -83,10 +90,29 @@ def derive_subject_interests(
     if not counted:
         return ()
 
-    interests = [
+    ambient = {label for label, entries in sightings.items() if _ambient(len(entries), counted)}
+
+    absorbed: set[str] = set()
+    theme_entries: dict[str, list[tuple[datetime, str]]] = {}
+    for theme in themes:
+        contributing = [
+            member for member in theme.members if member in sightings and member not in ambient
+        ]
+        if len(contributing) < MIN_CONTRIBUTING_MEMBERS:
+            continue
+        merged: dict[str, datetime] = {}
+        for member in contributing:
+            for observed, stay in sightings[member]:
+                if stay not in merged or observed < merged[stay]:
+                    merged[stay] = observed
+        theme_entries[theme.name] = [(observed, stay) for stay, observed in merged.items()]
+        absorbed.update(contributing)
+
+    interests = [_interest_for(name, entries) for name, entries in theme_entries.items()]
+    interests += [
         _interest_for(label, entries)
         for label, entries in sightings.items()
-        if not _ambient(len(entries), counted)
+        if label not in ambient and label not in absorbed
     ]
     return tuple(sorted(interests, key=lambda interest: (-interest.score, interest.topic)))
 

@@ -2,17 +2,16 @@
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from kiseki.adapters.fake.themes import FakeThemeSetRepository
 from kiseki.adapters.sqlite.store import SqliteThemeSetRepository, connect
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 from kiseki.ports.themes import ThemeSetRepository
 
-WHEN = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _theme_set(*labels: str) -> ThemeSet:
