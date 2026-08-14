@@ -38,6 +38,12 @@ DEFAULT_LANGUAGE_MODEL = "qwen2.5:14b-instruct-q4_K_M"
 DEFAULT_EMBEDDING_MODEL = "bge-m3"
 DEFAULT_EMBEDDING_DIMENSIONS = 1024
 
+EMBED_BATCH_SIZE = 32
+"""One logical embed batch travels as several requests of at most
+this many inputs. A ~300-input request has crashed Ollama's embedding
+runner outright (reproduced without this library); modest requests
+keep the runner alive, at the cost of seconds."""
+
 RETRYABLE_STATUSES = (408, 429)
 
 Post = Callable[[str, dict[str, Any]], dict[str, Any]]
@@ -186,18 +192,21 @@ class OllamaTextEmbedder:
         self._post = post if post is not None else _http_post(host, timeout)
 
     def embed(self, texts: Sequence[str]) -> list[tuple[float, ...]]:
-        if not texts:
-            return []
-        payload = {
-            "model": self._model,
-            "keep_alive": self._keep_alive,
-            "input": list(texts),
-        }
-        document = self._post("/api/embed", payload)
-        rows = document.get("embeddings", [])
-        vectors = [self._normalised(row) for row in rows]
-        if len(vectors) != len(texts):
-            raise ModelRefusedError(f"asked for {len(texts)} vectors, got {len(vectors)}")
+        items = list(texts)
+        vectors: list[tuple[float, ...]] = []
+        for start in range(0, len(items), EMBED_BATCH_SIZE):
+            chunk = items[start : start + EMBED_BATCH_SIZE]
+            payload = {
+                "model": self._model,
+                "keep_alive": self._keep_alive,
+                "input": chunk,
+            }
+            document = self._post("/api/embed", payload)
+            rows = document.get("embeddings", [])
+            answered = [self._normalised(row) for row in rows]
+            if len(answered) != len(chunk):
+                raise ModelRefusedError(f"asked for {len(chunk)} vectors, got {len(answered)}")
+            vectors.extend(answered)
         return vectors
 
     def _normalised(self, row: Sequence[float]) -> tuple[float, ...]:

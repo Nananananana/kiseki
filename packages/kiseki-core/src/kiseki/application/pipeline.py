@@ -35,6 +35,7 @@ from kiseki.ports.repositories import (
     PhotoRepository,
 )
 from kiseki.ports.subjects import SubjectRepository
+from kiseki.ports.themes import ThemeSetRepository
 
 DEFAULT_PLACE_RADIUS = Distance(500)
 
@@ -81,6 +82,7 @@ class Pipeline:
         profiles: ProfileRepository | None = None,
         captions: CaptionRepository | None = None,
         subjects: SubjectRepository | None = None,
+        themes: ThemeSetRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
@@ -89,6 +91,7 @@ class Pipeline:
         self._profiles = profiles
         self._captions = captions
         self._subjects = subjects
+        self._themes = themes
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -131,23 +134,29 @@ class Pipeline:
     def profile(self, generated_at: datetime | None = None) -> Profile:
         """Read the built measures as interests, and keep the reading.
 
-        Reads storage like report(); does not recompute. When a profile
-        repository was given, every reading is saved, so the history a
-        trend will one day be computed from starts accumulating now.
+        Reads storage like report(); does not recompute and calls no
+        model. When a profile repository was given, every reading is
+        saved, so the history a trend will one day be computed from
+        keeps accumulating.
         """
         outings = self._outings.all()
         places = summarise_places(outings, self._settings.place_radius)
-        profile = derive_interests(
-            places, generated_at or datetime.now(), anchors=self._anchors.all()
-        )
+        when = generated_at or datetime.now()
+        profile = derive_interests(places, when, anchors=self._anchors.all())
+
         if self._captions is not None and self._subjects is not None:
+            latest = self._themes.latest() if self._themes is not None else None
             profile = Profile(
-                generated_at=profile.generated_at,
+                generated_at=when,
                 interests=profile.interests
                 + derive_subject_interests(
-                    self._subjects.all(), self._captions.all(), self._photos.all()
+                    self._subjects.all(),
+                    self._captions.all(),
+                    self._photos.all(),
+                    themes=latest.themes if latest is not None else (),
                 ),
             )
+
         if self._profiles is not None:
             self._profiles.save(profile)
         return profile

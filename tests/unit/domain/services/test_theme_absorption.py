@@ -5,10 +5,9 @@ stop speaking solo. Ambient labels stay silent even inside a theme --
 ADR-0021 applies everywhere. See ADR-0024.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme
@@ -17,13 +16,11 @@ from kiseki.domain.services.subject_interest_derivation import (
     derive_subject_interests,
 )
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 def _photo(identifier: str, day: int) -> PhotoObservation:
-    return PhotoObservation(
-        PhotoId(identifier), datetime(2026, 1, day, 10, tzinfo=timezone.utc)
-    )
+    return PhotoObservation(PhotoId(identifier), datetime(2026, 1, day, 10, tzinfo=UTC))
 
 
 def _caption(identifier: str) -> Caption:
@@ -35,14 +32,10 @@ def _reading(caption: Caption, *labels: str) -> SubjectExtraction:
     return SubjectExtraction(caption.key, labels, "lm", NOW)
 
 
-def _outdoor_world() -> tuple[
-    list[SubjectExtraction], list[Caption], list[PhotoObservation]
-]:
+def _outdoor_world() -> tuple[list[SubjectExtraction], list[Caption], list[PhotoObservation]]:
     # Three stays: tree at all three, landscape at the first two.
     readings, captions, photos = [], [], []
-    for index, labels in enumerate(
-        [("tree", "landscape"), ("tree", "landscape"), ("tree",)]
-    ):
+    for index, labels in enumerate([("tree", "landscape"), ("tree", "landscape"), ("tree",)]):
         caption = _caption(f"sha256:{index:02d}")
         captions.append(caption)
         photos.append(_photo(f"sha256:{index:02d}", index * 30 + 1))
@@ -56,9 +49,7 @@ OUTDOOR = Theme(name="outdoor", members=("tree", "landscape"))
 class TestThemeAbsorption:
     def test_a_theme_aggregates_and_its_members_fall_silent(self) -> None:
         readings, captions, photos = _outdoor_world()
-        interests = derive_subject_interests(
-            readings, captions, photos, themes=(OUTDOOR,)
-        )
+        interests = derive_subject_interests(readings, captions, photos, themes=(OUTDOOR,))
         topics = [interest.topic for interest in interests]
         assert "outdoor" in topics
         assert "tree" not in topics
@@ -66,9 +57,7 @@ class TestThemeAbsorption:
 
     def test_a_shared_stay_counts_once(self) -> None:
         readings, captions, photos = _outdoor_world()
-        interests = derive_subject_interests(
-            readings, captions, photos, themes=(OUTDOOR,)
-        )
+        interests = derive_subject_interests(readings, captions, photos, themes=(OUTDOOR,))
         outdoor = next(item for item in interests if item.topic == "outdoor")
         # Three distinct stays, not five sightings: score 3 / (3 + 2).
         assert outdoor.score == pytest.approx(0.6)
@@ -77,8 +66,7 @@ class TestThemeAbsorption:
     def test_without_themes_nothing_changes(self) -> None:
         readings, captions, photos = _outdoor_world()
         topics = [
-            interest.topic
-            for interest in derive_subject_interests(readings, captions, photos)
+            interest.topic for interest in derive_subject_interests(readings, captions, photos)
         ]
         assert "tree" in topics
         assert "landscape" in topics
@@ -91,9 +79,7 @@ class TestThemeAbsorption:
         readings.append(_reading(extra, "ramen"))
         topics = [
             interest.topic
-            for interest in derive_subject_interests(
-                readings, captions, photos, themes=(OUTDOOR,)
-            )
+            for interest in derive_subject_interests(readings, captions, photos, themes=(OUTDOOR,))
         ]
         assert "ramen" in topics
         assert "outdoor" in topics

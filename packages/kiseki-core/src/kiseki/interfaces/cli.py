@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import Any
 
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
-from kiseki.adapters.ollama.models import OllamaImageCaptioner, OllamaLanguageModel
+from kiseki.adapters.ollama.models import (
+    OllamaImageCaptioner,
+    OllamaLanguageModel,
+    OllamaTextEmbedder,
+)
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
@@ -22,12 +26,14 @@ from kiseki.adapters.sqlite.store import (
     SqlitePhotoRepository,
     SqliteProfileRepository,
     SqliteSubjectRepository,
+    SqliteThemeSetRepository,
     connect,
 )
 from kiseki.application.captioning import run_captioning
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.subject_extraction import run_subject_extraction
+from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -78,6 +84,7 @@ def _pipeline_for(args: argparse.Namespace) -> Pipeline:
         profiles=SqliteProfileRepository(connection),
         captions=SqliteCaptionRepository(connection),
         subjects=SqliteSubjectRepository(connection),
+        themes=SqliteThemeSetRepository(connection),
     )
 
 
@@ -289,6 +296,28 @@ def _command_tell(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_themes(args: argparse.Namespace) -> int:
+    connection = connect(_paths_for(args).db_path)
+    try:
+        report = run_theming(
+            subjects=SqliteSubjectRepository(connection),
+            themes=SqliteThemeSetRepository(connection),
+            embedder=OllamaTextEmbedder(),
+            language_model=OllamaLanguageModel(),
+        )
+    except (ModelRefusedError, ModelUnavailableError) as error:
+        print(f"the model could not answer: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    print(RULE)
+    print(f"  themes          {report.themes_made}")
+    print(f"  labels          {report.labels_considered}")
+    if report.already_done:
+        print("  already done    (label set unchanged)")
+    if report.fallback_named:
+        print(f"  fallback names  {report.fallback_named}")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -328,6 +357,9 @@ def build_parser() -> argparse.ArgumentParser:
     telling = commands.add_parser("tell", help="say what the profile says, in prose")
     telling.add_argument("--lang", default="ja", choices=["ja", "en"], help="output language")
     telling.set_defaults(run=_command_tell)
+
+    themes = commands.add_parser("themes", help="gather the labels into themes")
+    themes.set_defaults(run=_command_themes)
 
     return parser
 
