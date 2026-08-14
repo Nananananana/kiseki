@@ -7,7 +7,6 @@ minimum, and no model is touched, so this stays in CI.
 from pathlib import Path
 
 import pytest
-
 from kiseki.interfaces.cli import EXIT_OK, main
 
 

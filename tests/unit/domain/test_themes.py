@@ -1,12 +1,11 @@
 """Themes: labels gathered under a name, keyed by the label universe."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 
-WHEN = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 class TestThemeSetKey:
@@ -42,7 +41,5 @@ class TestTheme:
 
 class TestThemeSet:
     def test_may_be_empty(self) -> None:
-        empty = ThemeSet(
-            key=ThemeSetKey.of(["tree"]), themes=(), model="", created_at=WHEN
-        )
+        empty = ThemeSet(key=ThemeSetKey.of(["tree"]), themes=(), model="", created_at=WHEN)
         assert empty.themes == ()

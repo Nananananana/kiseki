@@ -1,7 +1,7 @@
 """Theming: meaning gathers the labels, co-occurrence vouches for the stretch."""
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kiseki.adapters.fake.models import FakeLanguageModel
 from kiseki.adapters.fake.subjects import FakeSubjectRepository
@@ -16,7 +16,7 @@ from kiseki.domain.caption.caption import CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.photo.observation import PhotoId
 
-NOW = datetime(2026, 6, 1, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 # Hand-built unit vectors. tree/landscape are close (cos 0.96);
 # car sits in between (cos ~0.70 to their centroid): above the mid

@@ -19,6 +19,7 @@ from typing import Any
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
+from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -110,6 +111,13 @@ CREATE TABLE IF NOT EXISTS subjects (
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     refused    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS theme_sets (
+    key        TEXT PRIMARY KEY,
+    document   TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 """
 
@@ -518,3 +526,66 @@ class SqliteSubjectRepository:
             "SELECT key, labels, model, created_at, refused FROM subjects ORDER BY rowid"
         )
         return tuple(_to_subjects(row) for row in cursor)
+
+
+def _to_theme_set(row: tuple[Any, ...]) -> ThemeSet:
+    key, document, model, created_at = row
+    data = json.loads(document)
+    themes = tuple(
+        Theme(name=item["name"], members=tuple(item["members"])) for item in data["themes"]
+    )
+    return ThemeSet(
+        key=ThemeSetKey(key),
+        themes=themes,
+        model=model,
+        created_at=datetime.fromisoformat(created_at),
+    )
+
+
+class SqliteThemeSetRepository:
+    """Theme sets accumulate, keyed by the label universe they read.
+
+    The table is additive to schema version 2, so an existing database
+    gains it on connect. See ADR-0023.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, theme_set: ThemeSet) -> None:
+        document = json.dumps(
+            {
+                "themes": [
+                    {"name": theme.name, "members": list(theme.members)}
+                    for theme in theme_set.themes
+                ]
+            }
+        )
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO theme_sets (key, document, model, created_at)"
+                " VALUES (?, ?, ?, ?)",
+                (
+                    theme_set.key.value,
+                    document,
+                    theme_set.model,
+                    theme_set.created_at.isoformat(),
+                ),
+            )
+
+    def get(self, key: ThemeSetKey) -> ThemeSet | None:
+        row = self._connection.execute(
+            "SELECT key, document, model, created_at FROM theme_sets WHERE key = ?",
+            (key.value,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_theme_set(row)
+
+    def latest(self) -> ThemeSet | None:
+        row = self._connection.execute(
+            "SELECT key, document, model, created_at FROM theme_sets ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_theme_set(row)

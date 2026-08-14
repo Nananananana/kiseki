@@ -97,21 +97,31 @@ Read `docs/adr/` (0001-0022) before changing anything they cover.
   green-phase script (implementation). Scripts write files with
   UTF-8 no BOM, LF, resolved absolute paths, and edits that throw
   when their anchor is missing rather than corrupting a file.
+- Every raw .NET file call (ReadAllText/WriteAllText/AppendAllText),
+  including inline one-offs outside the helper functions, must
+  resolve the path with Join-Path $PWD first -- PowerShell's location
+  is not the process working directory. (A one-off CHANGELOG edit
+  once reached for a file in the user profile.)
 
 ## Current state
 
 - Version: v0.2.0 (release in progress).
-- Tests: 618 passing, 13 llm-marked and deselected in CI.
+- Tests: 8 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
   via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
-  `subjects`, `tell`.
-- Next (v0.2.x, in order): themes -- cluster subject labels with the
-  embedder plus stay co-occurrence, name clusters from a closed list;
-  trend (rising/declining from the profile history the repository
-  already accumulates); local REST API; visualisation with blurring.
+  `subjects`, `tell`, `themes`.
+- Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
+  embedding similarity, with stay co-occurrence vouching for
+  middling-similarity joins; named from a closed member list with a
+  deterministic fallback; `kiseki themes` computes and stores the
+  set, keyed by the label universe.
+- Next (v0.2.x, in order): merge themes into the profile (theme
+  interests aggregate their members' sightings; member labels are
+  absorbed); trend (rising/declining from the stored profile
+  history); local REST API; visualisation with blurring.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
