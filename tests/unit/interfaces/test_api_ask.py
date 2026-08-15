@@ -25,7 +25,7 @@ def _get(port: int, path: str):
 
 def test_ask_answers_the_contract():
     empty = Answer("ramen", "", 0.0, None, None, (), "")
-    server = _serving(lambda question, language: empty)
+    server = _serving(lambda question, language, since, until: empty)
     try:
         status, payload = _get(server.server_address[1], "/ask?q=ramen")
         assert status == 200
@@ -39,7 +39,7 @@ def test_ask_answers_the_contract():
 
 
 def test_ask_requires_a_question():
-    server = _serving(lambda question, language: None)
+    server = _serving(lambda question, language, since, until: None)
     try:
         try:
             _get(server.server_address[1], "/ask")

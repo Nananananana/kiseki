@@ -8,10 +8,12 @@ cannot make an answer more certain than the evidence is. With no
 evidence there is no model call at all. See ADR-0038.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
+from kiseki.domain.services.time_expressions import read_time_window
 from kiseki.ports.models import LanguageModel, TextEmbedder
 from kiseki.ports.search import SearchIndex
 
@@ -29,6 +31,11 @@ CONFIDENCE_HALF_FACTS = 2
 """Evidence pieces at which the coverage factor reaches one half."""
 
 
+def _local_now() -> datetime:
+    """The owner's clock, timezone aware, so windows compare with data."""
+    return datetime.now().astimezone()
+
+
 @dataclass(frozen=True)
 class Answer:
     """One answer and everything needed to check it."""
@@ -40,6 +47,8 @@ class Answer:
     last_seen: datetime | None
     evidence: tuple[Retrieval, ...]
     model: str
+    since: datetime | None = None
+    until: datetime | None = None
 
     @property
     def answered(self) -> bool:
@@ -78,15 +87,24 @@ def ask(
     limit: int = DEFAULT_LIMIT,
     since: datetime | None = None,
     until: datetime | None = None,
+    now: Callable[[], datetime] = _local_now,
 ) -> Answer:
-    """One answer. Model errors propagate to the caller."""
+    """One answer. Model errors propagate to the caller.
+
+    Words like "last year" in the question become the window unless
+    an explicit since/until is given (ADR-0039).
+    """
+    if since is None and until is None:
+        window = read_time_window(question, now())
+        if window is not None:
+            since, until = window.since, window.until
     results: tuple[Retrieval, ...] = ()
     if index.document_count() > 0:
         results = retrieve(
             index, embedder, embedding_model, question, limit=limit, since=since, until=until
         )
     if not results:
-        return Answer(question, "", 0.0, None, None, (), "")
+        return Answer(question, "", 0.0, None, None, (), "", since=since, until=until)
 
     observed = [item.document.observed_at for item in results]
     system = ASK_SYSTEM.format(language=LANGUAGE_NAMES.get(language, "English"))
@@ -100,4 +118,6 @@ def ask(
         last_seen=max(observed),
         evidence=results,
         model=completion.model,
+        since=since,
+        until=until,
     )
