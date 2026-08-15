@@ -160,3 +160,15 @@ uv run kiseki index                 # once, then after each refresh
 uv run kiseki ask "What do I keep photographing lately?"
 uv run kiseki ask --json "ramen"    # the answer contract as JSON
 ```
+
+Words like "last year" -- or their Japanese equivalents (kyonen,
+sakunen, YYYY-nen M-gatsu, koko N days, and so on) -- in the
+question become the time window automatically, from a closed,
+deterministic list (ADR-0039). `--since` / `--until` (ISO dates)
+override the words; `/ask` takes the same as `since`/`until`
+parameters, and the applied window travels in the answer contract.
+
+```bash
+uv run kiseki ask "What did I keep eating last year?"
+uv run kiseki ask --since 2025-01-01 --until 2025-12-31 "ramen"
+```

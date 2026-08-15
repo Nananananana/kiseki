@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 884 passing, 13 llm-marked and deselected in CI.
+- Tests: 906 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -221,5 +221,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   retrieval chooses the facts, the model phrases one cited answer
   over a closed numbered list (the ADR-0022 shape); confidence, time
   range and evidence come from the retrieval, never from the model;
-  no evidence means no model call. Hybrid search is complete; next
-  per proposals/0002: (3) temporal retrieval.
+  no evidence means no model call. Hybrid search is complete.
+- v0.4 (temporal, ADR-0039): a closed, deterministic list of
+  Japanese and English time expressions ("last year", kyonen,
+  YYYY-nen M-gatsu, koko-N-days) becomes the ask window, with no
+  model in the loop; explicit --since/--until (CLI) or since/until
+  (/ask) override the words; a question without an expression gets
+  no window rather than a guess, and the applied window travels in
+  the answer contract. Next per proposals/0002: (4) place entities.

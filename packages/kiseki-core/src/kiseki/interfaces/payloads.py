@@ -109,6 +109,8 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
         "first_seen": answer.first_seen.isoformat() if answer.first_seen else None,
         "last_seen": answer.last_seen.isoformat() if answer.last_seen else None,
         "model": answer.model,
+        "since": answer.since.isoformat() if answer.since else None,
+        "until": answer.until.isoformat() if answer.until else None,
         "evidence": [
             {
                 "doc_key": item.document.doc_key,

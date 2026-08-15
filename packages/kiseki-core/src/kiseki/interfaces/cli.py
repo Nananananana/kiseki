@@ -9,7 +9,7 @@ import argparse
 import json
 import sys
 from collections.abc import Callable, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -427,7 +427,22 @@ def _command_index(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _parse_moment(text: str, end_of_day: bool = False) -> datetime:
+    moment = datetime.fromisoformat(text)
+    if moment.tzinfo is None:
+        moment = moment.astimezone()
+    if end_of_day and len(text) == 10:
+        moment += timedelta(hours=23, minutes=59, seconds=59)
+    return moment
+
+
 def _command_ask(args: argparse.Namespace) -> int:
+    try:
+        since = _parse_moment(args.since) if args.since else None
+        until = _parse_moment(args.until, end_of_day=True) if args.until else None
+    except ValueError as error:
+        print(f"cannot read the date: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     try:
         answer = ask(
@@ -437,6 +452,8 @@ def _command_ask(args: argparse.Namespace) -> int:
             language_model=OllamaLanguageModel(),
             question=args.question,
             language=args.lang,
+            since=since,
+            until=until,
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -451,6 +468,10 @@ def _command_ask(args: argparse.Namespace) -> int:
     print(answer.answer)
     print()
     print(f"  confidence    {answer.confidence:.2f}")
+    if answer.since is not None or answer.until is not None:
+        left = f"{answer.since:%Y-%m-%d}" if answer.since else "open"
+        right = f"{answer.until:%Y-%m-%d}" if answer.until else "open"
+        print(f"  window        {left} to {right}")
     if answer.first_seen is not None and answer.last_seen is not None:
         print(f"  time range    {answer.first_seen:%Y-%m-%d} to {answer.last_seen:%Y-%m-%d}")
     print(f"  evidence      {len(answer.evidence)}")
@@ -460,7 +481,12 @@ def _command_ask(args: argparse.Namespace) -> int:
 def _ask_factory(db_path: Path) -> Callable[[str, str], Answer]:
     """Fresh connection per question: SQLite belongs to its thread."""
 
-    def _answer(question: str, language: str) -> Answer:
+    def _answer(
+        question: str,
+        language: str,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> Answer:
         connection = connect(db_path)
         try:
             return ask(
@@ -470,6 +496,8 @@ def _ask_factory(db_path: Path) -> Callable[[str, str], Answer]:
                 language_model=OllamaLanguageModel(),
                 question=question,
                 language=language,
+                since=since,
+                until=until,
             )
         finally:
             connection.close()
@@ -555,6 +583,8 @@ def build_parser() -> argparse.ArgumentParser:
     asking = commands.add_parser("ask", help="answer a question from the readings")
     asking.add_argument("question", help="the question, in Japanese or English")
     asking.add_argument("--lang", default="ja", choices=["ja", "en"], help="answer language")
+    asking.add_argument("--since", default=None, help="ISO date; overrides words like last year")
+    asking.add_argument("--until", default=None, help="ISO date, inclusive")
     asking.add_argument("--json", action="store_true", help="machine readable output")
     asking.set_defaults(run=_command_ask)
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -39,6 +40,17 @@ DEFAULT_PORT = 8765
 
 LANGUAGES = ("ja", "en")
 
+AskFactory = Callable[[str, str, "datetime | None", "datetime | None"], "Answer"]
+"""Question, language, since, until -> one Answer."""
+
+
+def _moment(text: str) -> datetime | None:
+    """An ISO date or datetime, made timezone aware; empty means None."""
+    if not text:
+        return None
+    moment = datetime.fromisoformat(text)
+    return moment if moment.tzinfo is not None else moment.astimezone()
+
 
 class ApiServer(ThreadingHTTPServer):
     """Carries the factories the handler composes each answer from.
@@ -54,12 +66,12 @@ class ApiServer(ThreadingHTTPServer):
         address: tuple[str, int],
         pipeline_factory: Callable[[], Pipeline],
         language_model_factory: Callable[[], LanguageModel],
-        ask_factory: Callable[[str, str], Answer] | None = None,
+        ask_factory: AskFactory | None = None,
     ) -> None:
         super().__init__(address, _Handler)
         self.pipeline_factory = pipeline_factory
         self.language_model_factory = language_model_factory
-        self.ask_factory: Callable[[str, str], Answer] | None = ask_factory
+        self.ask_factory: AskFactory | None = ask_factory
 
 
 def make_server(
@@ -67,7 +79,7 @@ def make_server(
     language_model_factory: Callable[[], LanguageModel],
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-    ask_factory: Callable[[str, str], Answer] | None = None,
+    ask_factory: AskFactory | None = None,
 ) -> ApiServer:
     """Build a bound server without starting it. Port 0 picks freely."""
     return ApiServer((host, port), pipeline_factory, language_model_factory, ask_factory)
@@ -78,7 +90,7 @@ def serve(
     language_model_factory: Callable[[], LanguageModel],
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-    ask_factory: Callable[[str, str], Answer] | None = None,
+    ask_factory: AskFactory | None = None,
 ) -> None:
     """Serve until interrupted."""
     server = make_server(pipeline_factory, language_model_factory, host, port, ask_factory)
@@ -146,7 +158,15 @@ class _Handler(BaseHTTPRequestHandler):
             if self.server.ask_factory is None:
                 self._send(404, {"error": "not found"})
                 return
-            self._send(200, answer_payload(self.server.ask_factory(question, language)))
+            try:
+                since = _moment(query.get("since", [""])[0])
+                until = _moment(query.get("until", [""])[0])
+            except ValueError:
+                self._send(400, {"error": "since/until must be ISO dates"})
+                return
+            self._send(
+                200, answer_payload(self.server.ask_factory(question, language, since, until))
+            )
         else:
             self._send(404, {"error": "not found"})
 
