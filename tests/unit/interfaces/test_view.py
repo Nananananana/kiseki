@@ -139,3 +139,16 @@ class TestRenderView:
         page = _render()
         assert "<html" in page
         assert "no located photographs" in page
+
+
+class TestDensityAcrossACountry:
+    def test_far_apart_cells_stay_visible(self) -> None:
+        """A country-spanning library must not render sub-pixel cells."""
+        page = _render(
+            photos=(
+                _photo("a", 35.0, 135.0),
+                _photo("b", 43.0, 141.0),
+            )
+        )
+        assert page.count("<rect") == 2
+        assert 'width="3.0"' in page
