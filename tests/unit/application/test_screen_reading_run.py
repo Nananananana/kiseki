@@ -29,9 +29,7 @@ class _Thumbs:
 
 
 def _photo(identifier: str, kind: str, ref: str | None) -> PhotoObservation:
-    return PhotoObservation(
-        PhotoId(identifier), AT, None, thumbnail_ref=ref, content_kind=kind
-    )
+    return PhotoObservation(PhotoId(identifier), AT, None, thumbnail_ref=ref, content_kind=kind)
 
 
 def _photos(*observations: PhotoObservation) -> InMemoryPhotoRepository:
@@ -81,9 +79,7 @@ class TestScreenReadingRun:
         assert report.read == 0
 
     def test_an_unavailable_model_pauses_the_run(self) -> None:
-        photos = _photos(
-            _photo("s1", "screenshot", "r1"), _photo("s2", "screenshot", "r2")
-        )
+        photos = _photos(_photo("s1", "screenshot", "r1"), _photo("s2", "screenshot", "r2"))
         reader = FakeScreenshotReader(fail_on=lambda image: True)
         report = run_screen_reading(
             photos,
@@ -95,9 +91,7 @@ class TestScreenReadingRun:
         assert report.read == 0
 
     def test_the_limit_stops_the_run(self) -> None:
-        photos = _photos(
-            _photo("s1", "screenshot", "r1"), _photo("s2", "screenshot", "r2")
-        )
+        photos = _photos(_photo("s1", "screenshot", "r1"), _photo("s2", "screenshot", "r2"))
         report = run_screen_reading(
             photos,
             FakeScreenshotReadingRepository(),
