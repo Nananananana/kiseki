@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 825 passing, 13 llm-marked and deselected in CI.
+- Tests: 830 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -198,4 +198,9 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   absorb them; the derivation pools one sighting per single with
   photo: evidence and re-checks consent at read time. The stop and
   anchor context annotation moved to place narration (proposals/0002,
-  item 5). Remaining: part 3, the representative-selection rebuild.
+  item 5).
+- v0.4 (FR-507, 3 of 3): stay captions honour consent (ADR-0035) --
+  withheld photographs never enter the representative selection, a
+  stay of only withheld photographs is counted and skipped, and a
+  changed selection re-captions the stay once under its new key.
+  FR-507 is complete; next per proposals/0002: (2) hybrid search.
