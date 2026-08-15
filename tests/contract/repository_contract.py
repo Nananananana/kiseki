@@ -5,6 +5,7 @@ that drifts from the real thing is worse than no fake at all, and running one
 suite against both is what stops that happening.
 """
 
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -53,6 +54,15 @@ class PhotoRepositoryContract:
     def test_preserves_the_absence_of_coordinates(self, photos: PhotoRepository) -> None:
         photos.save_all([observation(0, 9, located=False)])
         assert photos.all()[0].location is None
+
+    def test_preserves_the_content_kind(self, photos: PhotoRepository) -> None:
+        photos.save_all([replace(observation(0, 9), content_kind="screenshot")])
+        assert photos.all()[0].content_kind == "screenshot"
+
+    def test_preserves_the_absence_of_a_content_kind(self, photos: PhotoRepository) -> None:
+        """None means the record predates the field, and must stay None."""
+        photos.save_all([observation(0, 9)])
+        assert photos.all()[0].content_kind is None
 
     def test_saving_the_same_photograph_twice_stores_it_once(self, photos: PhotoRepository) -> None:
         """Ingestion runs overlap. Re-importing must not duplicate."""
