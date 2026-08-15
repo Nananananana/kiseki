@@ -115,7 +115,7 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 ## Current state
 
 - Version: v0.2.0 released; v0.2.x in progress.
-- Tests: 718 passing, 13 llm-marked and deselected in CI.
+- Tests: 719 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
@@ -151,6 +151,9 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   self-contained HTML file (photograph density on the blur grid, top
   interests, rhythm, drift); no tiles, no CDN, no script sources;
   --raw keeps raw topic labels only.
+- Fixed: density cells clamp to a minimum pixel size, so a
+  country-spanning library still shows its cells (they rendered
+  sub-pixel before and the map looked empty).
 - Next: release v0.2.1 (CHANGELOG + README for themes, trend, serve
   and view), then the v0.3 plan (screenshots + Privacy Filter) with
   the docs/proposals/ write-up for the v0.4 backlog.

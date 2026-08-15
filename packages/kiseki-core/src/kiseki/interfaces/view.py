@@ -28,6 +28,10 @@ CELL_DEGREES = 10.0**-BLUR_DECIMALS
 """One density cell is one blur-grid cell: the map never draws finer
 than what the library is willing to say about a location."""
 
+MIN_CELL_PIXELS = 3.0
+"""However far the map spans, a cell stays visible. A country-wide
+library otherwise renders sub-pixel cells and the map looks empty."""
+
 _STYLE = """
 body { font-family: system-ui, sans-serif; margin: 2rem auto;
        max-width: 820px; color: #222; }
@@ -109,15 +113,19 @@ def _density_section(cells: dict[tuple[float, float], int]) -> str:
     height = math.ceil(span_lat * scale)
     peak = max(cells.values())
 
+    natural_x = CELL_DEGREES * stretch * scale
+    natural_y = CELL_DEGREES * scale
+    side_x = max(natural_x, MIN_CELL_PIXELS)
+    side_y = max(natural_y, MIN_CELL_PIXELS)
+
     rects = []
     for (latitude, longitude), count in sorted(cells.items()):
-        x = (longitude - low_lon) * stretch * scale
-        y = (high_lat - latitude) * scale
+        x = (longitude - low_lon) * stretch * scale - (side_x - natural_x) / 2
+        y = (high_lat - latitude) * scale - (side_y - natural_y) / 2
         opacity = 0.15 + 0.85 * count / peak
         rects.append(
             f'<rect x="{x:.1f}" y="{y:.1f}"'
-            f' width="{CELL_DEGREES * stretch * scale:.1f}"'
-            f' height="{CELL_DEGREES * scale:.1f}"'
+            f' width="{side_x:.1f}" height="{side_y:.1f}"'
             f' opacity="{opacity:.2f}"><title>{count} photograph(s)</title></rect>'
         )
     svg = (
