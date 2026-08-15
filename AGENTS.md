@@ -115,7 +115,7 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 ## Current state
 
 - Version: v0.2.1 released.
-- Tests: 738 passing, 13 llm-marked and deselected in CI.
+- Tests: 759 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
@@ -167,8 +167,12 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   extra.time_source, ADR-0029); the Japanese screenshot-name pattern
   is verified in the repo and pinned by a test. (3) the refresh
   runbook: docs/runbook.md and examples/refresh.ps1 (parameterised;
-  no personal paths in the repo). Next: (4) the screenshot reader
-  port and its VLM-prompt adapter.
+  no personal paths in the repo). (4) the screen reader
+  (ADR-0030): ScreenshotReading is category + labels with no text
+  field -- the Privacy Filter is the type; chat, auth and finance
+  never carry labels; the reader is a swappable port with a
+  qwen3-vl JSON-prompt adapter; resumable `kiseki screens`.
+  Next: (5) SCREENSHOT readings into the profile.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,

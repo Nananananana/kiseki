@@ -19,12 +19,14 @@ from kiseki.adapters.ollama.models import (
     OllamaLanguageModel,
     OllamaTextEmbedder,
 )
+from kiseki.adapters.ollama.screens import OllamaScreenshotReader
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
+    SqliteScreenshotReadingRepository,
     SqliteSubjectRepository,
     SqliteThemeSetRepository,
     connect,
@@ -32,6 +34,7 @@ from kiseki.adapters.sqlite.store import (
 from kiseki.application.captioning import run_captioning
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
+from kiseki.application.screen_reading import run_screen_reading
 from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
@@ -342,6 +345,26 @@ def _command_view(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_screens(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    report = run_screen_reading(
+        photos=SqlitePhotoRepository(connection),
+        readings=SqliteScreenshotReadingRepository(connection),
+        thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
+        reader=OllamaScreenshotReader(),
+        limit=args.limit,
+    )
+    print(RULE)
+    print(f"  read          {report.read}")
+    print(f"  already done  {report.already}")
+    print(f"  refused       {report.refused}")
+    print(f"  unreferenced  {report.unreferenced}")
+    if report.paused:
+        print("\n  paused: the model was unavailable; run again to resume")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -402,6 +425,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--raw", action="store_true", help="keep raw topic labels; blurred by default"
     )
     viewing.set_defaults(run=_command_view)
+
+    screens = commands.add_parser("screens", help="read the screenshots: category and labels only")
+    screens.add_argument("--limit", type=int, default=None, help="read at most this many")
+    screens.set_defaults(run=_command_screens)
 
     return parser
 

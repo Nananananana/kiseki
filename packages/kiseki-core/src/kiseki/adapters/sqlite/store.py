@@ -29,6 +29,7 @@ from kiseki.domain.interests import (
 from kiseki.domain.outing.outing import Outing, OutingId
 from kiseki.domain.outing.stop import Stop
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.screen.reading import ScreenshotReading
 from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
@@ -119,6 +120,15 @@ CREATE TABLE IF NOT EXISTS theme_sets (
     document   TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS screen_readings (
+    photo_id   TEXT PRIMARY KEY,
+    category   TEXT NOT NULL,
+    labels     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT
 );
 """
 
@@ -609,3 +619,59 @@ class SqliteThemeSetRepository:
         if row is None:
             return None
         return _to_theme_set(row)
+
+
+def _to_screen_reading(row: tuple[Any, ...]) -> "ScreenshotReading":
+    photo_id, category, labels, model, created_at, refused = row
+    return ScreenshotReading(
+        photo_id=PhotoId(photo_id),
+        category=category,
+        labels=tuple(json.loads(labels)),
+        model=model,
+        created_at=datetime.fromisoformat(created_at),
+        refused=refused,
+    )
+
+
+class SqliteScreenshotReadingRepository:
+    """Screen readings accumulate, keyed by the photograph they read.
+
+    The table is additive to schema version 3, so an existing database
+    gains it on connect. See ADR-0030.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, reading: ScreenshotReading) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO screen_readings"
+                " (photo_id, category, labels, model, created_at, refused)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    reading.photo_id.value,
+                    reading.category,
+                    json.dumps(list(reading.labels)),
+                    reading.model,
+                    reading.created_at.isoformat(),
+                    reading.refused,
+                ),
+            )
+
+    def get(self, photo_id: PhotoId) -> ScreenshotReading | None:
+        row = self._connection.execute(
+            "SELECT photo_id, category, labels, model, created_at, refused"
+            " FROM screen_readings WHERE photo_id = ?",
+            (photo_id.value,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_screen_reading(row)
+
+    def all(self) -> tuple[ScreenshotReading, ...]:
+        cursor = self._connection.execute(
+            "SELECT photo_id, category, labels, model, created_at, refused"
+            " FROM screen_readings ORDER BY rowid"
+        )
+        return tuple(_to_screen_reading(row) for row in cursor)
