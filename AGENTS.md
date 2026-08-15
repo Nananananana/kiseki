@@ -56,14 +56,15 @@ Inside `kiseki-core/src/kiseki/`:
   `captioning`, `subject_extraction`, `narrative`.
 - `interfaces/` -- `cli.py` (the only composition root), `api.py`
   (stdlib HTTP server, loopback by default), `payloads.py` (the JSON
-  shapes both share; blur on request).
+  shapes both share; blur on request), `view.py` (a self-contained
+  HTML view: no tiles, no CDN, no script sources).
 
 Model staging (ADR-0014): stage 1 `qwen3-vl:8b` captions stays;
 stage 2 `qwen2.5:14b-instruct-q4_K_M` extracts subjects and writes
 prose; `bge-m3` embeds (reserved for theme clustering). One model in
 VRAM at a time; `keep_alive` is explicit.
 
-Read `docs/adr/` (0001-0026) before changing anything they cover.
+Read `docs/adr/` (0001-0027) before changing anything they cover.
 
 ## Conventions and hard-won rules
 
@@ -114,13 +115,13 @@ Read `docs/adr/` (0001-0026) before changing anything they cover.
 ## Current state
 
 - Version: v0.2.0 released; v0.2.x in progress.
-- Tests: 707 passing, 13 llm-marked and deselected in CI.
+- Tests: 718 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
   via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
-  `subjects`, `tell`, `themes`, `trend`, `serve`.
+  `subjects`, `tell`, `themes`, `trend`, `serve`, `view`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -146,7 +147,13 @@ Read `docs/adr/` (0001-0026) before changing anything they cover.
   bound to loopback by default; a GET changes nothing (served profile
   readings are not kept), and served payloads blur coordinates to a
   ~1 km grid unless raw=true is asked for.
-- Next (v0.2.x): visualisation with blurring.
+- Shipped: view (ADR-0027) -- `kiseki view` writes one
+  self-contained HTML file (photograph density on the blur grid, top
+  interests, rhythm, drift); no tiles, no CDN, no script sources;
+  --raw keeps raw topic labels only.
+- Next: release v0.2.1 (CHANGELOG + README for themes, trend, serve
+  and view), then the v0.3 plan (screenshots + Privacy Filter) with
+  the docs/proposals/ write-up for the v0.4 backlog.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
