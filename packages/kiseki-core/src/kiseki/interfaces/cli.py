@@ -104,6 +104,7 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         captions=SqliteCaptionRepository(connection),
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
+        singles=SqliteSingleCaptionRepository(connection),
     )
 
 
@@ -232,6 +233,7 @@ def _command_subjects(args: argparse.Namespace) -> int:
         captions=SqliteCaptionRepository(connection),
         subjects=SqliteSubjectRepository(connection),
         language_model=OllamaLanguageModel(),
+        singles=SqliteSingleCaptionRepository(connection),
         limit=args.limit,
     )
     print(RULE)
@@ -336,6 +338,7 @@ def _command_view(args: argparse.Namespace) -> int:
         captions=SqliteCaptionRepository(connection),
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
+        singles=SqliteSingleCaptionRepository(connection),
     )
     page = render_view(
         photos.all(),

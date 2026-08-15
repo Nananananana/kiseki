@@ -19,6 +19,7 @@ from kiseki.ports.models import (
     ModelRefusedError,
     ModelUnavailableError,
 )
+from kiseki.ports.singles import SingleCaptionRepository
 from kiseki.ports.subjects import SubjectRepository
 
 MAX_SUBJECTS = 5
@@ -76,6 +77,7 @@ def run_subject_extraction(
     captions: CaptionRepository,
     subjects: SubjectRepository,
     language_model: LanguageModel,
+    singles: SingleCaptionRepository | None = None,
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
 ) -> SubjectRunReport:
@@ -83,24 +85,34 @@ def run_subject_extraction(
 
     Refused captions are left alone entirely: there is no text to
     read, and the refusal is already recorded on the caption itself.
+    Single-photo captions are read through a key derived from their
+    one photograph, so one store tracks both kinds (ADR-0034).
     """
+    sources: list[tuple[CaptionKey, str]] = [
+        (caption.key, caption.text) for caption in captions.all() if caption.answered
+    ]
+    if singles is not None:
+        sources += [
+            (CaptionKey.of([single.photo_id]), single.text)
+            for single in singles.all()
+            if single.answered
+        ]
+
     extracted = already = refused = 0
     paused = False
 
-    for caption in captions.all():
-        if not caption.answered:
-            continue
+    for key, text in sources:
         if limit is not None and extracted + refused >= limit:
             break
-        if subjects.get(caption.key) is not None:
+        if subjects.get(key) is not None:
             already += 1
             continue
 
         when = now()
         try:
-            completion = language_model.complete(SUBJECT_SYSTEM, [caption.text])[0]
+            completion = language_model.complete(SUBJECT_SYSTEM, [text])[0]
         except ModelRefusedError as error:
-            subjects.save(_refusal(caption.key, str(error), when))
+            subjects.save(_refusal(key, str(error), when))
             refused += 1
             continue
         except ModelUnavailableError:
@@ -110,13 +122,13 @@ def run_subject_extraction(
         labels = parse_subject_labels(completion.text)
         if not labels:
             reason = f"unparseable answer: {completion.text[:80]}"
-            subjects.save(_refusal(caption.key, reason, when))
+            subjects.save(_refusal(key, reason, when))
             refused += 1
             continue
 
         subjects.save(
             SubjectExtraction(
-                key=caption.key,
+                key=key,
                 labels=labels,
                 model=completion.model,
                 created_at=when,

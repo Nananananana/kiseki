@@ -41,6 +41,7 @@ from kiseki.ports.repositories import (
     PhotoRepository,
 )
 from kiseki.ports.screens import ScreenshotReadingRepository
+from kiseki.ports.singles import SingleCaptionRepository
 from kiseki.ports.subjects import SubjectRepository
 from kiseki.ports.themes import ThemeSetRepository
 
@@ -91,6 +92,7 @@ class Pipeline:
         subjects: SubjectRepository | None = None,
         themes: ThemeSetRepository | None = None,
         screens: ScreenshotReadingRepository | None = None,
+        singles: SingleCaptionRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
@@ -101,6 +103,7 @@ class Pipeline:
         self._subjects = subjects
         self._themes = themes
         self._screens = screens
+        self._singles = singles
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -167,6 +170,7 @@ class Pipeline:
                     self._captions.all(),
                     self._photos.all(),
                     themes=latest.themes if latest is not None else (),
+                    singles=self._singles.all() if self._singles is not None else (),
                 ),
             )
 
