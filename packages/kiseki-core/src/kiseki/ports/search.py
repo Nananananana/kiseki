@@ -26,6 +26,17 @@ class SearchDocument:
             raise ValueError("a search document needs text")
 
 
+@dataclass(frozen=True)
+class SearchHit:
+    """One channel's find: the document and that channel's own score.
+
+    Scores compare within a channel only; fusion happens on ranks.
+    """
+
+    document: SearchDocument
+    score: float
+
+
 class SearchIndex(Protocol):
     """Keeps documents and their vectors; both accumulate idempotently."""
 
@@ -48,3 +59,13 @@ class SearchIndex(Protocol):
         ...
 
     def embedding_count(self, model: str) -> int: ...
+
+    def match_text(self, query: str, limit: int) -> tuple[SearchHit, ...]:
+        """Word matches, best first. A query without words finds nothing."""
+        ...
+
+    def match_meaning(
+        self, query_vector: tuple[float, ...], model: str, limit: int
+    ) -> tuple[SearchHit, ...]:
+        """Nearest stored vectors for this model, best first."""
+        ...

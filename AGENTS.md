@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 851 passing, 13 llm-marked and deselected in CI.
+- Tests: 872 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -210,5 +210,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   database; the adapter creates its own tables so connect() never
   depends on FTS5; resumable `kiseki index --limit`; withheld
   photographs and sensitive screens are never indexed, and no
-  coordinate enters a document. Next: (2 of 3) deterministic hybrid
-  retrieval, then (3 of 3) `kiseki ask` and /ask.
+  coordinate enters a document.
+- v0.4 (hybrid search, 2 of 3): deterministic hybrid retrieval
+  (ADR-0037) -- FTS5 words and vector meaning fused by reciprocal
+  rank (k=60), ties by document key; raw questions are tokenised into
+  safe OR-joined FTS5 queries; an unavailable embedder degrades to
+  words alone; since/until bound hits by observed time as the
+  temporal hook. Next: (3 of 3) `kiseki ask` and /ask (ADR-0038).
