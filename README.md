@@ -185,6 +185,7 @@ uv run kiseki trend      # the drift between kept profiles
 uv run kiseki serve      # the same answers over local HTTP
 uv run kiseki view       # one self-contained HTML view of it all
 uv run kiseki screens    # read the screenshots: category and labels only
+uv run kiseki singles    # caption the photographs outside every stay
 ```
 
 `kiseki report --json` prints the same measures as a document.
@@ -204,13 +205,14 @@ flowchart LR
 |---|---|---|
 | v0.1 | Stops, outings, anchors, measures, storage, CLI | Released |
 | v0.2.x | Image captioning, written profiles, themes, trend, local API, visualisation | Released |
-| v0.3 | Screenshots as interest evidence, the screen reader, mechanical consent | Current |
-| v0.4 | Hybrid search, temporal questions, place entities, single-photo context (FR-507) | Planned |
+| v0.3 | Screenshots as interest evidence, the screen reader, mechanical consent | Released |
+| v0.4 | Hybrid search, temporal questions, place entities, single-photo context (FR-507) | Current |
 | v1.0 | Overnight trips, weather, several devices merged, incremental rebuilds, PyPI | Planned |
 
 One debt stays open. Roughly a third of an ordinary library is photographs
 that form no stop at all: a dish, a shop window, a cat. Those are complete
-statements of interest and are still unused; see
+statements of interest, and v0.4 is taking them in: each now gets its
+own caption ([ADR-0033](docs/adr/0033-single-photo-captions.md)); see
 [FR-507](docs/requirements-addendum.md). The other promise is kept: every
 interest names the evidence it rests on, because a guess about somebody is
 only useful if they can check it.
@@ -220,7 +222,7 @@ only useful if they can check it.
 ## Development
 
 ```bash
-uv run pytest          # 781 tests, none of which call a model
+uv run pytest          # the whole suite; no test calls a model
 uv run mypy packages   # strict
 uv run lint-imports    # the architecture, as four enforced contracts
 ```
