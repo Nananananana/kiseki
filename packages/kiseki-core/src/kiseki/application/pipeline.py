@@ -25,8 +25,10 @@ from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.outing_assembly import assemble_outings
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
+from kiseki.domain.services.trend_derivation import derive_trend
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
+from kiseki.domain.trends import TrendReport
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
@@ -160,6 +162,23 @@ class Pipeline:
         if self._profiles is not None:
             self._profiles.save(profile)
         return profile
+
+    def trend(self) -> TrendReport | None:
+        """Read the drift between the kept readings.
+
+        Compares the latest saved profile against the most recent one
+        old enough to compare with, through the current theme set.
+        Reads storage only; recomputes nothing and calls no model.
+        None while the history is too short is itself the answer.
+        See ADR-0025.
+        """
+        if self._profiles is None:
+            return None
+        latest = self._themes.latest() if self._themes is not None else None
+        return derive_trend(
+            self._profiles.history(),
+            themes=latest.themes if latest is not None else (),
+        )
 
     def _select(
         self, since: datetime | None, until: datetime | None
