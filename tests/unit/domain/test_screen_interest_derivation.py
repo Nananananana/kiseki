@@ -65,14 +65,13 @@ class TestDeriveScreenInterests:
 
     def test_sensitive_and_settings_screens_contribute_nothing(self) -> None:
         readings = tuple(
-            _many("wifi", 3, category="settings") + _many("gossip", 3, category="chat")
+            _many("wifi", 3, category="settings")
+            + [_reading(f"c{i}", "chat", (), days=i) for i in range(3)]
         )
         assert derive_screen_interests(readings, at=AT) == ()
 
     def test_refusals_contribute_nothing(self) -> None:
-        readings = tuple(
-            _reading(f"r{index}", "other", (), refused="bad") for index in range(3)
-        )
+        readings = tuple(_reading(f"r{index}", "other", (), refused="bad") for index in range(3))
         assert derive_screen_interests(readings, at=AT) == ()
 
     def test_the_most_seen_label_scores_highest(self) -> None:
@@ -94,9 +93,7 @@ class TestMergeScreenInterests:
         return Profile(generated_at=AT, interests=interests)
 
     def _interest(self, topic: str, kind: EvidenceKind) -> Interest:
-        evidence = (
-            InterestEvidence(kind=kind, reference=f"x:{topic}", observed_at=AT),
-        )
+        evidence = (InterestEvidence(kind=kind, reference=f"x:{topic}", observed_at=AT),)
         return Interest(
             topic=topic,
             score=0.5,
@@ -108,16 +105,12 @@ class TestMergeScreenInterests:
 
     def test_new_topics_are_appended(self) -> None:
         base = self._profile(self._interest("onsen", EvidenceKind.PHOTOGRAPH))
-        merged = merge_screen_interests(
-            base, (self._interest("camera", EvidenceKind.SCREENSHOT),)
-        )
+        merged = merge_screen_interests(base, (self._interest("camera", EvidenceKind.SCREENSHOT),))
         assert {i.topic for i in merged.interests} == {"onsen", "camera"}
         assert merged.generated_at == base.generated_at
 
     def test_an_existing_topic_is_not_overwritten(self) -> None:
         base = self._profile(self._interest("camera", EvidenceKind.PHOTOGRAPH))
-        merged = merge_screen_interests(
-            base, (self._interest("camera", EvidenceKind.SCREENSHOT),)
-        )
+        merged = merge_screen_interests(base, (self._interest("camera", EvidenceKind.SCREENSHOT),))
         (interest,) = merged.interests
         assert interest.evidence[0].kind is EvidenceKind.PHOTOGRAPH

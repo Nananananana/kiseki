@@ -23,6 +23,10 @@ from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.outing_assembly import assemble_outings
+from kiseki.domain.services.screen_interest_derivation import (
+    derive_screen_interests,
+    merge_screen_interests,
+)
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
 from kiseki.domain.services.trend_derivation import derive_trend
@@ -36,6 +40,7 @@ from kiseki.ports.repositories import (
     OutingRepository,
     PhotoRepository,
 )
+from kiseki.ports.screens import ScreenshotReadingRepository
 from kiseki.ports.subjects import SubjectRepository
 from kiseki.ports.themes import ThemeSetRepository
 
@@ -85,6 +90,7 @@ class Pipeline:
         captions: CaptionRepository | None = None,
         subjects: SubjectRepository | None = None,
         themes: ThemeSetRepository | None = None,
+        screens: ScreenshotReadingRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
@@ -94,6 +100,7 @@ class Pipeline:
         self._captions = captions
         self._subjects = subjects
         self._themes = themes
+        self._screens = screens
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -163,6 +170,11 @@ class Pipeline:
                 ),
             )
 
+        if self._screens is not None:
+            profile = merge_screen_interests(
+                profile,
+                derive_screen_interests(self._screens.all(), at=profile.generated_at),
+            )
         if self._profiles is not None and keep:
             self._profiles.save(profile)
         return profile
