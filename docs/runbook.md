@@ -43,6 +43,7 @@ uv run kiseki caption     # new stays only; safe to interrupt
 uv run kiseki subjects
 uv run kiseki themes      # recomputes only when the label set changed
 uv run kiseki screens     # screenshots: category and labels only
+uv run kiseki singles     # lone photographs, one caption each
 ```
 
 ## 5. Read and keep

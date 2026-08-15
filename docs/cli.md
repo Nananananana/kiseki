@@ -25,6 +25,7 @@ uv run kiseki report --json
 | `serve` | Answer over local HTTP, loopback by default |
 | `view` | Write a self-contained HTML view |
 | `screens` | Read the screenshots: category and labels only |
+| `singles` | Describe the photographs outside every stay |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -126,4 +127,19 @@ entirely (ADR-0032).
 ```bash
 uv run kiseki screens --limit 20   # try a batch first
 uv run kiseki screens              # the rest; safe to interrupt
+```
+
+## Captioning the lone photographs
+
+`kiseki singles` describes every photograph that belongs to no stop
+-- one-off shots and saved images of kind `other` -- once, resumably,
+through the same stage-1 vision model as `caption`, into its own
+store keyed by photo id (ADR-0033). Screenshots and documents keep
+their own reader (ADR-0030), and withheld consent
+(`use_for_preference: false`) skips the photograph entirely
+(ADR-0032). A refusal is recorded and never asked again.
+
+```bash
+uv run kiseki singles --limit 20   # try a batch first
+uv run kiseki singles              # the rest; safe to interrupt
 ```

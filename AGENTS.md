@@ -46,14 +46,15 @@ Inside `kiseki-core/src/kiseki/`:
 
 - `domain/` -- pure values and services. No I/O, no external imports.
 - `ports/` -- Protocols (`repositories`, `models`, `captions`,
-  `subjects`, `thumbnails`, `profiles`). Implementers never import
-  the port.
-- `adapters/` -- `sqlite` (storage, schema version 2, explicit
-  migrations only, ADR-0018), `ollama` (three model adapters,
+  `singles`, `subjects`, `themes`, `screens`, `thumbnails`,
+  `profiles`). Implementers never import the port.
+- `adapters/` -- `sqlite` (storage, schema version 4, explicit
+  migrations only, ADR-0018), `ollama` (model adapters,
   injectable transport), `filesystem` (thumbnails), `fake` and
   `memory` (test doubles held to the same contract suites).
 - `application/` -- `pipeline` (ingest/build/report/profile/trend),
-  `captioning`, `subject_extraction`, `narrative`.
+  `captioning`, `single_captioning`, `screen_reading`,
+  `subject_extraction`, `theming`, `narrative`.
 - `interfaces/` -- `cli.py` (the only composition root), `api.py`
   (stdlib HTTP server, loopback by default), `payloads.py` (the JSON
   shapes both share; blur on request), `view.py` (a self-contained
@@ -61,10 +62,10 @@ Inside `kiseki-core/src/kiseki/`:
 
 Model staging (ADR-0014): stage 1 `qwen3-vl:8b` captions stays;
 stage 2 `qwen2.5:14b-instruct-q4_K_M` extracts subjects and writes
-prose; `bge-m3` embeds (reserved for theme clustering). One model in
+prose; `bge-m3` embeds (theme clustering). One model in
 VRAM at a time; `keep_alive` is explicit.
 
-Read `docs/adr/` (0001-0027) before changing anything they cover.
+Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 ## Conventions and hard-won rules
 
@@ -116,10 +117,11 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 809 passing, 13 llm-marked and deselected in CI.
-- Pipeline proven end to end on a real library: 3,651 photographs
-  ingested; 267 stops; 266 captioned; 265 subject readings; a merged
-  profile of place and subject interests; a cited Japanese narration
-  via `kiseki tell`.
+- Pipeline proven end to end on a real library: 3,756 photographs
+  ingested; 271 stops; 144 outings; captions, subject readings,
+  themes and screen readings (218 of 221 screenshots); a merged
+  profile of place, subject and screen interests; a cited Japanese
+  narration via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
   `singles`.
@@ -139,10 +141,10 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   kept profile against the most recent one at least 14 days older,
   through the current theme set; deterministic, model-free; answers
   "not enough history" until the real history spans 14 days.
-- Waiting (v0.4 idea backlog): temporal retrieval; entity linking
-  for places; hybrid search (FTS5 + bge-m3) as the Phase 2 Q&A core;
-  lifecycle labels as a trend extension. Write-up due under
-  docs/proposals/ before v0.3 starts.
+- v0.4 plan: docs/proposals/0002 -- (1) FR-507 single-photo context,
+  (2) hybrid search (FTS5 + bge-m3, `kiseki ask`), (3) temporal
+  retrieval, (4) place entities (offline gazetteer), (5) place
+  narration, (6) lifecycle labels.
 - Shipped: local API (ADR-0026) -- `kiseki serve` answers /health,
   /report, /profile, /trend and /tell as JSON, standard library only,
   bound to loopback by default; a GET changes nothing (served profile
@@ -173,9 +175,11 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   field -- the Privacy Filter is the type; chat, auth and finance
   never carry labels; the reader is a swappable port with a
   qwen3-vl JSON-prompt adapter; resumable `kiseki screens`.
-  Next: (5) SCREENSHOT readings into the profile.
-- v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
-  ship the Privacy Filter in the same release, OCR, intent evidence.
+  (5) screen readings merged into the profile (ADR-0031). (6)
+  consent enforced mechanically (ADR-0032): `use_for_story: false`
+  is dropped at ingest, and `use_for_preference: false` never
+  becomes interest evidence anywhere.
+
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
   PyPI, cloud VLM swap behind the same ports (ADR-0015).
 - v0.4 (FR-507, 1 of 3): single-photo captions (ADR-0033) --
