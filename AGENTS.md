@@ -52,7 +52,7 @@ Inside `kiseki-core/src/kiseki/`:
   migrations only, ADR-0018), `ollama` (three model adapters,
   injectable transport), `filesystem` (thumbnails), `fake` and
   `memory` (test doubles held to the same contract suites).
-- `application/` -- `pipeline` (ingest/build/report/profile),
+- `application/` -- `pipeline` (ingest/build/report/profile/trend),
   `captioning`, `subject_extraction`, `narrative`.
 - `interfaces/cli.py` -- the only composition root.
 
@@ -61,7 +61,7 @@ stage 2 `qwen2.5:14b-instruct-q4_K_M` extracts subjects and writes
 prose; `bge-m3` embeds (reserved for theme clustering). One model in
 VRAM at a time; `keep_alive` is explicit.
 
-Read `docs/adr/` (0001-0022) before changing anything they cover.
+Read `docs/adr/` (0001-0025) before changing anything they cover.
 
 ## Conventions and hard-won rules
 
@@ -88,6 +88,9 @@ Read `docs/adr/` (0001-0022) before changing anything they cover.
   printed (a hook failure prints an error instead and the commit did
   not happen); after `gh pr merge`, confirm `Squashed and merged`;
   after pulling main, run pytest once more.
+- Before `gh pr create`, run `git log --oneline -3` and confirm the
+  feat/fix commit is actually there. (A red-only branch was once
+  PR'd and merged as if it were the feature.)
 - Windows specifics: set `PYTHONUTF8=1` (cp932 console crashes
   pre-commit output); paste terminal commands one block at a time
   (mangled pastes have created junk files via `>` redirection).
@@ -105,14 +108,14 @@ Read `docs/adr/` (0001-0022) before changing anything they cover.
 
 ## Current state
 
-- Version: v0.2.0 (release in progress).
-- Tests: 664 passing, 13 llm-marked and deselected in CI.
+- Version: v0.2.0 released; v0.2.x in progress.
+- Tests: 689 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
   via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
-  `subjects`, `tell`, `themes`.
+  `subjects`, `tell`, `themes`, `trend`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -125,8 +128,16 @@ Read `docs/adr/` (0001-0022) before changing anything they cover.
   aggregated sightings, absorbed members, ambient excluded even
   inside a theme; the pipeline reads the latest stored theme set and
   stays model-free.
-- Next (v0.2.x, in order): trend (rising/declining from the stored
-  profile history); local REST API; visualisation with blurring.
+- Shipped: trend (ADR-0025) -- `kiseki trend` compares the latest
+  kept profile against the most recent one at least 14 days older,
+  through the current theme set; deterministic, model-free; answers
+  "not enough history" until the real history spans 14 days.
+- Waiting (v0.4 idea backlog): temporal retrieval; entity linking
+  for places; hybrid search (FTS5 + bge-m3) as the Phase 2 Q&A core;
+  lifecycle labels as a trend extension. Write-up due under
+  docs/proposals/ before v0.3 starts.
+- Next (v0.2.x, in order): local REST API; visualisation with
+  blurring.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,

@@ -37,7 +37,9 @@ from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.shared.geo import GeoPoint
+from kiseki.domain.trends import TrendReport
 from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 
 EXIT_OK = 0
@@ -318,6 +320,57 @@ def _command_themes(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _trend_payload(report: TrendReport) -> dict[str, Any]:
+    return {
+        "baseline_at": report.baseline_at.isoformat(),
+        "latest_at": report.latest_at.isoformat(),
+        "trends": [
+            {
+                "topic": trend.topic,
+                "direction": trend.direction.value,
+                "strength": trend.strength,
+                "baseline": trend.baseline,
+            }
+            for trend in report.trends
+        ],
+    }
+
+
+def _print_trend(report: TrendReport) -> None:
+    print(RULE)
+    print(f"  baseline      {report.baseline_at.date().isoformat()}")
+    print(f"  latest        {report.latest_at.date().isoformat()}")
+
+    if report.trends:
+        print("\n  drift, largest movement first")
+        for trend in report.trends:
+            print(
+                f"    {trend.direction.value:<10}"
+                f"  {trend.topic:<32}"
+                f"  now {trend.strength:>5.2f}"
+                f"  was {trend.baseline:>5.2f}"
+            )
+
+
+def _command_trend(args: argparse.Namespace) -> int:
+    report = _pipeline_for(args).trend()
+    if report is None:
+        if args.json:
+            print(json.dumps({"trends": None, "reason": "not enough history"}, indent=2))
+        else:
+            print(RULE)
+            print(
+                "  not enough history: the trend needs two profiles"
+                f" at least {MIN_TREND_SPAN_DAYS} days apart"
+            )
+        return EXIT_OK
+    if args.json:
+        print(json.dumps(_trend_payload(report), indent=2))
+    else:
+        _print_trend(report)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -360,6 +413,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     themes = commands.add_parser("themes", help="gather the labels into themes")
     themes.set_defaults(run=_command_themes)
+
+    trend = commands.add_parser("trend", help="read the drift between kept profiles")
+    trend.add_argument("--json", action="store_true", help="machine readable output")
+    trend.set_defaults(run=_command_trend)
 
     return parser
 
