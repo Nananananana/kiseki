@@ -64,6 +64,14 @@ class PhotoRepositoryContract:
         photos.save_all([observation(0, 9)])
         assert photos.all()[0].content_kind is None
 
+    def test_preserves_a_withheld_preference(self, photos: PhotoRepository) -> None:
+        photos.save_all([replace(observation(0, 9), use_for_preference=False)])
+        assert photos.all()[0].use_for_preference is False
+
+    def test_preserves_the_absence_of_a_preference_answer(self, photos: PhotoRepository) -> None:
+        photos.save_all([observation(0, 9)])
+        assert photos.all()[0].use_for_preference is None
+
     def test_saving_the_same_photograph_twice_stores_it_once(self, photos: PhotoRepository) -> None:
         """Ingestion runs overlap. Re-importing must not duplicate."""
         photos.save_all([observation(0, 9)])
