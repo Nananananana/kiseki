@@ -114,7 +114,7 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 
 ## Current state
 
-- Version: v0.2.0 released; v0.2.x in progress.
+- Version: v0.2.1 released.
 - Tests: 719 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
@@ -154,9 +154,8 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 - Fixed: density cells clamp to a minimum pixel size, so a
   country-spanning library still shows its cells (they rendered
   sub-pixel before and the map looked empty).
-- Next: release v0.2.1 (CHANGELOG + README for themes, trend, serve
-  and view), then the v0.3 plan (screenshots + Privacy Filter) with
-  the docs/proposals/ write-up for the v0.4 backlog.
+- Next: the v0.3 plan (screenshots + the Privacy Filter), with the
+  docs/proposals/ write-up evaluating the v0.4 memory backlog.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
