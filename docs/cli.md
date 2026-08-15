@@ -16,6 +16,14 @@ uv run kiseki report --json
 | `ingest` | Take a PhotoRecord document into the database |
 | `build` | Recompute stops, outings and anchors from what is stored |
 | `report` | Print what the measures say |
+| `caption` | Describe each stay with a local vision model |
+| `subjects` | Name the subjects of the captions |
+| `profile` | Read the measures and subjects as interests, and keep the reading |
+| `themes` | Gather the subject labels into themes |
+| `trend` | Read the drift between kept profiles |
+| `tell` | Say what the profile says, in prose |
+| `serve` | Answer over local HTTP, loopback by default |
+| `view` | Write a self-contained HTML view |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -54,3 +62,53 @@ else:
 ```bash
 uv run kiseki report --json | jq '.places.one_time_rate'
 ```
+
+## Serving over HTTP
+
+`kiseki serve` answers what the commands above answer, as JSON over
+HTTP, so a thin client can ask without linking the library
+(ADR-0026):
+
+```bash
+uv run kiseki serve                 # binds to 127.0.0.1:8765
+uv run kiseki serve --host 0.0.0.0  # reachable from a phone -- deliberate
+```
+
+| Endpoint | Answer |
+|---|---|
+| `/health` | `{"status": "ok"}` |
+| `/report` | the measures |
+| `/profile` | the current reading, not kept in the history |
+| `/trend` | the drift, or `"not enough history"` |
+| `/tell?lang=ja` | a cited narration; 503 while the model is away |
+
+Served payloads blur coordinates to two decimals, about a kilometre;
+add `?raw=true` to a request to opt out. A GET changes nothing: the
+profile history grows only through a deliberate `kiseki profile`.
+
+## The view
+
+`kiseki view` writes one self-contained HTML file -- no map tiles, no
+CDN, no script sources -- with the photograph density on the blur
+grid, the top interests, the outing rhythm and the drift (ADR-0027):
+
+```bash
+uv run kiseki view                       # writes <cache>/kiseki-view.html
+uv run kiseki view --out somewhere.html
+uv run kiseki view --raw                 # keep raw topic labels
+```
+
+### Tuning
+
+The knobs are constants at the top of
+`packages/kiseki-core/src/kiseki/interfaces/view.py`:
+
+| Constant | Default | Effect |
+|---|---|---|
+| `MIN_CELL_PIXELS` | `3.0` | Smallest rendered density cell. Raise it if the dots feel small; too high and neighbouring cells melt together |
+| `MAP_WIDTH`, `MAP_HEIGHT` | `760`, `460` | Canvas limits; a larger canvas gives cells more natural room |
+| `TOP_INTERESTS` | `12` | How many interest bars are drawn |
+
+`BLUR_DECIMALS` (in `payloads.py`) is not a tuning knob: it is the
+privacy grid shared by the API and the view. Making the picture finer
+means making every served coordinate finer.

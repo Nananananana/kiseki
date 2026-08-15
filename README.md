@@ -151,7 +151,9 @@ structural rather than a promise:
   report
 - **No personal data in this repository.** Tests build synthetic photographs at
   run time; a pre-commit hook refuses to commit an image or a database
-- **Coordinate blurring** is the default in exports and visualisation (v0.2)
+- **Coordinate blurring** is the default on everything served or
+  written: the local API and the HTML view round to about a
+  kilometre unless raw output is asked for explicitly
 
 ---
 
@@ -174,6 +176,10 @@ uv run kiseki caption    # describe each stay with a local vision model
 uv run kiseki subjects   # name what the captions were about
 uv run kiseki profile    # read the measures and subjects as interests
 uv run kiseki tell       # a cited narration of the profile, in Japanese
+uv run kiseki themes     # gather the subject labels into themes
+uv run kiseki trend      # the drift between kept profiles
+uv run kiseki serve      # the same answers over local HTTP
+uv run kiseki view       # one self-contained HTML view of it all
 ```
 
 `kiseki report --json` prints the same measures as a document.
@@ -191,23 +197,24 @@ flowchart LR
 
 | Version | Scope | State |
 |---|---|---|
-| v0.1 | Stops, outings, anchors, measures, storage, CLI | Current |
-| v0.2 | Image captioning, written profiles, suggestions with evidence, REST API, visualisation | Next |
+| v0.1 | Stops, outings, anchors, measures, storage, CLI | Released |
+| v0.2.x | Image captioning, written profiles, themes, trend, local API, visualisation | Current |
+| v0.3 | Screenshots, OCR, and the Privacy Filter | Planned |
 | v1.0 | Overnight trips, weather, several devices merged, incremental rebuilds, PyPI | Planned |
 
-Two things v0.2 owes the design. Roughly a third of an ordinary library is
-photographs that form no stop at all: a dish, a shop window, a cat. Those are
-complete statements of interest and are currently unused; see
-[FR-507](docs/requirements-addendum.md). And every profile statement will carry
-the outings it rests on, because a guess about somebody is only useful if they
-can check it.
+One debt stays open. Roughly a third of an ordinary library is photographs
+that form no stop at all: a dish, a shop window, a cat. Those are complete
+statements of interest and are still unused; see
+[FR-507](docs/requirements-addendum.md). The other promise is kept: every
+interest names the evidence it rests on, because a guess about somebody is
+only useful if they can check it.
 
 ---
 
 ## Development
 
 ```bash
-uv run pytest          # 618 tests, none of which call a model
+uv run pytest          # 719 tests, none of which call a model
 uv run mypy packages   # strict
 uv run lint-imports    # the architecture, as four enforced contracts
 ```
