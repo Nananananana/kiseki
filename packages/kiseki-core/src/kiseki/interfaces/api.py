@@ -16,9 +16,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
+from kiseki.application.asking import Answer
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline
 from kiseki.interfaces.payloads import (
+    answer_payload,
     profile_payload,
     report_payload,
     trend_payload,
@@ -52,10 +54,12 @@ class ApiServer(ThreadingHTTPServer):
         address: tuple[str, int],
         pipeline_factory: Callable[[], Pipeline],
         language_model_factory: Callable[[], LanguageModel],
+        ask_factory: Callable[[str, str], Answer] | None = None,
     ) -> None:
         super().__init__(address, _Handler)
         self.pipeline_factory = pipeline_factory
         self.language_model_factory = language_model_factory
+        self.ask_factory: Callable[[str, str], Answer] | None = ask_factory
 
 
 def make_server(
@@ -63,9 +67,10 @@ def make_server(
     language_model_factory: Callable[[], LanguageModel],
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
+    ask_factory: Callable[[str, str], Answer] | None = None,
 ) -> ApiServer:
     """Build a bound server without starting it. Port 0 picks freely."""
-    return ApiServer((host, port), pipeline_factory, language_model_factory)
+    return ApiServer((host, port), pipeline_factory, language_model_factory, ask_factory)
 
 
 def serve(
@@ -73,9 +78,10 @@ def serve(
     language_model_factory: Callable[[], LanguageModel],
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
+    ask_factory: Callable[[str, str], Answer] | None = None,
 ) -> None:
     """Serve until interrupted."""
-    server = make_server(pipeline_factory, language_model_factory, host, port)
+    server = make_server(pipeline_factory, language_model_factory, host, port, ask_factory)
     print(f"kiseki listening on http://{host}:{server.server_address[1]} (Ctrl+C to stop)")
     try:
         server.serve_forever()
@@ -128,6 +134,19 @@ class _Handler(BaseHTTPRequestHandler):
                 language=language,
             )
             self._send(200, {"story": story})
+        elif path == "/ask":
+            question = query.get("q", [""])[0].strip()
+            if not question:
+                self._send(400, {"error": "q is required"})
+                return
+            language = query.get("lang", ["ja"])[0]
+            if language not in LANGUAGES:
+                self._send(400, {"error": f"lang must be one of: {', '.join(LANGUAGES)}"})
+                return
+            if self.server.ask_factory is None:
+                self._send(404, {"error": "not found"})
+                return
+            self._send(200, answer_payload(self.server.ask_factory(question, language)))
         else:
             self._send(404, {"error": "not found"})
 
