@@ -37,6 +37,12 @@ class PhotoObservation:
     carried; such photographs cannot be captioned, and nothing else
     about them changes."""
 
+    content_kind: str | None = None
+    """What the record said it was: "photo", "screenshot", "document"
+    or "other", from PhotoRecord v1. None for records stored before
+    the field was carried; by the rules of their time those were
+    camera photographs. See ADR-0028."""
+
     def __post_init__(self) -> None:
         if self.captured_at.tzinfo is None:
             raise ValueError("captured_at must be timezone aware")
@@ -44,3 +50,14 @@ class PhotoObservation:
     @property
     def is_located(self) -> bool:
         return self.location is not None
+
+    @property
+    def joins_journeys(self) -> bool:
+        """Whether this observation may shape stops and anchors.
+
+        A screenshot or a saved image has a location -- where the
+        device was -- but not one that was chosen, and choice is what
+        a journey is made of. Only camera photographs, and legacy
+        records that predate the field, take part. See ADR-0028.
+        """
+        return self.content_kind is None or self.content_kind == "photo"

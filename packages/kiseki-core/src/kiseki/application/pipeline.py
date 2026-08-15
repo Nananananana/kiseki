@@ -102,10 +102,13 @@ class Pipeline:
     def rebuild(self, since: datetime | None = None, until: datetime | None = None) -> BuildResult:
         """Recompute stops, outings and anchors from the stored photographs.
 
-        Derived data is replaced wholesale rather than amended; see ADR-0013.
+        Derived data is replaced wholesale rather than amended; see
+        ADR-0013. Non-photograph records never shape stops or
+        anchors; see ADR-0028.
         """
         observations = self._select(since, until)
-        extraction = extract_stops(observations, self._settings.stops)
+        journeys = tuple(item for item in observations if item.joins_journeys)
+        extraction = extract_stops(journeys, self._settings.stops)
         outings = assemble_outings(extraction.stops, self._settings.outings)
         anchors = estimate_anchors(extraction.stops, self._settings.anchors)
 

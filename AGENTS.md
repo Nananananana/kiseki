@@ -115,7 +115,7 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 ## Current state
 
 - Version: v0.2.1 released.
-- Tests: 719 passing, 13 llm-marked and deselected in CI.
+- Tests: 732 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
@@ -156,9 +156,14 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   sub-pixel before and the map looked empty).
 - Shipped: docs/proposals/0001-memory-upgrades.md -- the v0.4 memory
   backlog evaluated, with the ten survey answers.
-- Next: the v0.3 design -- lift the screenshot exclusion, OCR through
-  the staged VLM, and the Privacy Filter shipping in the same
-  release.
+- v0.3 decided: no raw OCR text is ever stored (category + labels
+  only; chat, auth and finance categories yield no labels); the
+  screenshot reader is a port, so the VLM-prompt adapter can be
+  swapped for a dedicated extractor. Landed: (1) content_kind
+  carried end to end (ADR-0028; schema v3, first chained migration;
+  non-photos never shape stops or anchors). Next: (2) the producer
+  time fallback for records without DateTimeOriginal (non-photo
+  kinds only) and the Japanese screenshot-name regex check.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,

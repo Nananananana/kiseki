@@ -75,6 +75,7 @@ def _to_observations(records: list[dict[str, Any]]) -> list[PhotoObservation]:
                 datetime.fromisoformat(record["captured_at"]),
                 GeoPoint(place["lat"], place["lon"]) if place else None,
                 thumbnail_ref=record.get("thumbnail_ref"),
+                content_kind=record.get("content_kind"),
             )
         )
     return observations
