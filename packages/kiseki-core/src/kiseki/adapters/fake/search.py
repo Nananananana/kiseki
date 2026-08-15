@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from kiseki.ports.search import SearchDocument
+import re
+
+from kiseki.ports.search import SearchDocument, SearchHit
 
 
 class FakeSearchIndex:
@@ -40,3 +42,34 @@ class FakeSearchIndex:
 
     def embedding_count(self, model: str) -> int:
         return sum(1 for _key, kept in self._embeddings if kept == model)
+
+    def match_text(self, query: str, limit: int) -> tuple[SearchHit, ...]:
+        tokens = re.findall(r"\w+", query.lower())
+        if not tokens:
+            return ()
+        scored: list[tuple[float, str]] = []
+        for document in self._documents.values():
+            text = document.text.lower()
+            score = float(sum(text.count(token) for token in tokens))
+            if score > 0:
+                scored.append((-score, document.doc_key))
+        scored.sort()
+        return tuple(
+            SearchHit(self._documents[doc_key], -negative) for negative, doc_key in scored[:limit]
+        )
+
+    def match_meaning(
+        self, query_vector: tuple[float, ...], model: str, limit: int
+    ) -> tuple[SearchHit, ...]:
+        scored: list[tuple[float, str]] = []
+        for (doc_key, kept), vector in self._embeddings.items():
+            if kept != model or len(vector) != len(query_vector):
+                continue
+            if doc_key not in self._documents:
+                continue
+            score = sum(a * b for a, b in zip(vector, query_vector, strict=True))
+            scored.append((-score, doc_key))
+        scored.sort()
+        return tuple(
+            SearchHit(self._documents[doc_key], -negative) for negative, doc_key in scored[:limit]
+        )

@@ -56,9 +56,7 @@ def test_words_alone_answer_when_the_embedder_is_away():
 
 
 def test_the_window_filters_hits():
-    results = retrieve(
-        _index(), StubEmbedder(), "m", "ramen", since=WHEN + timedelta(minutes=5)
-    )
+    results = retrieve(_index(), StubEmbedder(), "m", "ramen", since=WHEN + timedelta(minutes=5))
     assert all(item.document.doc_key != "stay:aa" for item in results)
 
 

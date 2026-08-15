@@ -9,12 +9,13 @@ ADR-0036.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import struct
 from collections.abc import Callable
 from datetime import datetime
 
-from kiseki.ports.search import SearchDocument
+from kiseki.ports.search import SearchDocument, SearchHit
 
 INDEX_SCHEMA = """
 CREATE VIRTUAL TABLE IF NOT EXISTS search_documents USING fts5(
@@ -41,6 +42,16 @@ def pack_vector(vector: tuple[float, ...]) -> bytes:
 
 def unpack_vector(blob: bytes, dimensions: int) -> tuple[float, ...]:
     return struct.unpack(f"<{dimensions}f", blob)
+
+
+def fts_query(query: str) -> str:
+    """A raw question as a safe FTS5 query: its words, OR-joined.
+
+    Quoting every token keeps FTS5 operators and punctuation inert;
+    OR keeps recall when only some words match. No words, no query.
+    """
+    tokens = re.findall(r"\w+", query.lower())
+    return " OR ".join(f'"{token}"' for token in tokens)
 
 
 class SqliteSearchIndex:
@@ -113,3 +124,54 @@ class SqliteSearchIndex:
             "SELECT COUNT(*) FROM search_embeddings WHERE model = ?", (model,)
         ).fetchone()[0]
         return total
+
+    def match_text(self, query: str, limit: int) -> tuple[SearchHit, ...]:
+        sanitized = fts_query(query)
+        if not sanitized:
+            return ()
+        rows = self._connection.execute(
+            "SELECT doc_key, kind, text, observed_at, bm25(search_documents)"
+            " FROM search_documents WHERE search_documents MATCH ?"
+            " ORDER BY bm25(search_documents), doc_key LIMIT ?",
+            (sanitized, limit),
+        ).fetchall()
+        return tuple(
+            SearchHit(
+                SearchDocument(doc_key, kind, text, datetime.fromisoformat(observed_at)),
+                -bm25,
+            )
+            for doc_key, kind, text, observed_at, bm25 in rows
+        )
+
+    def match_meaning(
+        self, query_vector: tuple[float, ...], model: str, limit: int
+    ) -> tuple[SearchHit, ...]:
+        rows = self._connection.execute(
+            "SELECT doc_key, dimensions, vector FROM search_embeddings WHERE model = ?",
+            (model,),
+        ).fetchall()
+        scored: list[tuple[float, str]] = []
+        for doc_key, dimensions, blob in rows:
+            vector = unpack_vector(blob, dimensions)
+            if len(vector) != len(query_vector):
+                continue
+            score = sum(a * b for a, b in zip(vector, query_vector, strict=True))
+            scored.append((-score, doc_key))
+        scored.sort()
+
+        hits: list[SearchHit] = []
+        for negative, doc_key in scored[:limit]:
+            document = self._document(doc_key)
+            if document is not None:
+                hits.append(SearchHit(document, -negative))
+        return tuple(hits)
+
+    def _document(self, doc_key: str) -> SearchDocument | None:
+        row = self._connection.execute(
+            "SELECT doc_key, kind, text, observed_at FROM search_documents WHERE doc_key = ?",
+            (doc_key,),
+        ).fetchone()
+        if row is None:
+            return None
+        key, kind, text, observed_at = row
+        return SearchDocument(key, kind, text, datetime.fromisoformat(observed_at))
