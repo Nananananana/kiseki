@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.0
+
+The privacy release: screenshots become interest evidence without
+their words ever being stored.
+
+- Content kinds are carried end to end (ADR-0028): schema version 3,
+  the first chained migration; non-photographs never shape stops or
+  anchors.
+- The producer can borrow the file-modified time for non-photographs
+  without EXIF time (opt-in `--time-fallback-mtime`, declared in
+  `extra.time_source`; ADR-0029). The previously skipped saved
+  images and every screenshot now enter the library.
+- The screen reader (ADR-0030): a reading is a category from a
+  closed list plus short labels, with no text field -- the Privacy
+  Filter is the type. Chat, auth and finance screens are never
+  labelled. The reader is a swappable port; the first adapter
+  prompts the staged VLM. Resumable `kiseki screens`.
+- Screens join the profile (ADR-0031): a label on two or more
+  screenshots becomes an interest with SCREENSHOT evidence; settings
+  screens contribute nothing; the merge never overwrites what the
+  captions read.
+- Consent is honoured mechanically (ADR-0032): `use_for_story:
+  false` is dropped at ingest; `use_for_preference` rides on the
+  observation (schema version 4), keeps journeys and blocks every
+  per-photo reading.
+- The refresh runbook (docs/runbook.md, examples/refresh.ps1).
+- New command: `screens`. Tests: 719 -> 781.
+
 ## v0.2.1
 
 Reading over time, and two ways to look without leaking.

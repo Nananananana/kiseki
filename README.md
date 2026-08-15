@@ -154,6 +154,10 @@ structural rather than a promise:
 - **Coordinate blurring** is the default on everything served or
   written: the local API and the HTML view round to about a
   kilometre unless raw output is asked for explicitly
+- **Screenshot words are never stored**: a screen reading is a
+  category and short labels, with no text field; chat, auth and
+  finance screens are never labelled, and consent flags are enforced
+  in code (ADR-0030, ADR-0032)
 
 ---
 
@@ -180,6 +184,7 @@ uv run kiseki themes     # gather the subject labels into themes
 uv run kiseki trend      # the drift between kept profiles
 uv run kiseki serve      # the same answers over local HTTP
 uv run kiseki view       # one self-contained HTML view of it all
+uv run kiseki screens    # read the screenshots: category and labels only
 ```
 
 `kiseki report --json` prints the same measures as a document.
@@ -198,8 +203,9 @@ flowchart LR
 | Version | Scope | State |
 |---|---|---|
 | v0.1 | Stops, outings, anchors, measures, storage, CLI | Released |
-| v0.2.x | Image captioning, written profiles, themes, trend, local API, visualisation | Current |
-| v0.3 | Screenshots, OCR, and the Privacy Filter | Planned |
+| v0.2.x | Image captioning, written profiles, themes, trend, local API, visualisation | Released |
+| v0.3 | Screenshots as interest evidence, the screen reader, mechanical consent | Current |
+| v0.4 | Hybrid search, temporal questions, place entities, single-photo context (FR-507) | Planned |
 | v1.0 | Overnight trips, weather, several devices merged, incremental rebuilds, PyPI | Planned |
 
 One debt stays open. Roughly a third of an ordinary library is photographs
@@ -214,7 +220,7 @@ only useful if they can check it.
 ## Development
 
 ```bash
-uv run pytest          # 719 tests, none of which call a model
+uv run pytest          # 781 tests, none of which call a model
 uv run mypy packages   # strict
 uv run lint-imports    # the architecture, as four enforced contracts
 ```

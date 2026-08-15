@@ -24,6 +24,7 @@ uv run kiseki report --json
 | `tell` | Say what the profile says, in prose |
 | `serve` | Answer over local HTTP, loopback by default |
 | `view` | Write a self-contained HTML view |
+| `screens` | Read the screenshots: category and labels only |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -112,3 +113,17 @@ The knobs are constants at the top of
 `BLUR_DECIMALS` (in `payloads.py`) is not a tuning knob: it is the
 privacy grid shared by the API and the view. Making the picture finer
 means making every served coordinate finer.
+
+## Reading the screens
+
+`kiseki screens` reads every screenshot once, resumably, through the
+staged VLM. A reading is a category from a closed list plus up to six
+short labels -- the raw words on the screen are never stored, and the
+chat, auth and finance categories are never labelled (ADR-0030).
+Withheld consent (`use_for_preference: false`) skips the photograph
+entirely (ADR-0032).
+
+```bash
+uv run kiseki screens --limit 20   # try a batch first
+uv run kiseki screens              # the rest; safe to interrupt
+```

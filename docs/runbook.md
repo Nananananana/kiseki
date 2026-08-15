@@ -42,6 +42,7 @@ Non-photographs are stored but never shape stops or anchors
 uv run kiseki caption     # new stays only; safe to interrupt
 uv run kiseki subjects
 uv run kiseki themes      # recomputes only when the label set changed
+uv run kiseki screens     # screenshots: category and labels only
 ```
 
 ## 5. Read and keep
