@@ -43,6 +43,12 @@ class PhotoObservation:
     the field was carried; by the rules of their time those were
     camera photographs. See ADR-0028."""
 
+    use_for_preference: bool | None = None
+    """The owner has consented (or not) to this record informing the
+    preference profile. None for records stored before the field was
+    carried, which counts as consent: it matches what those records
+    agreed to at the time. See ADR-0032."""
+
     def __post_init__(self) -> None:
         if self.captured_at.tzinfo is None:
             raise ValueError("captured_at must be timezone aware")
@@ -61,3 +67,12 @@ class PhotoObservation:
         records that predate the field, take part. See ADR-0028.
         """
         return self.content_kind is None or self.content_kind == "photo"
+
+    @property
+    def may_inform_preferences(self) -> bool:
+        """Whether any per-photo reading may see this observation.
+
+        A withheld photograph still shapes journeys; it never becomes
+        interest evidence. See ADR-0032.
+        """
+        return self.use_for_preference is not False
