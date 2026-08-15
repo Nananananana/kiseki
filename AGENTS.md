@@ -115,13 +115,14 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 759 passing, 13 llm-marked and deselected in CI.
+- Tests: 809 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
   via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
-  `subjects`, `tell`, `themes`, `trend`, `serve`, `view`.
+  `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
+  `singles`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -177,3 +178,8 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
   PyPI, cloud VLM swap behind the same ports (ADR-0015).
+- v0.4 (FR-507, 1 of 3): single-photo captions (ADR-0033) --
+  photographs outside every stop, of kind photo or other, get their
+  own captions in `single_captions`, keyed by photo id; resumable
+  `kiseki singles --limit`; withheld photographs (ADR-0032) are never
+  captioned; screenshots stay with the screen reader (ADR-0030).

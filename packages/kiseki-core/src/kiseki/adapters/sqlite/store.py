@@ -18,6 +18,7 @@ from typing import Any
 
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.caption.caption import Caption, CaptionKey
+from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 from kiseki.domain.interests import (
@@ -127,6 +128,14 @@ CREATE TABLE IF NOT EXISTS screen_readings (
     photo_id   TEXT PRIMARY KEY,
     category   TEXT NOT NULL,
     labels     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS single_captions (
+    photo_id   TEXT PRIMARY KEY,
+    text       TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     refused    TEXT
@@ -693,3 +702,56 @@ class SqliteScreenshotReadingRepository:
             " FROM screen_readings ORDER BY rowid"
         )
         return tuple(_to_screen_reading(row) for row in cursor)
+
+
+def _to_single_caption(row: tuple[Any, ...]) -> SingleCaption:
+    photo_id, text, model, created_at, refused = row
+    return SingleCaption(
+        photo_id=PhotoId(photo_id),
+        text=text,
+        model=model,
+        created_at=datetime.fromisoformat(created_at),
+        refused=refused,
+    )
+
+
+class SqliteSingleCaptionRepository:
+    """Single captions accumulate, keyed by the photograph they describe.
+
+    The table is additive to schema version 4, so an existing database
+    gains it on connect. See ADR-0033.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, caption: SingleCaption) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO single_captions"
+                " (photo_id, text, model, created_at, refused)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (
+                    caption.photo_id.value,
+                    caption.text,
+                    caption.model,
+                    caption.created_at.isoformat(),
+                    caption.refused,
+                ),
+            )
+
+    def get(self, photo_id: PhotoId) -> SingleCaption | None:
+        row = self._connection.execute(
+            "SELECT photo_id, text, model, created_at, refused"
+            " FROM single_captions WHERE photo_id = ?",
+            (photo_id.value,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _to_single_caption(row)
+
+    def all(self) -> tuple[SingleCaption, ...]:
+        cursor = self._connection.execute(
+            "SELECT photo_id, text, model, created_at, refused FROM single_captions ORDER BY rowid"
+        )
+        return tuple(_to_single_caption(row) for row in cursor)
