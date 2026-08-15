@@ -115,7 +115,7 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
 ## Current state
 
 - Version: v0.2.1 released.
-- Tests: 732 passing, 13 llm-marked and deselected in CI.
+- Tests: 738 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,651 photographs
   ingested; 267 stops; 266 captioned; 265 subject readings; a merged
   profile of place and subject interests; a cited Japanese narration
@@ -161,9 +161,13 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   screenshot reader is a port, so the VLM-prompt adapter can be
   swapped for a dedicated extractor. Landed: (1) content_kind
   carried end to end (ADR-0028; schema v3, first chained migration;
-  non-photos never shape stops or anchors). Next: (2) the producer
-  time fallback for records without DateTimeOriginal (non-photo
-  kinds only) and the Japanese screenshot-name regex check.
+  non-photos never shape stops or anchors). (2) the producer
+  borrows the file-modified time for non-photographs without a
+  capture time (opt-in --time-fallback-mtime, declared in
+  extra.time_source, ADR-0029); the Japanese screenshot-name pattern
+  is verified in the repo and pinned by a test. Next: (3) the
+  refresh runbook (docs + examples), then the screenshot reader
+  port.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,

@@ -2,13 +2,13 @@
 
 import hashlib
 from dataclasses import dataclass
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
 
-from kiseki_ingest.classification import MediaEvidence, classify
+from kiseki_ingest.classification import PHOTO, MediaEvidence, classify
 from kiseki_ingest.exif import extract_location, parse_captured_at
 from kiseki_ingest.reader import read_exif
 
@@ -67,6 +67,11 @@ def write_thumbnail(source: Path, destination: Path) -> None:
         thumbnail.save(destination, "JPEG", quality=THUMBNAIL_QUALITY)
 
 
+def _modified_at(path: Path) -> datetime:
+    """The file's modified time, in the machine's own zone, offset included."""
+    return datetime.fromtimestamp(path.stat().st_mtime).astimezone()
+
+
 def build_record(
     path: Path,
     *,
@@ -75,27 +80,25 @@ def build_record(
     default_offset: timezone,
     thumbnail_root: Path,
     digest: str | None = None,
+    mtime_fallback: bool = False,
 ) -> dict[str, Any]:
     """Build one PhotoRecord and write its thumbnail.
 
-    Raises ValueError when the file carries no capture time. A record without a
-    position in time cannot take part in a journey, so it is reported as skipped
-    rather than given a guessed timestamp.
+    Raises ValueError when the file carries no capture time. A record
+    without a position in time cannot take part in a journey, so it is
+    reported as skipped rather than given a guessed timestamp. With
+    ``mtime_fallback``, a non-photograph without one borrows the
+    file's modified time instead -- a measured filesystem fact, not a
+    guess -- and declares it in ``extra.time_source``. A photograph
+    without a capture time stays skipped either way: on a camera file
+    that absence is an anomaly. See ADR-0029.
 
-    ``digest`` may be supplied by a caller that has already hashed the file for
-    duplicate detection, to avoid reading it twice.
+    ``digest`` may be supplied by a caller that has already hashed the
+    file for duplicate detection, to avoid reading it twice.
     """
     from kiseki_ingest import __version__
 
     raw = read_exif(path)
-    if raw.captured_at is None:
-        raise ValueError("no DateTimeOriginal, the record has no position in time")
-
-    captured_at = parse_captured_at(raw.captured_at, raw.offset, default_offset)
-    content_hash = digest if digest is not None else hash_file(path)
-    reference = f"{captured_at.year:04d}/{captured_at.month:02d}/{content_hash[:16]}.jpg"
-    write_thumbnail(path, thumbnail_root / reference)
-
     evidence = MediaEvidence(
         filename=path.name,
         suffix=path.suffix,
@@ -103,17 +106,33 @@ def build_record(
         width=raw.width,
         height=raw.height,
     )
+    kind = classify(evidence)
+
+    time_source: str | None = None
+    if raw.captured_at is not None:
+        captured_at = parse_captured_at(raw.captured_at, raw.offset, default_offset)
+    elif mtime_fallback and kind != PHOTO:
+        captured_at = _modified_at(path)
+        time_source = "file-modified"
+    else:
+        raise ValueError("no DateTimeOriginal, the record has no position in time")
+
+    content_hash = digest if digest is not None else hash_file(path)
+    reference = f"{captured_at.year:04d}/{captured_at.month:02d}/{content_hash[:16]}.jpg"
+    write_thumbnail(path, thumbnail_root / reference)
 
     record: dict[str, Any] = {
         "id": f"sha256:{content_hash}",
         "captured_at": captured_at.isoformat(),
         "media_type": "image",
-        "content_kind": classify(evidence),
+        "content_kind": kind,
         "thumbnail_ref": reference,
         "owner": owner.as_dict(),
         "consent": consent.as_dict(),
         "source": {"exporter": "kiseki-ingest", "version": __version__},
     }
+    if time_source is not None:
+        record["extra"] = {"time_source": time_source}
 
     location = extract_location(raw.gps)
     if location is None:
