@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 830 passing, 13 llm-marked and deselected in CI.
+- Tests: 851 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -204,3 +204,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   stay of only withheld photographs is counted and skipped, and a
   changed selection re-captions the stay once under its new key.
   FR-507 is complete; next per proposals/0002: (2) hybrid search.
+- v0.4 (hybrid search, 1 of 3): the search index (ADR-0036) --
+  answered stay captions, single captions and labelled screen
+  readings become FTS5 documents plus per-model vectors in the same
+  database; the adapter creates its own tables so connect() never
+  depends on FTS5; resumable `kiseki index --limit`; withheld
+  photographs and sensitive screens are never indexed, and no
+  coordinate enters a document. Next: (2 of 3) deterministic hybrid
+  retrieval, then (3 of 3) `kiseki ask` and /ask.

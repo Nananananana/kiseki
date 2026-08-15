@@ -15,11 +15,13 @@ from typing import Any
 
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
 from kiseki.adapters.ollama.models import (
+    DEFAULT_EMBEDDING_MODEL,
     OllamaImageCaptioner,
     OllamaLanguageModel,
     OllamaTextEmbedder,
 )
 from kiseki.adapters.ollama.screens import OllamaScreenshotReader
+from kiseki.adapters.sqlite.search import SqliteSearchIndex
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
@@ -33,6 +35,7 @@ from kiseki.adapters.sqlite.store import (
     connect,
 )
 from kiseki.application.captioning import run_captioning
+from kiseki.application.indexing import run_indexing
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.screen_reading import run_screen_reading
@@ -396,6 +399,31 @@ def _command_singles(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_index(args: argparse.Namespace) -> int:
+    connection = connect(_paths_for(args).db_path)
+    try:
+        report = run_indexing(
+            photos=SqlitePhotoRepository(connection),
+            captions=SqliteCaptionRepository(connection),
+            singles=SqliteSingleCaptionRepository(connection),
+            screens=SqliteScreenshotReadingRepository(connection),
+            index=SqliteSearchIndex(connection),
+            embedder=OllamaTextEmbedder(),
+            embedding_model=DEFAULT_EMBEDDING_MODEL,
+            limit=args.limit,
+        )
+    except ModelRefusedError as error:
+        print(f"the model could not answer: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    print(RULE)
+    print(f"  documents     {report.documents_total} ({report.documents_added} new)")
+    print(f"  embedded      {report.embedded}")
+    print(f"  already done  {report.already_embedded}")
+    if report.paused:
+        print("\n  paused: the model was unavailable; run again to resume")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -466,6 +494,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=None, help="caption at most this many photographs"
     )
     singles.set_defaults(run=_command_singles)
+
+    indexing = commands.add_parser("index", help="index the readings for search")
+    indexing.add_argument("--limit", type=int, default=None, help="embed at most this many")
+    indexing.set_defaults(run=_command_index)
 
     return parser
 
