@@ -1,15 +1,14 @@
 """The single-caption stores, fake and sqlite, held to one contract."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.adapters.fake.singles import FakeSingleCaptionRepository
 from kiseki.adapters.sqlite.store import SqliteSingleCaptionRepository, connect
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.photo.observation import PhotoId
 
-WHEN = datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture(params=["fake", "sqlite"])

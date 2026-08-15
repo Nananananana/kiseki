@@ -1,6 +1,6 @@
 """The single-photo captioning run: eligibility, resumability, refusals."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from kiseki.adapters.fake.models import FakeImageCaptioner
 from kiseki.adapters.fake.singles import FakeSingleCaptionRepository
@@ -13,7 +13,7 @@ from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 from kiseki.ports.models import Completion, ModelRefusedError, Usage
 
-START = datetime(2026, 5, 1, 9, 0, tzinfo=timezone.utc)
+START = datetime(2026, 5, 1, 9, 0, tzinfo=UTC)
 
 
 def _photo(pid, minutes=0, kind=None, thumb=None, preference=None):
@@ -28,9 +28,7 @@ def _photo(pid, minutes=0, kind=None, thumb=None, preference=None):
 
 
 def _outing_holding(pid, minutes=0):
-    span = TimeRange(
-        START + timedelta(minutes=minutes), START + timedelta(minutes=minutes + 30)
-    )
+    span = TimeRange(START + timedelta(minutes=minutes), START + timedelta(minutes=minutes + 30))
     stop = Stop((PhotoId(pid),), span, GeoPoint(35.0, 139.0))
     return Outing.of([stop])
 
@@ -80,7 +78,7 @@ def test_a_lone_photograph_is_captioned():
 
 def test_a_photograph_inside_a_stay_is_left_alone():
     captioner = FakeImageCaptioner()
-    report, singles = _run(
+    report, _singles = _run(
         [_photo("p1", thumb="t/p1")],
         outings=[_outing_holding("p1")],
         images={"t/p1": b"one"},
@@ -91,7 +89,7 @@ def test_a_photograph_inside_a_stay_is_left_alone():
 
 
 def test_screenshots_and_documents_are_not_asked_about():
-    report, singles = _run(
+    report, _singles = _run(
         [
             _photo("s1", kind="screenshot", thumb="t/s1"),
             _photo("d1", 1, kind="document", thumb="t/d1"),
@@ -103,13 +101,13 @@ def test_screenshots_and_documents_are_not_asked_about():
 
 
 def test_a_saved_image_counts_as_a_single_photograph():
-    report, singles = _run([_photo("o1", kind="other", thumb="t/o1")], images={"t/o1": b"o"})
+    report, _singles = _run([_photo("o1", kind="other", thumb="t/o1")], images={"t/o1": b"o"})
     assert report.captioned == 1
 
 
 def test_a_withheld_photograph_is_never_asked_about():
     captioner = FakeImageCaptioner()
-    report, singles = _run(
+    report, _singles = _run(
         [_photo("p1", thumb="t/p1", preference=False)],
         images={"t/p1": b"one"},
         captioner=captioner,
@@ -120,7 +118,7 @@ def test_a_withheld_photograph_is_never_asked_about():
 
 
 def test_a_photograph_without_thumbnail_is_counted():
-    report, singles = _run([_photo("p1")])
+    report, _singles = _run([_photo("p1")])
     assert report.unreferenced == 1
     assert report.captioned == 0
 
@@ -177,7 +175,7 @@ def test_a_model_refusal_is_recorded_and_the_run_continues():
 
 def test_an_unavailable_model_pauses_the_run():
     captioner = FakeImageCaptioner(fail_on=lambda request: True)
-    report, singles = _run(
+    report, _singles = _run(
         [_photo("p1", thumb="t/p1"), _photo("p2", 1, thumb="t/p2")],
         images={"t/p1": b"one", "t/p2": b"two"},
         captioner=captioner,
@@ -202,7 +200,7 @@ def test_a_paused_run_resumes_where_it_stopped():
 
 
 def test_the_limit_stops_the_run_early():
-    report, singles = _run(
+    report, _singles = _run(
         [
             _photo("p1", thumb="t/p1"),
             _photo("p2", 1, thumb="t/p2"),
@@ -215,7 +213,7 @@ def test_the_limit_stops_the_run_early():
 
 
 def test_the_oldest_photograph_comes_first():
-    report, singles = _run(
+    _report, singles = _run(
         [_photo("old", thumb="t/old"), _photo("new", 60, thumb="t/new")],
         images={"t/old": b"a", "t/new": b"b"},
         limit=1,

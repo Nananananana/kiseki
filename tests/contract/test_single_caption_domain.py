@@ -1,13 +1,12 @@
 """The single caption value: text or a recorded refusal."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.photo.observation import PhotoId
 
-WHEN = datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)
+WHEN = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
 
 
 def test_an_answered_caption_carries_its_text():

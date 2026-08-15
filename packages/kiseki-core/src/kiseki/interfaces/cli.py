@@ -27,6 +27,7 @@ from kiseki.adapters.sqlite.store import (
     SqlitePhotoRepository,
     SqliteProfileRepository,
     SqliteScreenshotReadingRepository,
+    SqliteSingleCaptionRepository,
     SqliteSubjectRepository,
     SqliteThemeSetRepository,
     connect,
@@ -35,6 +36,7 @@ from kiseki.application.captioning import run_captioning
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.screen_reading import run_screen_reading
+from kiseki.application.single_captioning import run_single_captioning
 from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
@@ -369,6 +371,27 @@ def _command_screens(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_singles(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    report = run_single_captioning(
+        photos=SqlitePhotoRepository(connection),
+        outings=SqliteOutingRepository(connection),
+        singles=SqliteSingleCaptionRepository(connection),
+        thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
+        captioner=OllamaImageCaptioner(),
+        limit=args.limit,
+    )
+    print(RULE)
+    print(f"  captioned     {report.captioned}")
+    print(f"  already done  {report.already_captioned}")
+    print(f"  refused       {report.refused}")
+    print(f"  unreferenced  {report.unreferenced}")
+    if report.paused:
+        print("\n  paused: the model was unavailable; run again to resume")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -433,6 +456,12 @@ def build_parser() -> argparse.ArgumentParser:
     screens = commands.add_parser("screens", help="read the screenshots: category and labels only")
     screens.add_argument("--limit", type=int, default=None, help="read at most this many")
     screens.set_defaults(run=_command_screens)
+
+    singles = commands.add_parser("singles", help="describe the photographs outside every stay")
+    singles.add_argument(
+        "--limit", type=int, default=None, help="caption at most this many photographs"
+    )
+    singles.set_defaults(run=_command_singles)
 
     return parser
 
