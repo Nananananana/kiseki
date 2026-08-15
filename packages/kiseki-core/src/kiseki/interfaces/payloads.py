@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from kiseki.application.asking import Answer
 from kiseki.application.pipeline import Report
 from kiseki.domain.interests import Profile
 from kiseki.domain.trends import TrendReport
@@ -96,6 +97,27 @@ def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
                 "baseline": trend.baseline,
             }
             for trend in report.trends
+        ],
+    }
+
+
+def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
+    return {
+        "question": answer.question,
+        "answer": answer.answer if answer.answered else None,
+        "confidence": answer.confidence,
+        "first_seen": answer.first_seen.isoformat() if answer.first_seen else None,
+        "last_seen": answer.last_seen.isoformat() if answer.last_seen else None,
+        "model": answer.model,
+        "evidence": [
+            {
+                "doc_key": item.document.doc_key,
+                "kind": item.document.kind,
+                "observed_at": item.document.observed_at.isoformat(),
+                "text": item.document.text,
+                "score": item.score,
+            }
+            for item in answer.evidence
         ],
     }
 

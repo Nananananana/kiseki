@@ -8,7 +8,7 @@ what it needs.
 import argparse
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,7 @@ from kiseki.adapters.sqlite.store import (
     SqliteThemeSetRepository,
     connect,
 )
+from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import run_captioning
 from kiseki.application.indexing import run_indexing
 from kiseki.application.narrative import tell
@@ -50,6 +51,7 @@ from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.payloads import (
+    answer_payload,
     profile_payload,
     report_payload,
     trend_payload,
@@ -326,6 +328,7 @@ def _command_serve(args: argparse.Namespace) -> int:
         OllamaLanguageModel,
         host=args.host,
         port=args.port,
+        ask_factory=_ask_factory(db_path),
     )
     return EXIT_OK
 
@@ -424,6 +427,56 @@ def _command_index(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_ask(args: argparse.Namespace) -> int:
+    connection = connect(_paths_for(args).db_path)
+    try:
+        answer = ask(
+            index=SqliteSearchIndex(connection),
+            embedder=OllamaTextEmbedder(),
+            embedding_model=DEFAULT_EMBEDDING_MODEL,
+            language_model=OllamaLanguageModel(),
+            question=args.question,
+            language=args.lang,
+        )
+    except (ModelRefusedError, ModelUnavailableError) as error:
+        print(f"the model could not answer: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    if args.json:
+        print(json.dumps(answer_payload(answer), ensure_ascii=False, indent=2))
+        return EXIT_OK
+    print(RULE)
+    if not answer.answered:
+        print("  no evidence found for this question")
+        return EXIT_OK
+    print(answer.answer)
+    print()
+    print(f"  confidence    {answer.confidence:.2f}")
+    if answer.first_seen is not None and answer.last_seen is not None:
+        print(f"  time range    {answer.first_seen:%Y-%m-%d} to {answer.last_seen:%Y-%m-%d}")
+    print(f"  evidence      {len(answer.evidence)}")
+    return EXIT_OK
+
+
+def _ask_factory(db_path: Path) -> Callable[[str, str], Answer]:
+    """Fresh connection per question: SQLite belongs to its thread."""
+
+    def _answer(question: str, language: str) -> Answer:
+        connection = connect(db_path)
+        try:
+            return ask(
+                index=SqliteSearchIndex(connection),
+                embedder=OllamaTextEmbedder(),
+                embedding_model=DEFAULT_EMBEDDING_MODEL,
+                language_model=OllamaLanguageModel(),
+                question=question,
+                language=language,
+            )
+        finally:
+            connection.close()
+
+    return _answer
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -498,6 +551,12 @@ def build_parser() -> argparse.ArgumentParser:
     indexing = commands.add_parser("index", help="index the readings for search")
     indexing.add_argument("--limit", type=int, default=None, help="embed at most this many")
     indexing.set_defaults(run=_command_index)
+
+    asking = commands.add_parser("ask", help="answer a question from the readings")
+    asking.add_argument("question", help="the question, in Japanese or English")
+    asking.add_argument("--lang", default="ja", choices=["ja", "en"], help="answer language")
+    asking.add_argument("--json", action="store_true", help="machine readable output")
+    asking.set_defaults(run=_command_ask)
 
     return parser
 

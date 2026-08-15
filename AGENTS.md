@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 872 passing, 13 llm-marked and deselected in CI.
+- Tests: 884 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -124,7 +124,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   narration via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
-  `singles`.
+  `singles`, `index`, `ask`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -216,4 +216,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   rank (k=60), ties by document key; raw questions are tokenised into
   safe OR-joined FTS5 queries; an unavailable embedder degrades to
   words alone; since/until bound hits by observed time as the
-  temporal hook. Next: (3 of 3) `kiseki ask` and /ask (ADR-0038).
+  temporal hook.
+- v0.4 (hybrid search, 3 of 3): `kiseki ask` and /ask (ADR-0038) --
+  retrieval chooses the facts, the model phrases one cited answer
+  over a closed numbered list (the ADR-0022 shape); confidence, time
+  range and evidence come from the retrieval, never from the model;
+  no evidence means no model call. Hybrid search is complete; next
+  per proposals/0002: (3) temporal retrieval.

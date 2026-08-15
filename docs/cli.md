@@ -26,6 +26,8 @@ uv run kiseki report --json
 | `view` | Write a self-contained HTML view |
 | `screens` | Read the screenshots: category and labels only |
 | `singles` | Describe the photographs outside every stay |
+| `index` | Index the readings for search |
+| `ask` | Answer a question from the readings, with evidence |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -142,4 +144,19 @@ their own reader (ADR-0030), and withheld consent
 ```bash
 uv run kiseki singles --limit 20   # try a batch first
 uv run kiseki singles              # the rest; safe to interrupt
+```
+
+## Asking
+
+`kiseki index` turns the readings into a search index (FTS5 words
+plus bge-m3 vectors, in the same database); `kiseki ask` answers a
+question from it with the evidence, its time range and a derived
+confidence. The model phrases the answer over a closed, numbered
+fact list and cites it (ADR-0036 to ADR-0038); with no evidence
+there is no model call. Over HTTP: `GET /ask?q=...&lang=ja`.
+
+```bash
+uv run kiseki index                 # once, then after each refresh
+uv run kiseki ask "What do I keep photographing lately?"
+uv run kiseki ask --json "ramen"    # the answer contract as JSON
 ```
