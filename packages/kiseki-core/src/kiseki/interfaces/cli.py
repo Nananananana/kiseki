@@ -40,6 +40,12 @@ from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.trends import TrendReport
+from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
+from kiseki.interfaces.payloads import (
+    profile_payload,
+    report_payload,
+    trend_payload,
+)
 from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 
 EXIT_OK = 0
@@ -77,8 +83,8 @@ def _paths_for(args: argparse.Namespace) -> StoragePaths:
     return resolve_paths({"data_root": args.data_root or ""}, dotenv=DOTENV)
 
 
-def _pipeline_for(args: argparse.Namespace) -> Pipeline:
-    connection = connect(_paths_for(args).db_path)
+def _pipeline_from(db_path: Path) -> Pipeline:
+    connection = connect(db_path)
     return Pipeline(
         SqlitePhotoRepository(connection),
         SqliteOutingRepository(connection),
@@ -88,6 +94,10 @@ def _pipeline_for(args: argparse.Namespace) -> Pipeline:
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
     )
+
+
+def _pipeline_for(args: argparse.Namespace) -> Pipeline:
+    return _pipeline_from(_paths_for(args).db_path)
 
 
 def _command_paths(args: argparse.Namespace) -> int:
@@ -123,45 +133,6 @@ def _command_build(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _payload(report: Report) -> dict[str, Any]:
-    habits = report.habits
-    return {
-        "photographs": report.photographs,
-        "outings": len(report.outings),
-        "anchors": [
-            {
-                "latitude": anchor.area.center.latitude,
-                "longitude": anchor.area.center.longitude,
-                "visit_days": anchor.visit_days,
-                "night_share": anchor.night_share,
-                "weekday_share": anchor.weekday_share,
-                "daytime_share": anchor.daytime_share,
-                "photograph_count": anchor.photograph_count,
-            }
-            for anchor in report.anchors
-        ],
-        "places": {
-            "distinct": len(report.places.places),
-            "return_rate": report.places.return_rate,
-            "one_time_rate": report.places.one_time_rate,
-        },
-        "habits": None
-        if habits is None
-        else {
-            "travel_km_median": habits.travel_km.median,
-            "duration_hours_median": habits.duration_hours.median,
-            "stops_per_outing_median": habits.stops_per_outing.median,
-            "stay_minutes_median": habits.stay_minutes.median,
-        },
-        "rhythm": {
-            "weekend_share": report.rhythm.weekend_share,
-            "early_start_share": report.rhythm.early_start_share,
-            "by_weekday": report.rhythm.by_weekday,
-            "by_month": report.rhythm.by_month,
-        },
-    }
-
-
 def _print_report(report: Report) -> None:
     print(RULE)
     print(f"  photographs   {report.photographs}")
@@ -193,34 +164,10 @@ def _print_report(report: Report) -> None:
 def _command_report(args: argparse.Namespace) -> int:
     report = _pipeline_for(args).report()
     if args.json:
-        print(json.dumps(_payload(report), indent=2))
+        print(json.dumps(report_payload(report), indent=2))
     else:
         _print_report(report)
     return EXIT_OK
-
-
-def _profile_payload(profile: Profile) -> dict[str, Any]:
-    return {
-        "generated_at": profile.generated_at.isoformat(),
-        "interests": [
-            {
-                "topic": interest.topic,
-                "score": interest.score,
-                "confidence": interest.confidence,
-                "first_seen": interest.first_seen.isoformat(),
-                "last_seen": interest.last_seen.isoformat(),
-                "evidence": [
-                    {
-                        "kind": evidence.kind.value,
-                        "reference": evidence.reference,
-                        "observed_at": evidence.observed_at.isoformat(),
-                    }
-                    for evidence in interest.evidence
-                ],
-            }
-            for interest in profile.ranked()
-        ],
-    }
 
 
 def _print_profile(profile: Profile) -> None:
@@ -241,7 +188,7 @@ def _print_profile(profile: Profile) -> None:
 def _command_profile(args: argparse.Namespace) -> int:
     profile = _pipeline_for(args).profile()
     if args.json:
-        print(json.dumps(_profile_payload(profile), indent=2))
+        print(json.dumps(profile_payload(profile), indent=2))
     else:
         _print_profile(profile)
     return EXIT_OK
@@ -320,22 +267,6 @@ def _command_themes(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _trend_payload(report: TrendReport) -> dict[str, Any]:
-    return {
-        "baseline_at": report.baseline_at.isoformat(),
-        "latest_at": report.latest_at.isoformat(),
-        "trends": [
-            {
-                "topic": trend.topic,
-                "direction": trend.direction.value,
-                "strength": trend.strength,
-                "baseline": trend.baseline,
-            }
-            for trend in report.trends
-        ],
-    }
-
-
 def _print_trend(report: TrendReport) -> None:
     print(RULE)
     print(f"  baseline      {report.baseline_at.date().isoformat()}")
@@ -365,9 +296,20 @@ def _command_trend(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        print(json.dumps(_trend_payload(report), indent=2))
+        print(json.dumps(trend_payload(report), indent=2))
     else:
         _print_trend(report)
+    return EXIT_OK
+
+
+def _command_serve(args: argparse.Namespace) -> int:
+    db_path = _paths_for(args).db_path
+    serve(
+        lambda: _pipeline_from(db_path),
+        OllamaLanguageModel,
+        host=args.host,
+        port=args.port,
+    )
     return EXIT_OK
 
 
@@ -417,6 +359,13 @@ def build_parser() -> argparse.ArgumentParser:
     trend = commands.add_parser("trend", help="read the drift between kept profiles")
     trend.add_argument("--json", action="store_true", help="machine readable output")
     trend.set_defaults(run=_command_trend)
+
+    serving = commands.add_parser("serve", help="answer over local HTTP")
+    serving.add_argument(
+        "--host", default=DEFAULT_HOST, help="bind address; loopback unless told otherwise"
+    )
+    serving.add_argument("--port", type=int, default=DEFAULT_PORT, help="port to listen on")
+    serving.set_defaults(run=_command_serve)
 
     return parser
 
