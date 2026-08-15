@@ -57,7 +57,7 @@ class TestSchemaV3:
         connection = connect(path)
         try:
             assert "content_kind" in _columns(connection)
-            assert _version(connection) == 3
+            assert _version(connection) == 4
         finally:
             connection.close()
 
@@ -68,7 +68,7 @@ class TestSchemaV3:
         try:
             assert "thumbnail_ref" in _columns(connection)
             assert "content_kind" in _columns(connection)
-            assert _version(connection) == 3
+            assert _version(connection) == 4
         finally:
             connection.close()
 

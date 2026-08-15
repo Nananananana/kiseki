@@ -26,6 +26,7 @@ class ScreenRunReport:
     refused: int
     unreferenced: int
     paused: bool
+    withheld: int = 0
 
 
 def run_screen_reading(
@@ -37,11 +38,14 @@ def run_screen_reading(
     now: Callable[[], datetime] = datetime.now,
 ) -> ScreenRunReport:
     """Read every unread screenshot, oldest first."""
-    read = already = refused = unreferenced = 0
+    read = already = refused = unreferenced = withheld = 0
     paused = False
 
     for photo in photos.all():
         if photo.content_kind != SCREENSHOT:
+            continue
+        if not photo.may_inform_preferences:
+            withheld += 1
             continue
         if limit is not None and read + refused >= limit:
             break
@@ -81,7 +85,7 @@ def run_screen_reading(
         )
         read += 1
 
-    return ScreenRunReport(read, already, refused, unreferenced, paused)
+    return ScreenRunReport(read, already, refused, unreferenced, paused, withheld)
 
 
 def _refusal(photo_id: PhotoId, reason: str, when: datetime) -> ScreenshotReading:

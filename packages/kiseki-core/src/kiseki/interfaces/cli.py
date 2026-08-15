@@ -71,6 +71,9 @@ def _read_records(path: Path) -> list[dict[str, Any]]:
 def _to_observations(records: list[dict[str, Any]]) -> list[PhotoObservation]:
     observations = []
     for record in records:
+        consent = record.get("consent") or {}
+        if consent.get("use_for_story") is False:
+            continue
         place = record.get("location")
         observations.append(
             PhotoObservation(
@@ -79,6 +82,7 @@ def _to_observations(records: list[dict[str, Any]]) -> list[PhotoObservation]:
                 GeoPoint(place["lat"], place["lon"]) if place else None,
                 thumbnail_ref=record.get("thumbnail_ref"),
                 content_kind=record.get("content_kind"),
+                use_for_preference=consent.get("use_for_preference"),
             )
         )
     return observations

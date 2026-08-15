@@ -34,7 +34,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS photos (
     latitude      REAL,
     longitude     REAL,
     thumbnail_ref TEXT,
-    content_kind  TEXT
+    content_kind  TEXT,
+    use_for_preference INTEGER
 );
 CREATE INDEX IF NOT EXISTS photos_captured_at ON photos (captured_at);
 
@@ -155,6 +156,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 2:
             _migrate_v2_to_v3(connection)
             version = 3
+        if version == 3:
+            _migrate_v3_to_v4(connection)
+            version = 4
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -185,8 +189,18 @@ def _migrate_v2_to_v3(connection: sqlite3.Connection) -> None:
     connection.execute("UPDATE schema_version SET version = ?", (3,))
 
 
+def _migrate_v3_to_v4(connection: sqlite3.Connection) -> None:
+    """The one change from 3 to 4: photos gained the preference consent.
+
+    Additive and explicit (ADR-0018). Existing rows keep NULL, which
+    counts as consent. See ADR-0032.
+    """
+    connection.execute("ALTER TABLE photos ADD COLUMN use_for_preference INTEGER")
+    connection.execute("UPDATE schema_version SET version = ?", (4,))
+
+
 def _to_observation(row: tuple[Any, ...]) -> PhotoObservation:
-    identifier, captured_at, latitude, longitude, thumbnail_ref, content_kind = row
+    identifier, captured_at, latitude, longitude, thumbnail_ref, content_kind, preference = row
     place = GeoPoint(latitude, longitude) if latitude is not None else None
     return PhotoObservation(
         PhotoId(identifier),
@@ -194,6 +208,7 @@ def _to_observation(row: tuple[Any, ...]) -> PhotoObservation:
         place,
         thumbnail_ref=thumbnail_ref,
         content_kind=content_kind,
+        use_for_preference=None if preference is None else bool(preference),
     )
 
 
@@ -210,29 +225,32 @@ class SqlitePhotoRepository:
                 item.location.longitude if item.location else None,
                 item.thumbnail_ref,
                 item.content_kind,
+                None if item.use_for_preference is None else int(item.use_for_preference),
             )
             for item in observations
         ]
         with self._connection:
             self._connection.executemany(
                 "INSERT OR REPLACE INTO photos"
-                " (id, captured_at, latitude, longitude, thumbnail_ref, content_kind)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
+                " (id, captured_at, latitude, longitude, thumbnail_ref, content_kind,"
+                " use_for_preference)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
         return len(rows)
 
     def all(self) -> tuple[PhotoObservation, ...]:
         cursor = self._connection.execute(
-            "SELECT id, captured_at, latitude, longitude, thumbnail_ref, content_kind"
-            " FROM photos ORDER BY captured_at"
+            "SELECT id, captured_at, latitude, longitude, thumbnail_ref, content_kind,"
+            " use_for_preference FROM photos ORDER BY captured_at"
         )
         return tuple(_to_observation(row) for row in cursor)
 
     def between(self, start: datetime, end: datetime) -> tuple[PhotoObservation, ...]:
         cursor = self._connection.execute(
-            "SELECT id, captured_at, latitude, longitude, thumbnail_ref, content_kind"
-            " FROM photos WHERE captured_at >= ? AND captured_at <= ? ORDER BY captured_at",
+            "SELECT id, captured_at, latitude, longitude, thumbnail_ref, content_kind,"
+            " use_for_preference FROM photos"
+            " WHERE captured_at >= ? AND captured_at <= ? ORDER BY captured_at",
             (start.isoformat(), end.isoformat()),
         )
         return tuple(_to_observation(row) for row in cursor)
