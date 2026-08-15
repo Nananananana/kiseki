@@ -165,9 +165,10 @@ Read `docs/adr/` (0001-0027) before changing anything they cover.
   borrows the file-modified time for non-photographs without a
   capture time (opt-in --time-fallback-mtime, declared in
   extra.time_source, ADR-0029); the Japanese screenshot-name pattern
-  is verified in the repo and pinned by a test. Next: (3) the
-  refresh runbook (docs + examples), then the screenshot reader
-  port.
+  is verified in the repo and pinned by a test. (3) the refresh
+  runbook: docs/runbook.md and examples/refresh.ps1 (parameterised;
+  no personal paths in the repo). Next: (4) the screenshot reader
+  port and its VLM-prompt adapter.
 - v0.3: screenshots -- lift the `content_kind: screenshot` exclusion,
   ship the Privacy Filter in the same release, OCR, intent evidence.
 - v1.0: overnight trips, weather, multi-device, incremental rebuild,
