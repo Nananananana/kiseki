@@ -68,6 +68,12 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="drop anything classified as a screenshot or other content",
     )
+    parser.add_argument(
+        "--time-fallback-mtime",
+        action="store_true",
+        help="borrow the file modified time for non-photographs without"
+        " DateTimeOriginal; photographs without one stay skipped",
+    )
     parser.add_argument("--no-preference-consent", action="store_true")
     parser.add_argument("--no-story-consent", action="store_true")
     return parser
@@ -111,6 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 default_offset=default_offset,
                 thumbnail_root=args.output / THUMBNAIL_DIR,
                 digest=digest,
+                mtime_fallback=args.time_fallback_mtime,
             )
         except (ValueError, OSError) as error:
             skipped.append(Skipped(path, str(error)))

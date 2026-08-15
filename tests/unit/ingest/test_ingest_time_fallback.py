@@ -13,12 +13,11 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from PIL import Image
-
 from kiseki_ingest.classification import SCREENSHOT, MediaEvidence, classify
 from kiseki_ingest.cli import main
 from kiseki_ingest.exif import parse_offset
 from kiseki_ingest.records import Consent, Owner, build_record
+from PIL import Image
 
 OFFSET = parse_offset("+09:00")
 OWNER = Owner("tester")
@@ -90,7 +89,7 @@ class TestJapaneseScreenshotNames:
         """The Japanese screenshot prefix is pinned so a cp932 mishap
         in the source file cannot silently break it again."""
         evidence = MediaEvidence(
-            filename="繧ｹ繧ｯ繝ｪ繝ｼ繝ｳ繧ｷ繝ｧ繝・ヨ 2026-08-15 10.00.00.png",
+            filename="\u30b9\u30af\u30ea\u30fc\u30f3\u30b7\u30e7\u30c3\u30c8 2026-08-15.png",
             suffix=".png",
             has_camera_metadata=False,
         )
