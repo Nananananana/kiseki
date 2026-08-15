@@ -6,7 +6,7 @@ The command line keeps showing what is stored; anything served asks
 for blur explicitly. See ADR-0026.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from kiseki.application.pipeline import Report
@@ -36,7 +36,7 @@ BLURRED = "place:35.68,139.77"
 def _report() -> Report:
     anchor = Anchor(
         area=GeoArea(GeoPoint(35.68123, 139.76543), Distance(300)),
-        period=TimeRange(datetime(2026, 1, 1), datetime(2026, 6, 1)),
+        period=TimeRange(datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 6, 1, tzinfo=UTC)),
         visit_days=52,
         night_days=40,
         weekday_days=30,

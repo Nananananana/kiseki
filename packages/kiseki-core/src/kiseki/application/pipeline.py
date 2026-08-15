@@ -133,13 +133,14 @@ class Pipeline:
             rhythm=summarise_rhythm(outings),
         )
 
-    def profile(self, generated_at: datetime | None = None) -> Profile:
+    def profile(self, generated_at: datetime | None = None, keep: bool = True) -> Profile:
         """Read the built measures as interests, and keep the reading.
 
         Reads storage like report(); does not recompute and calls no
         model. When a profile repository was given, every reading is
         saved, so the history a trend will one day be computed from
-        keeps accumulating.
+        keeps accumulating. Pass keep=False to take a reading
+        without keeping it: a served GET must change nothing.
         """
         outings = self._outings.all()
         places = summarise_places(outings, self._settings.place_radius)
@@ -159,7 +160,7 @@ class Pipeline:
                 ),
             )
 
-        if self._profiles is not None:
+        if self._profiles is not None and keep:
             self._profiles.save(profile)
         return profile
 
