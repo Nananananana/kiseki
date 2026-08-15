@@ -222,6 +222,7 @@ def _command_caption(args: argparse.Namespace) -> int:
     print(f"  already done  {report.already_captioned}")
     print(f"  refused       {report.refused}")
     print(f"  unreferenced  {report.unreferenced}")
+    print(f"  withheld      {report.withheld}")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
     return EXIT_OK

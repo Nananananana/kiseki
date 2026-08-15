@@ -60,6 +60,10 @@ class CaptionRunReport:
     """True when the model became unavailable and the run stopped early.
     Running again continues from where it paused."""
 
+    withheld: int = 0
+    """Stays whose every photograph withheld preference consent
+    (ADR-0032); nothing was asked about them. See ADR-0035."""
+
 
 def run_captioning(
     outings: OutingRepository,
@@ -71,9 +75,20 @@ def run_captioning(
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
 ) -> CaptionRunReport:
-    """Caption every stay that has no caption yet, oldest first."""
-    references = {item.photo_id: item.thumbnail_ref for item in photos.all() if item.thumbnail_ref}
-    captioned = already = refused = unreferenced = 0
+    """Caption every stay that has no caption yet, oldest first.
+
+    A photograph that withheld preference consent (ADR-0032) never
+    enters the representative selection; a stay left with nothing to
+    select is counted as withheld and skipped. See ADR-0035.
+    """
+    observations = photos.all()
+    references = {
+        item.photo_id: item.thumbnail_ref
+        for item in observations
+        if item.thumbnail_ref and item.may_inform_preferences
+    }
+    withheld_ids = {item.photo_id for item in observations if not item.may_inform_preferences}
+    captioned = already = refused = unreferenced = withheld = 0
     paused = False
 
     for stop in _stops(outings):
@@ -82,7 +97,10 @@ def run_captioning(
 
         eligible = [identifier for identifier in stop.photo_ids if identifier in references]
         if not eligible:
-            unreferenced += 1
+            if any(identifier in withheld_ids for identifier in stop.photo_ids):
+                withheld += 1
+            else:
+                unreferenced += 1
             continue
         selected = representative_photo_ids(eligible, images_per_stop)
 
@@ -121,7 +139,7 @@ def run_captioning(
         )
         captioned += 1
 
-    return CaptionRunReport(captioned, already, refused, unreferenced, paused)
+    return CaptionRunReport(captioned, already, refused, unreferenced, paused, withheld)
 
 
 def _stops(outings: OutingRepository) -> Iterator[Stop]:
