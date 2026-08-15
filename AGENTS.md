@@ -145,6 +145,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   (2) hybrid search (FTS5 + bge-m3, `kiseki ask`), (3) temporal
   retrieval, (4) place entities (offline gazetteer), (5) place
   narration, (6) lifecycle labels.
+- v0.5-v0.6 direction: docs/proposals/0003 -- the personal context
+  engine: insight engine, evidence-grounded ask contract, user
+  corrections, derived lifecycle, timeline, evidence explorer,
+  export, privacy dashboard and audit; deferred pieces and the
+  reasons are in the proposal.
 - Shipped: local API (ADR-0026) -- `kiseki serve` answers /health,
   /report, /profile, /trend and /tell as JSON, standard library only,
   bound to loopback by default; a GET changes nothing (served profile
