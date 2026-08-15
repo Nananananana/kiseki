@@ -46,6 +46,7 @@ from kiseki.interfaces.payloads import (
     report_payload,
     trend_payload,
 )
+from kiseki.interfaces.view import render_view
 from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 
 EXIT_OK = 0
@@ -313,6 +314,33 @@ def _command_serve(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_view(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    photos = SqlitePhotoRepository(connection)
+    pipeline = Pipeline(
+        photos,
+        SqliteOutingRepository(connection),
+        SqliteAnchorRepository(connection),
+        profiles=SqliteProfileRepository(connection),
+        captions=SqliteCaptionRepository(connection),
+        subjects=SqliteSubjectRepository(connection),
+        themes=SqliteThemeSetRepository(connection),
+    )
+    page = render_view(
+        photos.all(),
+        pipeline.report(),
+        pipeline.profile(keep=False),
+        pipeline.trend(),
+        blur=not args.raw,
+    )
+    destination = args.out if args.out is not None else paths.cache_dir / "kiseki-view.html"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(page, encoding="utf-8")
+    print(f"written to {destination}")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -366,6 +394,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     serving.add_argument("--port", type=int, default=DEFAULT_PORT, help="port to listen on")
     serving.set_defaults(run=_command_serve)
+
+    viewing = commands.add_parser("view", help="write a self-contained HTML view")
+    viewing.add_argument("--out", type=Path, default=None, help="where to write the file")
+    viewing.add_argument(
+        "--raw", action="store_true", help="keep raw topic labels; blurred by default"
+    )
+    viewing.set_defaults(run=_command_view)
 
     return parser
 

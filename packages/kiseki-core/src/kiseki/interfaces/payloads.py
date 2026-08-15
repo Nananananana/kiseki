@@ -100,6 +100,11 @@ def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
     }
 
 
+def blurred_place(reference: str) -> str:
+    """The blurred form of a place reference; anything else passes."""
+    return _blur_place(reference, blur=True)
+
+
 def _blur_value(value: float, blur: bool) -> float:
     return round(value, BLUR_DECIMALS) if blur else value
 
