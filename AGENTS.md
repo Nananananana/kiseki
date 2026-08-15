@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 809 passing, 13 llm-marked and deselected in CI.
+- Tests: 825 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -187,3 +187,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   own captions in `single_captions`, keyed by photo id; resumable
   `kiseki singles --limit`; withheld photographs (ADR-0032) are never
   captioned; screenshots stay with the screen reader (ADR-0030).
+- v0.4 (FR-507, 2 of 3): single captions join the subjects
+  (ADR-0034) -- the subject run reads them under a key derived from
+  their one photograph, so labels share the vocabulary and themes
+  absorb them; the derivation pools one sighting per single with
+  photo: evidence and re-checks consent at read time. The stop and
+  anchor context annotation moved to place narration (proposals/0002,
+  item 5). Remaining: part 3, the representative-selection rebuild.
