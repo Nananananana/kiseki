@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.4.0
+
+Ask your own library: search over your captions, answers with
+evidence, named places and topic lifecycles -- all local, nothing
+new stored about you.
+
+- Single photographs join the profile (FR-507, ADR-0033 to 0035):
+  photographs outside every stop get their own caption, feed the
+  subjects and the profile; consent governs the representative
+  selection of stay captions.
+- A search index beside the stores (ADR-0036): FTS5 words plus
+  per-model vectors over the answered readings; resumable
+  `kiseki index`; nothing withheld, sensitive or coordinate-shaped
+  is ever indexed.
+- Deterministic hybrid retrieval and `kiseki ask` / GET /ask
+  (ADR-0037, ADR-0038): retrieval chooses numbered facts, the model
+  phrases one cited answer; confidence, time range and evidence
+  derive from the retrieval, never from the model; no evidence, no
+  model call.
+- Time in the question (ADR-0039): a closed list of Japanese and
+  English time expressions becomes the ask window; --since/--until
+  override the words.
+- The offline gazetteer (ADR-0040): a GeoNames file the owner
+  downloads names place topics at presentation time; anchors are
+  never named, names are never stored.
+- Places speak in the story (ADR-0041): `kiseki tell` narrates named
+  places and quotes the single captions photographed beside them;
+  /tell over HTTP stays place-silent.
+- Lifecycle is read, never stored (ADR-0042): new, returned,
+  growing, declining, dormant, stable, from the whole kept history;
+  `kiseki lifecycle` and GET /lifecycle.
+- New commands: `singles`, `index`, `ask`, `lifecycle`.
+- Tests: 781 -> 948.
+
 ## v0.3.0
 
 The privacy release: screenshots become interest evidence without
