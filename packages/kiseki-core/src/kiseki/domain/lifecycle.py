@@ -32,6 +32,7 @@ class TopicLifecycle:
     stage: LifecycleStage
     strength: float
     seen_profiles: int
+    baseline: float = 0.0
 
     def __post_init__(self) -> None:
         if not self.topic:
@@ -40,6 +41,8 @@ class TopicLifecycle:
             raise ValueError("strength must lie within [0, 1]")
         if self.seen_profiles < 1:
             raise ValueError("a topic must have appeared at least once")
+        if self.baseline < 0:
+            raise ValueError("a baseline cannot be negative")
 
 
 @dataclass(frozen=True)

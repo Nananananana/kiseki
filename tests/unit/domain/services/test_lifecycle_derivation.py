@@ -134,3 +134,22 @@ def test_seen_profiles_counts_the_appearances():
     assert report is not None
     item = next(item for item in report.lifecycles if item.topic == "museum")
     assert item.seen_profiles == 3
+
+
+def test_growth_carries_its_baseline():
+    history = (
+        _profile(0, _interest("museum", 0.5, 0.4)),
+        _profile(20, _interest("museum", 0.9, 0.5)),
+    )
+    report = derive_lifecycles(history)
+    assert report is not None
+    item = next(item for item in report.lifecycles if item.topic == "museum")
+    assert item.baseline == 0.5 * 0.4
+    assert item.strength == 0.9 * 0.5
+
+
+def test_a_new_topic_has_no_baseline():
+    report = derive_lifecycles((_profile(0), _profile(20, _interest("onsen"))))
+    assert report is not None
+    item = next(item for item in report.lifecycles if item.topic == "onsen")
+    assert item.baseline == 0.0

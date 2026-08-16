@@ -185,7 +185,8 @@ uv run kiseki ask --since 2025-01-01 --until 2025-12-31 "ramen"
 returned, growing, declining, dormant or stable -- from the whole
 kept profile history (ADR-0042). Nothing is stored; the weekly
 `kiseki profile` habit is the data it reads. Over HTTP:
-`GET /lifecycle`.
+`GET /lifecycle`. Every row shows its arithmetic: the strength now
+and at the baseline it was judged against.
 
 ## Insights
 
