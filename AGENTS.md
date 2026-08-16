@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 948 passing, 13 llm-marked and deselected in CI.
+- Tests: 962 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -264,4 +264,13 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   dashboard, interest export as a one-way privacy boundary; no
   automatic snapshots (opportunity hints only); the avoid list
   stands. README repositioned as a local-first personal context
-  engine. Next: v0.5, starting with the Insight object.
+  engine.
+- v0.5 (insights, 1 of 3, ADR-0043): the Insight object and its
+  deterministic derivation -- new, returned, rising, declining,
+  dormant, enduring -- built on the trend and lifecycle machinery;
+  novelty is a per-kind constant (not importance, which waits for
+  the v0.6 discovery ranking), magnitude the underlying delta or
+  strength, confidence and evidence reused from the latest profile's
+  interests (themes expanded to members), derived_from names the
+  sources; long-gone dormants and weak stables are not findings.
+  Next: (2 of 3) Pipeline.insights(), `kiseki insights`, /insights.
