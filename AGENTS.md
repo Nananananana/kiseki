@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 933 passing, 13 llm-marked and deselected in CI.
+- Tests: 948 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -124,7 +124,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   narration via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
-  `singles`, `index`, `ask`.
+  `singles`, `index`, `ask`, `lifecycle`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -245,4 +245,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   two single captions photographed within 500 m quoted beside it,
   nearest first, deterministically; unnamed places stay silent as
   before, /tell over HTTP stays place-silent (blur by default), and
-  nothing is stored. Next per proposals/0002: (6) lifecycle labels.
+  nothing is stored.
+- v0.4 (lifecycle, ADR-0042): where each topic stands -- new,
+  returned, growing, declining, dormant, stable -- derived from the
+  whole kept history through the trend machinery and never stored;
+  `kiseki lifecycle` (--json) and GET /lifecycle answer, with an
+  honest "not enough history" until the span exists. proposals/0002
+  is feature-complete; next: the v0.4.0 release and the README
+  rewrite.

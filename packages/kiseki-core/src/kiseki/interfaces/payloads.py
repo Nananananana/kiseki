@@ -13,6 +13,7 @@ from typing import Any
 from kiseki.application.asking import Answer
 from kiseki.application.pipeline import Report
 from kiseki.domain.interests import Profile
+from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.trends import TrendReport
 
 BLUR_DECIMALS = 2
@@ -120,6 +121,22 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
                 "score": item.score,
             }
             for item in answer.evidence
+        ],
+    }
+
+
+def lifecycle_payload(report: LifecycleReport, blur: bool = False) -> dict[str, Any]:
+    return {
+        "oldest_at": report.oldest_at.isoformat(),
+        "latest_at": report.latest_at.isoformat(),
+        "lifecycles": [
+            {
+                "topic": blurred_place(item.topic) if blur else item.topic,
+                "stage": item.stage.value,
+                "strength": item.strength,
+                "seen_profiles": item.seen_profiles,
+            }
+            for item in report.lifecycles
         ],
     }
 

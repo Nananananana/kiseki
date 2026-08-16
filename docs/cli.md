@@ -28,6 +28,7 @@ uv run kiseki report --json
 | `singles` | Describe the photographs outside every stay |
 | `index` | Index the readings for search |
 | `ask` | Answer a question from the readings, with evidence |
+| `lifecycle` | Where each topic stands in its life |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -173,3 +174,11 @@ parameters, and the applied window travels in the answer contract.
 uv run kiseki ask "What did I keep eating last year?"
 uv run kiseki ask --since 2025-01-01 --until 2025-12-31 "ramen"
 ```
+
+## Lifecycle
+
+`kiseki lifecycle` reads where each topic stands in its life -- new,
+returned, growing, declining, dormant or stable -- from the whole
+kept profile history (ADR-0042). Nothing is stored; the weekly
+`kiseki profile` habit is the data it reads. Over HTTP:
+`GET /lifecycle`.
