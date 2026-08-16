@@ -478,7 +478,9 @@ def _command_ask(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _ask_factory(db_path: Path) -> Callable[[str, str], Answer]:
+def _ask_factory(
+    db_path: Path,
+) -> Callable[[str, str, datetime | None, datetime | None], Answer]:
     """Fresh connection per question: SQLite belongs to its thread."""
 
     def _answer(

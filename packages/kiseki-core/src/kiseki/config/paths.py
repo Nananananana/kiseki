@@ -19,7 +19,14 @@ from typing import Any
 
 ENV_PREFIX = "KISEKI_"
 DEFAULT_ROOT_NAME = ".kiseki"
-OVERRIDABLE = ("records_dir", "thumbs_dir", "db_path", "cache_dir", "log_dir")
+OVERRIDABLE = (
+    "records_dir",
+    "thumbs_dir",
+    "db_path",
+    "cache_dir",
+    "log_dir",
+    "gazetteer_path",
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +37,7 @@ class StoragePaths:
     db_path: Path
     cache_dir: Path
     log_dir: Path
+    gazetteer_path: Path
 
     @classmethod
     def derive(cls, data_root: Path, overrides: dict[str, Path] | None = None) -> "StoragePaths":
@@ -41,6 +49,7 @@ class StoragePaths:
             db_path=data_root / "db" / "kiseki.sqlite3",
             cache_dir=data_root / "cache",
             log_dir=data_root / "logs",
+            gazetteer_path=data_root / "gazetteer" / "cities500.txt",
         )
         return replace(derived, **(overrides or {}))
 
