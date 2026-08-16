@@ -17,3 +17,7 @@ stays on your machine and is only ever read.
 Names are resolved at presentation time and never stored, so the
 file can be replaced or deleted at any moment. Anchors -- the places
 that look like home or work -- are never named.
+
+With the file in place, `kiseki profile` and `kiseki view` label the
+place topics: the name alone when blurred, the name beside the
+reference when raw.

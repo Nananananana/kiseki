@@ -73,14 +73,20 @@ def render_view(
     profile: Profile,
     trends: TrendReport | None,
     blur: bool = True,
+    names: dict[str, str] | None = None,
 ) -> str:
-    """One page: density, interests, rhythm, drift. Blur by default."""
+    """One page: density, interests, rhythm, drift. Blur by default.
+
+    `names` labels place topics at display time (ADR-0040): the name
+    alone when blurred, the name beside the reference when raw.
+    """
+    resolved = names or {}
     body = "".join(
         (
             _density_section(density_cells(photos)),
-            _interest_section(profile, blur),
+            _interest_section(profile, blur, resolved),
             _rhythm_section(report),
-            _trend_section(trends, blur),
+            _trend_section(trends, blur, resolved),
         )
     )
     return (
@@ -140,13 +146,13 @@ def _density_section(cells: dict[tuple[float, float], int]) -> str:
     return _section(title, svg + note)
 
 
-def _interest_section(profile: Profile, blur: bool) -> str:
+def _interest_section(profile: Profile, blur: bool, names: dict[str, str]) -> str:
     title = "Read as interests"
     if not profile.interests:
         return _section(title, '<p class="note">no interests yet</p>')
     rows = []
     for interest in profile.ranked()[:TOP_INTERESTS]:
-        label = blurred_place(interest.topic) if blur else interest.topic
+        label = _label(interest.topic, blur, names)
         width = max(2, round(interest.score * 100))
         opacity = 0.35 + 0.65 * interest.confidence
         rows.append(
@@ -186,7 +192,7 @@ def _rhythm_section(report: Report) -> str:
     return _section("When outings happen", body)
 
 
-def _trend_section(trends: TrendReport | None, blur: bool) -> str:
+def _trend_section(trends: TrendReport | None, blur: bool, names: dict[str, str]) -> str:
     title = "Drift between readings"
     if trends is None:
         return _section(
@@ -202,7 +208,7 @@ def _trend_section(trends: TrendReport | None, blur: bool) -> str:
     )
     rows = []
     for trend in trends.trends:
-        label = blurred_place(trend.topic) if blur else trend.topic
+        label = _label(trend.topic, blur, names)
         rows.append(
             '<div class="row">'
             f'<span class="label">{escape(label)}</span>'
@@ -212,3 +218,11 @@ def _trend_section(trends: TrendReport | None, blur: bool) -> str:
             "</div>"
         )
     return _section(title, header + "".join(rows))
+
+
+def _label(topic: str, blur: bool, names: dict[str, str]) -> str:
+    """The display label: named when possible, otherwise as before."""
+    name = names.get(topic)
+    if name is None:
+        return blurred_place(topic) if blur else topic
+    return name if blur else f"{name} {topic}"
