@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from kiseki.application.asking import Answer
-from kiseki.application.pipeline import Report
+from kiseki.application.pipeline import PrivacyReport, Report
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
@@ -133,6 +133,40 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
             }
             for item in answer.evidence
         ],
+    }
+
+
+NEVER_STORED = (
+    ("screenshot text", "a reading is a category and labels; no text field exists (ADR-0030)"),
+    ("place names", "resolved from the owner's own gazetteer at display time (ADR-0040)"),
+    ("anchor names", "anchors are never named (ADR-0040)"),
+    ("story-withheld records", "discarded at ingest, never stored (ADR-0032)"),
+    ("outbound copies", "nothing is sent anywhere; no network call exists"),
+)
+
+BLURRED_BY_DEFAULT = (
+    "served and written coordinates are rounded to about a kilometre"
+    " unless raw output is asked for explicitly (ADR-0026)"
+)
+
+
+def privacy_payload(report: PrivacyReport) -> dict[str, Any]:
+    return {
+        "photographs": report.photographs,
+        "located": report.located,
+        "withheld_from_preference": report.withheld_from_preference,
+        "stay_captions": report.stay_captions,
+        "stay_refused": report.stay_refused,
+        "single_captions": report.single_captions,
+        "single_refused": report.single_refused,
+        "screen_readings": report.screen_readings,
+        "screens_label_silent": report.screens_label_silent,
+        "subject_readings": report.subject_readings,
+        "kept_profiles": report.kept_profiles,
+        "corrections": report.corrections,
+        "active_exclusions": report.active_exclusions,
+        "never_stored": [name for name, _reason in NEVER_STORED],
+        "blurred_by_default": True,
     }
 
 

@@ -89,6 +89,25 @@ class Report:
     rhythm: Rhythm
 
 
+@dataclass(frozen=True)
+class PrivacyReport:
+    """How the library treats the owner's data, in counts (ADR-0046)."""
+
+    photographs: int
+    located: int
+    withheld_from_preference: int
+    stay_captions: int
+    stay_refused: int
+    single_captions: int
+    single_refused: int
+    screen_readings: int
+    screens_label_silent: int
+    subject_readings: int
+    kept_profiles: int
+    corrections: int
+    active_exclusions: int
+
+
 def _naive(moment: datetime) -> datetime:
     return moment.replace(tzinfo=None)
 
@@ -215,6 +234,39 @@ class Pipeline:
     def _kept_history(self) -> tuple[Profile, ...]:
         history = self._profiles.history() if self._profiles is not None else ()
         return tuple(self._corrected(profile) for profile in history)
+
+    def privacy(self) -> PrivacyReport:
+        """How the owner's data is treated, counted from storage.
+
+        Reads storage only; recomputes nothing and calls no model.
+        Repositories that were never wired count as zero, honestly.
+        """
+        photos = self._photos.all()
+        captions = self._captions.all() if self._captions is not None else ()
+        singles = self._singles.all() if self._singles is not None else ()
+        screens = self._screens.all() if self._screens is not None else ()
+        subjects = self._subjects.all() if self._subjects is not None else ()
+        history = self._profiles.history() if self._profiles is not None else ()
+        corrections = self._corrections.all() if self._corrections is not None else ()
+        return PrivacyReport(
+            photographs=len(photos),
+            located=sum(1 for photo in photos if photo.is_located),
+            withheld_from_preference=sum(
+                1 for photo in photos if photo.use_for_preference is False
+            ),
+            stay_captions=len(captions),
+            stay_refused=sum(1 for caption in captions if caption.refused is not None),
+            single_captions=len(singles),
+            single_refused=sum(1 for single in singles if single.refused is not None),
+            screen_readings=len(screens),
+            screens_label_silent=sum(
+                1 for reading in screens if reading.refused is None and not reading.labels
+            ),
+            subject_readings=len(subjects),
+            kept_profiles=len(history),
+            corrections=len(corrections),
+            active_exclusions=len(active_exclusions(corrections)),
+        )
 
     def compare(
         self,

@@ -33,6 +33,7 @@ uv run kiseki report --json
 | `correct` | Exclude a topic or a reading from every derivation |
 | `corrections` | The append-only correction log |
 | `compare` | What changed between two kept readings |
+| `privacy` | How the owner's data is treated, in counts |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -217,3 +218,10 @@ appeared, gone, stronger, weaker, steady -- with the strengths and
 evidence counts on both sides (ADR-0045). By default it compares the
 trend's pair; `--from` / `--to` pick the latest kept profile at or
 before each date. Over HTTP: `GET /compare`.
+
+## Privacy
+
+`kiseki privacy` reports how the library treats the owner's data,
+counted from storage (ADR-0046): what is stored, what the owner has
+withheld, and what is never stored by construction. Local only --
+the dashboard is deliberately not served over HTTP.

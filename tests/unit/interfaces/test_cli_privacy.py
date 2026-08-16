@@ -1,8 +1,7 @@
 """The privacy command reports, and promises only what code enforces."""
 
-from pathlib import Path
-
 import json
+from pathlib import Path
 
 import pytest
 from kiseki.interfaces.cli import EXIT_OK, main
