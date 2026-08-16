@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 906 passing, 13 llm-marked and deselected in CI.
+- Tests: 916 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -228,4 +228,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   model in the loop; explicit --since/--until (CLI) or since/until
   (/ask) override the words; a question without an expression gets
   no window rather than a guess, and the applied window travels in
-  the answer contract. Next per proposals/0002: (4) place entities.
+  the answer contract.
+- v0.4 (place entities, 1 of 2): the offline gazetteer (ADR-0040) --
+  the owner downloads a GeoNames file (docs/gazetteer.md, CC BY 4.0,
+  never bundled, never fetched); the adapter grid-buckets it and
+  answers nearest() deterministically; no file means no names.
+  Anchors are never named, and names are never stored -- they are
+  resolved at presentation time. Next: (2 of 2) names in profile,
+  report and view.

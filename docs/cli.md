@@ -53,6 +53,7 @@ export KISEKI_DB_PATH=C:/dev/kiseki-work/db/kiseki.sqlite3
 | `KISEKI_DB_PATH` | `<root>/db/kiseki.sqlite3` |
 | `KISEKI_CACHE_DIR` | `<root>/cache` |
 | `KISEKI_LOG_DIR` | `<root>/logs` |
+| `KISEKI_GAZETTEER_PATH` | `<root>/gazetteer/cities500.txt` (see docs/gazetteer.md) |
 
 Precedence, weakest first: defaults, `kiseki.toml`, `.env`, the environment,
 then `--data-root`. The environment beats the files so that a container or a CI

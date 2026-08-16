@@ -12,7 +12,5 @@ def test_the_gazetteer_follows_the_root(tmp_path: Path) -> None:
 
 def test_the_gazetteer_can_be_named_explicitly(tmp_path: Path) -> None:
     named = tmp_path / "geo" / "allCountries.txt"
-    paths = resolve_paths(
-        {"data_root": str(tmp_path), "gazetteer_path": str(named)}, dotenv=None
-    )
+    paths = resolve_paths({"data_root": str(tmp_path), "gazetteer_path": str(named)}, dotenv=None)
     assert paths.gazetteer_path == named
