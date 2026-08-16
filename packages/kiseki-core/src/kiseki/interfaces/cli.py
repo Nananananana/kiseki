@@ -257,11 +257,25 @@ def _command_subjects(args: argparse.Namespace) -> int:
 
 
 def _command_tell(args: argparse.Namespace) -> int:
-    pipeline = _pipeline_for(args)
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    photos = SqlitePhotoRepository(connection)
+    singles = SqliteSingleCaptionRepository(connection)
+    pipeline = _pipeline_from(paths.db_path)
     report = pipeline.report()
     profile = pipeline.profile()
+    gazetteer = FileGazetteer(paths.gazetteer_path)
+    names = place_names((interest.topic for interest in profile.interests), gazetteer)
     try:
-        story = tell(profile, report, OllamaLanguageModel(), language=args.lang)
+        story = tell(
+            profile,
+            report,
+            OllamaLanguageModel(),
+            language=args.lang,
+            names=names,
+            singles=singles.all(),
+            photos=photos.all(),
+        )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT

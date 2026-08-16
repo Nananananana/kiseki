@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 925 passing, 13 llm-marked and deselected in CI.
+- Tests: 933 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -239,5 +239,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   the file in place, `kiseki profile` and `kiseki view` label place
   topics (the name alone when blurred, the name beside the reference
   when raw); anchors stay unnamed and served payloads are unchanged.
-  Place entities complete; next per proposals/0002: (5) place
-  narration.
+  Place entities complete.
+- v0.4 (place narration, ADR-0041): named places speak in `kiseki
+  tell` -- a fact per top named place (at most three), plus up to
+  two single captions photographed within 500 m quoted beside it,
+  nearest first, deterministically; unnamed places stay silent as
+  before, /tell over HTTP stays place-silent (blur by default), and
+  nothing is stored. Next per proposals/0002: (6) lifecycle labels.
