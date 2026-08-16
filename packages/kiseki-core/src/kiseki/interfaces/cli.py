@@ -24,6 +24,7 @@ from kiseki.adapters.ollama.models import (
 from kiseki.adapters.ollama.screens import OllamaScreenshotReader
 from kiseki.adapters.sqlite.search import SqliteSearchIndex
 from kiseki.adapters.sqlite.store import (
+    SCHEMA_VERSION,
     SqliteAnchorRepository,
     SqliteCaptionRepository,
     SqliteCorrectionRepository,
@@ -778,6 +779,54 @@ def _command_export(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_doctor(args: argparse.Namespace) -> int:
+    from datetime import datetime as _datetime
+
+    paths = _paths_for(args)
+    report = _pipeline_from(paths.db_path).privacy()
+    connection = connect(paths.db_path)
+    readings: list[_datetime] = []
+    for caption in SqliteCaptionRepository(connection).all():
+        readings.append(caption.created_at)
+    for single in SqliteSingleCaptionRepository(connection).all():
+        readings.append(single.created_at)
+    for screen in SqliteScreenshotReadingRepository(connection).all():
+        readings.append(screen.created_at)
+    history = SqliteProfileRepository(connection).history()
+
+    print(RULE)
+    print("  doctor")
+    print(f"    [schema]       database at version {SCHEMA_VERSION}, the code's version")
+    refusals = report.stay_refused + report.single_refused
+    print(
+        f"    [integrity]    {refusals} caption refusals recorded;"
+        " a rerun will not retry them (ADR-0015)"
+    )
+    print(
+        f"    [privacy]      {report.screens_label_silent} label-silent screens;"
+        f" {report.active_exclusions} references excluded by correction"
+    )
+    if not history:
+        print("    [evidence]     no kept profile yet; run `kiseki profile` once")
+    else:
+        last = history[-1].generated_at.replace(tzinfo=None)
+        newer = sum(1 for moment in readings if moment.replace(tzinfo=None) > last)
+        age = (_datetime.now() - last).days
+        if newer:
+            print(
+                f"    [evidence]     {newer} readings newer than the last kept profile"
+                f" ({age} days old); a `kiseki profile` would capture them"
+            )
+        else:
+            print(f"    [evidence]     nothing newer than the last kept profile ({age} days old)")
+    gazetteer = FileGazetteer(paths.gazetteer_path)
+    if gazetteer.entries:
+        print(f"    [consistency]  gazetteer present, {gazetteer.entries} entries")
+    else:
+        print("    [consistency]  no gazetteer file; places stay unnamed (docs/gazetteer.md)")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -905,6 +954,9 @@ def build_parser() -> argparse.ArgumentParser:
     export = commands.add_parser("export", help="the interest export: a one-way abstraction")
     export.add_argument("--out", default=None, help="write the JSON to this file instead of stdout")
     export.set_defaults(run=_command_export)
+
+    doctor = commands.add_parser("doctor", help="categorised, deterministic health checks")
+    doctor.set_defaults(run=_command_doctor)
 
     return parser
 
