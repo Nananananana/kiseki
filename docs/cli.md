@@ -35,6 +35,7 @@ uv run kiseki report --json
 | `compare` | What changed between two kept readings |
 | `privacy` | How the owner's data is treated, in counts |
 | `export` | The interest export: a one-way abstraction |
+| `doctor` | Categorised, deterministic health checks |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -234,3 +235,12 @@ corrected profile's interests with month-level time, and the
 lifecycle stages (ADR-0047). No place topics, no identifiers, no
 exact timestamps, no coordinates -- and deliberately no endpoint;
 exporting is a command the owner runs on purpose.
+
+## Doctor
+
+`kiseki doctor` runs categorised, deterministic checks -- [schema],
+[integrity], [privacy], [evidence], [consistency] -- and fixes
+nothing. The [evidence] line is the snapshot opportunity: how many
+readings arrived since the last kept profile, and how old that
+profile is; the weekly `kiseki profile` habit is the cure, never an
+automatic snapshot.
