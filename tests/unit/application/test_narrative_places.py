@@ -120,9 +120,7 @@ def test_quotes_are_capped_and_nearest_first():
 
 
 def test_place_facts_sit_between_measures_and_subjects():
-    facts = narrative_facts(
-        _profile(_interest(PLACE), _interest("shrine")), _report(), names=NAMES
-    )
+    facts = narrative_facts(_profile(_interest(PLACE), _interest("shrine")), _report(), names=NAMES)
     place_at = next(index for index, fact in enumerate(facts) if "Hirara" in fact)
     subject_at = next(index for index, fact in enumerate(facts) if "shrine" in fact)
     assert place_at == 3

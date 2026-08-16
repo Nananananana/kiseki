@@ -20,4 +20,6 @@ that look like home or work -- are never named.
 
 With the file in place, `kiseki profile` and `kiseki view` label the
 place topics: the name alone when blurred, the name beside the
-reference when raw.
+reference when raw. `kiseki tell` lets the named places speak, with
+the single captions photographed beside them (ADR-0041); `/tell`
+over HTTP stays place-silent.
