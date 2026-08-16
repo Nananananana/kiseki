@@ -373,7 +373,10 @@ flowchart LR
     V3 --> V4["v0.4<br/>search personal<br/>context"]
     V4 --> V5["v0.5<br/>discover<br/>insights"]
     V5 --> V6["v0.6<br/>understand change,<br/>suggest"]
-    V6 --> V10["v1.0<br/>personal context<br/>engine"]
+    V6 --> V7["v0.7<br/>live<br/>with it"]
+    V7 --> V8["v0.8<br/>recommend with<br/>evidence"]
+    V8 --> V9["v0.9<br/>devices and<br/>years"]
+    V9 --> V10["v1.0<br/>personal context<br/>engine"]
 ```
 
 | Version | Value | State |
@@ -384,7 +387,10 @@ flowchart LR
 | v0.4 | Search personal context: `ask` with evidence, temporal questions, named places, lifecycles | Released |
 | v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | **Released** |
 | v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest` | Planned |
-| v1.0 | A long-term personal context engine: trips, weather, devices merged, incremental rebuilds, PyPI | Planned |
+| v0.7 | Live with it: incremental builds, one `kiseki refresh`, insights and discovery in the view, a model-upgrade path on prompt tracking, label calibration | Planned |
+| v0.8 | Recommend with evidence: `suggest` learns places from your own reach; the optional external-provider boundary, core never depending on it | Planned |
+| v0.9 | Devices and years: several devices merged, overnight trips, retention | Planned |
+| v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
 The versions climb a longer ladder: **Phase 0** measure the trail (done),
 **Phase 1** understand yourself (v0.4-v0.6), **Phase 2** recommendations
