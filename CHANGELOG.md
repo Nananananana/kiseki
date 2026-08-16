@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.5.0
+
+Discover yourself, correct the record: deterministic insights with
+evidence, corrections that reach every derivation, comparisons that
+show their arithmetic, a privacy dashboard counted from your own
+data, and a versioned one-way export -- all local.
+
+- Insights are derived, never invented (ADR-0043): new, returned,
+  rising, declining, dormant, enduring, from the lifecycle and trend
+  machinery; `kiseki insights` (--story), GET /insights, and `ask`
+  gains supporting_insights the model never sees.
+- Corrections are appended, applied at read (ADR-0044): an
+  append-only log, latest word wins, undo by appending; a pure
+  read-time filter reaching every derivation and ask retrieval; raw
+  evidence and kept profiles never rewritten. `kiseki correct` /
+  `kiseki corrections`.
+- Comparisons carry their arithmetic (ADR-0045): appeared, gone,
+  stronger, weaker, steady, with strengths and evidence counts on
+  both sides; `kiseki compare` (--from/--to), GET /compare; the
+  lifecycle rows show the same arithmetic.
+- Privacy is a report, not a promise (ADR-0046): `kiseki privacy`
+  counts what is stored, what is withheld, and what is never stored
+  by construction; its first run exposed and fixed a real screens
+  wiring gap.
+- Export is a one-way abstraction (ADR-0047): kiseki-interest-export
+  v1 -- month-level interests and lifecycle stages, never a place
+  topic, identifier, exact timestamp or coordinate.
+- The doctor speaks in categories: [schema], [integrity], [privacy],
+  [evidence] (the snapshot opportunity), [consistency].
+- Console-safe names: the gazetteer prefers asciiname; the CLI
+  degrades instead of crashing on a narrow console.
+- New commands: `insights`, `correct`, `corrections`, `compare`,
+  `privacy`, `export`, `doctor`.
+- Tests: 948 -> 1037.
+
 ## v0.4.0
 
 Ask your own library: search over your captions, answers with
