@@ -22,6 +22,7 @@ from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline
 from kiseki.interfaces.payloads import (
     answer_payload,
+    insights_payload,
     lifecycle_payload,
     profile_payload,
     report_payload,
@@ -147,6 +148,12 @@ class _Handler(BaseHTTPRequestHandler):
                 language=language,
             )
             self._send(200, {"story": story})
+        elif path == "/insights":
+            findings = self.server.pipeline_factory().insights()
+            if findings is None:
+                self._send(200, {"insights": None, "reason": "not enough history"})
+            else:
+                self._send(200, insights_payload(findings, blur=blur))
         elif path == "/lifecycle":
             lifecycle = self.server.pipeline_factory().lifecycle()
             if lifecycle is None:

@@ -12,6 +12,7 @@ from typing import Any
 
 from kiseki.application.asking import Answer
 from kiseki.application.pipeline import Report
+from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.trends import TrendReport
@@ -121,6 +122,30 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
                 "score": item.score,
             }
             for item in answer.evidence
+        ],
+    }
+
+
+def insights_payload(report: InsightReport, blur: bool = False) -> dict[str, Any]:
+    return {
+        "oldest_at": report.oldest_at.isoformat(),
+        "latest_at": report.latest_at.isoformat(),
+        "insights": [
+            {
+                "topic": blurred_place(item.topic) if blur else item.topic,
+                "kind": item.kind.value,
+                "direction": item.direction.value,
+                "magnitude": item.magnitude,
+                "first_seen": item.first_seen.isoformat() if item.first_seen else None,
+                "last_seen": item.last_seen.isoformat() if item.last_seen else None,
+                "confidence": item.confidence,
+                "evidence": [
+                    blurred_place(reference) if blur else reference for reference in item.evidence
+                ],
+                "novelty": item.novelty,
+                "derived_from": list(item.derived_from),
+            }
+            for item in report.insights
         ],
     }
 

@@ -29,6 +29,7 @@ uv run kiseki report --json
 | `index` | Index the readings for search |
 | `ask` | Answer a question from the readings, with evidence |
 | `lifecycle` | Where each topic stands in its life |
+| `insights` | The current findings, with evidence |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -182,3 +183,11 @@ returned, growing, declining, dormant or stable -- from the whole
 kept profile history (ADR-0042). Nothing is stored; the weekly
 `kiseki profile` habit is the data it reads. Over HTTP:
 `GET /lifecycle`.
+
+## Insights
+
+`kiseki insights` derives the current findings from the kept history
+(ADR-0043): new, returned, rising, declining, dormant and enduring
+topics, the most novel first, each with its magnitude, confidence
+and evidence references. Nothing is stored and no model is involved.
+Over HTTP: `GET /insights`.

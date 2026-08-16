@@ -17,11 +17,13 @@ from kiseki.domain.analytics.analytics import (
     summarise_rhythm,
 )
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
+from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.lifecycle_derivation import derive_lifecycles
 from kiseki.domain.services.outing_assembly import assemble_outings
@@ -184,6 +186,16 @@ class Pipeline:
         if self._profiles is not None and keep:
             self._profiles.save(profile)
         return profile
+
+    def insights(self) -> InsightReport | None:
+        """The current findings, from the kept readings."""
+        if self._profiles is None:
+            return None
+        latest = self._themes.latest() if self._themes is not None else None
+        return derive_insights(
+            self._profiles.history(),
+            themes=latest.themes if latest is not None else (),
+        )
 
     def lifecycle(self) -> LifecycleReport | None:
         """Where each topic stands in its life, from the kept readings."""

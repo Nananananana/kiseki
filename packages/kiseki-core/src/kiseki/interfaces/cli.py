@@ -54,6 +54,7 @@ from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.naming import place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
+    insights_payload,
     lifecycle_payload,
     profile_payload,
     report_payload,
@@ -567,6 +568,44 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_insights(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    report = _pipeline_from(paths.db_path).insights()
+    if report is None:
+        if args.json:
+            print(json.dumps({"insights": None, "reason": "not enough history"}, indent=2))
+        else:
+            print(RULE)
+            print(
+                "  not enough history: insights need two profiles"
+                f" at least {MIN_TREND_SPAN_DAYS} days apart"
+            )
+        return EXIT_OK
+    if args.json:
+        print(json.dumps(insights_payload(report), indent=2))
+        return EXIT_OK
+    names = place_names(
+        (item.topic for item in report.insights), FileGazetteer(paths.gazetteer_path)
+    )
+    print(RULE)
+    print(f"  oldest        {report.oldest_at.date().isoformat()}")
+    print(f"  latest        {report.latest_at.date().isoformat()}")
+    if not report.insights:
+        print("\n  no findings yet: nothing new or moving in the history")
+        return EXIT_OK
+    print("\n  findings, the most novel first")
+    for item in report.insights:
+        arrow = {"up": "+", "down": "-", "flat": "="}[item.direction.value]
+        print(
+            f"    {item.kind.value:<10}"
+            f"  {names.get(item.topic, item.topic):<32}"
+            f"  {arrow}{item.magnitude:.2f}"
+            f"  confidence {item.confidence:.2f}"
+            f"  evidence {len(item.evidence)}"
+        )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -653,6 +692,10 @@ def build_parser() -> argparse.ArgumentParser:
     lifecycle = commands.add_parser("lifecycle", help="where each topic stands in its life")
     lifecycle.add_argument("--json", action="store_true", help="machine readable output")
     lifecycle.set_defaults(run=_command_lifecycle)
+
+    insights = commands.add_parser("insights", help="the current findings, with evidence")
+    insights.add_argument("--json", action="store_true", help="machine readable output")
+    insights.set_defaults(run=_command_insights)
 
     return parser
 

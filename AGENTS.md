@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 962 passing, 13 llm-marked and deselected in CI.
+- Tests: 966 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -124,7 +124,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   narration via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
-  `singles`, `index`, `ask`, `lifecycle`.
+  `singles`, `index`, `ask`, `lifecycle`, `insights`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -273,4 +273,9 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   strength, confidence and evidence reused from the latest profile's
   interests (themes expanded to members), derived_from names the
   sources; long-gone dormants and weak stables are not findings.
-  Next: (2 of 3) Pipeline.insights(), `kiseki insights`, /insights.
+- v0.5 (insights, 2 of 3): the surface -- Pipeline.insights(),
+  `kiseki insights` (--json, place names applied at display), and
+  GET /insights; evidence references are blurred like everything
+  else served; an honest "not enough history" until the span exists.
+  Next: (3 of 3) narration with citations, and ask gains
+  supporting_insights.
