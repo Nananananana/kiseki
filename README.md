@@ -240,6 +240,12 @@ uv run kiseki index          # index the readings for search
 uv run kiseki ask "..."      # answers with evidence and confidence
 uv run kiseki trend          # drift between kept profiles
 uv run kiseki lifecycle      # new, returned, growing, dormant...
+uv run kiseki insights       # the current findings, with evidence
+uv run kiseki compare        # what changed between two readings
+uv run kiseki correct ...    # your word against a reading
+uv run kiseki privacy        # how your data is treated, in counts
+uv run kiseki export         # the one-way interest export
+uv run kiseki doctor         # categorised health checks
 uv run kiseki view           # one self-contained HTML page
 uv run kiseki serve          # the same answers over local HTTP
 ```
@@ -351,9 +357,10 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.4 -- personal context search.
-**Next:** v0.5 -- insights and corrections; v0.6 -- discovery and
-suggestion ([docs/proposals](docs/proposals)).
+**Current:** v0.5 -- insights, corrections and the privacy
+dashboard.
+**Next:** v0.6 -- discovery and suggestion
+([docs/proposals](docs/proposals)).
 
 ---
 
@@ -374,8 +381,8 @@ flowchart LR
 | v0.1 | Understand journeys: stops, outings, anchors, honest measures | Released |
 | v0.2.x | Understand interests: captions, profiles, themes, trend, API, view | Released |
 | v0.3 | Expand the evidence: screenshots without their words, mechanical consent | Released |
-| v0.4 | Search personal context: `ask` with evidence, temporal questions, named places, lifecycles | **Released** |
-| v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | Planned |
+| v0.4 | Search personal context: `ask` with evidence, temporal questions, named places, lifecycles | Released |
+| v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | **Released** |
 | v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest` | Planned |
 | v1.0 | A long-term personal context engine: trips, weather, devices merged, incremental rebuilds, PyPI | Planned |
 
