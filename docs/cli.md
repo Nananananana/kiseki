@@ -190,4 +190,8 @@ kept profile history (ADR-0042). Nothing is stored; the weekly
 (ADR-0043): new, returned, rising, declining, dormant and enduring
 topics, the most novel first, each with its magnitude, confidence
 and evidence references. Nothing is stored and no model is involved.
-Over HTTP: `GET /insights`.
+Over HTTP: `GET /insights`. `--story` narrates the findings over a
+closed, cited fact list (unnamed places stay silent, as in `tell`);
+`kiseki ask` attaches related findings to its answer contract as
+`supporting_insights` -- metadata for the reader that the model
+never sees.

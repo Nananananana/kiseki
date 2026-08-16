@@ -38,6 +38,7 @@ from kiseki.adapters.sqlite.store import (
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import run_captioning
 from kiseki.application.indexing import run_indexing
+from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.screen_reading import run_screen_reading
@@ -481,6 +482,7 @@ def _command_ask(args: argparse.Namespace) -> int:
             language=args.lang,
             since=since,
             until=until,
+            insights=_pipeline_from(_paths_for(args).db_path).insights(),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -502,6 +504,10 @@ def _command_ask(args: argparse.Namespace) -> int:
     if answer.first_seen is not None and answer.last_seen is not None:
         print(f"  time range    {answer.first_seen:%Y-%m-%d} to {answer.last_seen:%Y-%m-%d}")
     print(f"  evidence      {len(answer.evidence)}")
+    if answer.supporting_insights:
+        print("\n  related findings")
+        for item in answer.supporting_insights:
+            print(f"    {item.kind.value:<10}  {item.topic}")
     return EXIT_OK
 
 
@@ -527,6 +533,7 @@ def _ask_factory(
                 language=language,
                 since=since,
                 until=until,
+                insights=_pipeline_from(db_path).insights(),
             )
         finally:
             connection.close()
@@ -592,6 +599,14 @@ def _command_insights(args: argparse.Namespace) -> int:
     print(f"  latest        {report.latest_at.date().isoformat()}")
     if not report.insights:
         print("\n  no findings yet: nothing new or moving in the history")
+        return EXIT_OK
+    if args.story:
+        try:
+            story = tell_insights(report, OllamaLanguageModel(), language=args.lang, names=names)
+        except (ModelRefusedError, ModelUnavailableError) as error:
+            print(f"the model could not answer: {error}", file=sys.stderr)
+            return EXIT_BAD_INPUT
+        print("\n" + story if story else "\n  no findings worth a story yet")
         return EXIT_OK
     print("\n  findings, the most novel first")
     for item in report.insights:
@@ -694,6 +709,8 @@ def build_parser() -> argparse.ArgumentParser:
     lifecycle.set_defaults(run=_command_lifecycle)
 
     insights = commands.add_parser("insights", help="the current findings, with evidence")
+    insights.add_argument("--story", action="store_true", help="narrate the findings")
+    insights.add_argument("--lang", default="ja", choices=["ja", "en"], help="story language")
     insights.add_argument("--json", action="store_true", help="machine readable output")
     insights.set_defaults(run=_command_insights)
 

@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 966 passing, 13 llm-marked and deselected in CI.
+- Tests: 975 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -277,5 +277,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   `kiseki insights` (--json, place names applied at display), and
   GET /insights; evidence references are blurred like everything
   else served; an honest "not enough history" until the span exists.
-  Next: (3 of 3) narration with citations, and ask gains
-  supporting_insights.
+- v0.5 (insights, 3 of 3): `kiseki insights --story` narrates the
+  findings over a closed, cited fact list (a place topic without a
+  name is skipped -- the ADR-0041 rule applied to insights; no
+  facts, no model call), and `ask` attaches matched findings to the
+  answer contract as supporting_insights -- metadata the model never
+  sees, so an answer can never borrow their certainty. Insights are
+  complete; next per proposals/0004: corrections.

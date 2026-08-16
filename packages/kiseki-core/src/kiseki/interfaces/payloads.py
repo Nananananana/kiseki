@@ -113,6 +113,15 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
         "model": answer.model,
         "since": answer.since.isoformat() if answer.since else None,
         "until": answer.until.isoformat() if answer.until else None,
+        "supporting_insights": [
+            {
+                "topic": item.topic,
+                "kind": item.kind.value,
+                "magnitude": item.magnitude,
+                "confidence": item.confidence,
+            }
+            for item in answer.supporting_insights
+        ],
         "evidence": [
             {
                 "doc_key": item.document.doc_key,
