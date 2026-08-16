@@ -54,6 +54,7 @@ from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.naming import place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
+    lifecycle_payload,
     profile_payload,
     report_payload,
     trend_payload,
@@ -532,6 +533,40 @@ def _ask_factory(
     return _answer
 
 
+def _command_lifecycle(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    report = _pipeline_from(paths.db_path).lifecycle()
+    if report is None:
+        if args.json:
+            print(json.dumps({"lifecycles": None, "reason": "not enough history"}, indent=2))
+        else:
+            print(RULE)
+            print(
+                "  not enough history: the lifecycle needs two profiles"
+                f" at least {MIN_TREND_SPAN_DAYS} days apart"
+            )
+        return EXIT_OK
+    if args.json:
+        print(json.dumps(lifecycle_payload(report), indent=2))
+        return EXIT_OK
+    names = place_names(
+        (item.topic for item in report.lifecycles), FileGazetteer(paths.gazetteer_path)
+    )
+    print(RULE)
+    print(f"  oldest        {report.oldest_at.date().isoformat()}")
+    print(f"  latest        {report.latest_at.date().isoformat()}")
+    if report.lifecycles:
+        print("\n  where each topic stands")
+        for item in report.lifecycles:
+            print(
+                f"    {item.stage.value:<10}"
+                f"  {names.get(item.topic, item.topic):<32}"
+                f"  now {item.strength:>5.2f}"
+                f"  seen {item.seen_profiles}"
+            )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -614,6 +649,10 @@ def build_parser() -> argparse.ArgumentParser:
     asking.add_argument("--until", default=None, help="ISO date, inclusive")
     asking.add_argument("--json", action="store_true", help="machine readable output")
     asking.set_defaults(run=_command_ask)
+
+    lifecycle = commands.add_parser("lifecycle", help="where each topic stands in its life")
+    lifecycle.add_argument("--json", action="store_true", help="machine readable output")
+    lifecycle.set_defaults(run=_command_lifecycle)
 
     return parser
 
