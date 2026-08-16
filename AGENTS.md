@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 999 passing, 13 llm-marked and deselected in CI.
+- Tests: 1011 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -299,8 +299,14 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   stay:, photo: -> single:, screen: -> screen:) and drops before
   the facts, the confidence and the window are derived; everything
   excluded means no model call, and the index is never rewritten.
-  Corrections are complete; next per proposals/0004:
-  `kiseki compare` with reasons.
+  Corrections are complete.
+- v0.5 (compare, 1 of 2, ADR-0045): compare_profiles states, per
+  themed topic, appeared / gone / stronger / weaker / steady --
+  movement past the trend's own delta -- with the strengths and
+  evidence counts on both sides and up to three after-side evidence
+  references; loudest first, deterministic, nothing stored. Next:
+  (2 of 2) Pipeline.compare(), `kiseki compare` (--from/--to), and
+  GET /compare.
 - Console-safe names: FileGazetteer prefers the GeoNames asciiname
   column (falling back to name), and the CLI reconfigures stdout
   with errors="replace" at startup -- a cp932 console degrades a
