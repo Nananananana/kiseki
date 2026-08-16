@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1025 passing, 13 llm-marked and deselected in CI.
+- Tests: 1033 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -125,7 +125,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
   `singles`, `index`, `ask`, `lifecycle`, `insights`, `correct`,
-  `corrections`, `compare`, `privacy`.
+  `corrections`, `compare`, `privacy`, `export`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a

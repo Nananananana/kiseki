@@ -34,6 +34,7 @@ uv run kiseki report --json
 | `corrections` | The append-only correction log |
 | `compare` | What changed between two kept readings |
 | `privacy` | How the owner's data is treated, in counts |
+| `export` | The interest export: a one-way abstraction |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -225,3 +226,11 @@ before each date. Over HTTP: `GET /compare`.
 counted from storage (ADR-0046): what is stored, what the owner has
 withheld, and what is never stored by construction. Local only --
 the dashboard is deliberately not served over HTTP.
+
+## Export
+
+`kiseki export` (with --out) writes kiseki-interest-export v1: the
+corrected profile's interests with month-level time, and the
+lifecycle stages (ADR-0047). No place topics, no identifiers, no
+exact timestamps, no coordinates -- and deliberately no endpoint;
+exporting is a command the owner runs on purpose.
