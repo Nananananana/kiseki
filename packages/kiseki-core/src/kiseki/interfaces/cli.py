@@ -47,6 +47,7 @@ from kiseki.application.single_captioning import run_single_captioning
 from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
+from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -57,6 +58,7 @@ from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.naming import place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
+    comparison_payload,
     insights_payload,
     lifecycle_payload,
     profile_payload,
@@ -664,6 +666,63 @@ def _command_corrections(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_compare(args: argparse.Namespace) -> int:
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+
+    if (args.from_date is None) != (args.to_date is None):
+        print("compare needs both --from and --to, or neither", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    from_at = to_at = None
+    if args.from_date is not None and args.to_date is not None:
+        try:
+            from_at = _datetime.fromisoformat(args.from_date)
+            to_at = _datetime.fromisoformat(args.to_date)
+        except ValueError:
+            print("dates must be ISO, like 2026-06-01", file=sys.stderr)
+            return EXIT_BAD_INPUT
+        if len(args.from_date) == 10:
+            from_at = from_at + _timedelta(days=1) - _timedelta(microseconds=1)
+        if len(args.to_date) == 10:
+            to_at = to_at + _timedelta(days=1) - _timedelta(microseconds=1)
+    paths = _paths_for(args)
+    try:
+        comparison = _pipeline_from(paths.db_path).compare(from_at, to_at)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_BAD_INPUT
+    if comparison is None:
+        if args.json:
+            print(json.dumps({"entries": None, "reason": "not enough history"}, indent=2))
+        else:
+            print(RULE)
+            print("  not enough history: compare needs two kept profiles to pair")
+        return EXIT_OK
+    if args.json:
+        print(json.dumps(comparison_payload(comparison), indent=2))
+        return EXIT_OK
+    names = place_names(
+        (entry.topic for entry in comparison.entries), FileGazetteer(paths.gazetteer_path)
+    )
+    moved = [entry for entry in comparison.entries if entry.change is not ChangeKind.STEADY]
+    print(RULE)
+    print(f"  before        {comparison.before_at.date().isoformat()}")
+    print(f"  after         {comparison.after_at.date().isoformat()}")
+    if moved:
+        print("\n  what changed, the loudest first")
+        for entry in moved:
+            print(
+                f"    {entry.change.value:<9}"
+                f"  {names.get(entry.topic, entry.topic):<32}"
+                f"  {entry.strength_before:.2f} -> {entry.strength_after:.2f}"
+                f"  evidence {entry.evidence_before} -> {entry.evidence_after}"
+            )
+    else:
+        print("\n  nothing moved between the two readings")
+    print(f"\n  steady        {len(comparison.entries) - len(moved)} topics")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -767,6 +826,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     corrections = commands.add_parser("corrections", help="the append-only correction log")
     corrections.set_defaults(run=_command_corrections)
+
+    compare = commands.add_parser("compare", help="what changed between two kept readings")
+    compare.add_argument(
+        "--from",
+        dest="from_date",
+        default=None,
+        help="ISO date; picks the latest kept profile at or before it",
+    )
+    compare.add_argument(
+        "--to",
+        dest="to_date",
+        default=None,
+        help="ISO date; picks the latest kept profile at or before it",
+    )
+    compare.add_argument("--json", action="store_true", help="machine readable output")
+    compare.set_defaults(run=_command_compare)
 
     return parser
 

@@ -32,6 +32,7 @@ uv run kiseki report --json
 | `insights` | The current findings, with evidence |
 | `correct` | Exclude a topic or a reading from every derivation |
 | `corrections` | The append-only correction log |
+| `compare` | What changed between two kept readings |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -207,3 +208,11 @@ reads through it (ADR-0044). Raw evidence and kept profiles are
 never rewritten; `--reinstate` undoes by appending, and
 `kiseki corrections` shows the log. Ask retrieval obeys the same
 log: an excluded reading never returns as answer evidence.
+
+## Compare
+
+`kiseki compare` states what changed between two kept profiles --
+appeared, gone, stronger, weaker, steady -- with the strengths and
+evidence counts on both sides (ADR-0045). By default it compares the
+trend's pair; `--from` / `--to` pick the latest kept profile at or
+before each date. Over HTTP: `GET /compare`.

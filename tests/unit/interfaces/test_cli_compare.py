@@ -83,9 +83,7 @@ class TestCompareCommand:
             _profile(20, "museum"),
             _profile(40, "ramen"),
         )
-        assert (
-            _run(tmp_path, "compare", "--from", "2026-06-21", "--to", "2026-07-11") == EXIT_OK
-        )
+        assert _run(tmp_path, "compare", "--from", "2026-06-21", "--to", "2026-07-11") == EXIT_OK
         out = capsys.readouterr().out
         assert "onsen" not in out
         assert "ramen" in out
