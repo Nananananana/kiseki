@@ -14,17 +14,13 @@ def isolated_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestExportCommand:
-    def test_prints_the_schema(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_prints_the_schema(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         assert main(["--data-root", str(tmp_path), "export"]) == EXIT_OK
         document = json.loads(capsys.readouterr().out)
         assert document["schema"] == "kiseki-interest-export"
         assert document["interests"] == []
 
-    def test_writes_a_file(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_writes_a_file(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         target = tmp_path / "out" / "interests.json"
         assert main(["--data-root", str(tmp_path), "export", "--out", str(target)]) == EXIT_OK
         assert "exported" in capsys.readouterr().out

@@ -38,6 +38,7 @@ from kiseki.adapters.sqlite.store import (
 )
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import run_captioning
+from kiseki.application.exporting import interest_export
 from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narrative import tell
@@ -757,6 +758,26 @@ def _command_privacy(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_export(args: argparse.Namespace) -> int:
+    from datetime import date as _date
+
+    pipeline = _pipeline_from(_paths_for(args).db_path)
+    document = interest_export(
+        pipeline.profile(keep=False),
+        pipeline.lifecycle(),
+        _date.today(),
+    )
+    text = json.dumps(document, indent=2)
+    if args.out is not None:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text + "\n", encoding="utf-8")
+        print(f"exported {len(document['interests'])} interests to {target}")
+        return EXIT_OK
+    print(text)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -880,6 +901,10 @@ def build_parser() -> argparse.ArgumentParser:
     privacy = commands.add_parser("privacy", help="how the owner's data is treated, in counts")
     privacy.add_argument("--json", action="store_true", help="machine readable output")
     privacy.set_defaults(run=_command_privacy)
+
+    export = commands.add_parser("export", help="the interest export: a one-way abstraction")
+    export.add_argument("--out", default=None, help="write the JSON to this file instead of stdout")
+    export.set_defaults(run=_command_export)
 
     return parser
 
