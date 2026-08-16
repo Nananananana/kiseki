@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 916 passing, 13 llm-marked and deselected in CI.
+- Tests: 925 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -234,5 +234,10 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   never bundled, never fetched); the adapter grid-buckets it and
   answers nearest() deterministically; no file means no names.
   Anchors are never named, and names are never stored -- they are
-  resolved at presentation time. Next: (2 of 2) names in profile,
-  report and view.
+  resolved at presentation time.
+- v0.4 (place entities, 2 of 2): names at presentation time -- with
+  the file in place, `kiseki profile` and `kiseki view` label place
+  topics (the name alone when blurred, the name beside the reference
+  when raw); anchors stay unnamed and served payloads are unchanged.
+  Place entities complete; next per proposals/0002: (5) place
+  narration.

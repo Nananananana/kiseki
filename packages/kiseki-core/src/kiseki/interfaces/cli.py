@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from kiseki.adapters.filesystem.gazetteer import FileGazetteer
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
 from kiseki.adapters.ollama.models import (
     DEFAULT_EMBEDDING_MODEL,
@@ -50,6 +51,7 @@ from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
+from kiseki.interfaces.naming import place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
     profile_payload,
@@ -187,7 +189,7 @@ def _command_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _print_profile(profile: Profile) -> None:
+def _print_profile(profile: Profile, names: dict[str, str]) -> None:
     print(RULE)
     print(f"  interests     {len(profile.interests)}")
 
@@ -195,7 +197,7 @@ def _print_profile(profile: Profile) -> None:
         print("\n  read as interests")
         for interest in profile.ranked():
             print(
-                f"    {interest.topic:<32}"
+                f"    {names.get(interest.topic, interest.topic):<32}"
                 f"  score {interest.score:>5.2f}"
                 f"  confidence {interest.confidence:>5.2f}"
                 f"  evidence {len(interest.evidence)}"
@@ -203,11 +205,14 @@ def _print_profile(profile: Profile) -> None:
 
 
 def _command_profile(args: argparse.Namespace) -> int:
-    profile = _pipeline_for(args).profile()
+    paths = _paths_for(args)
+    profile = _pipeline_from(paths.db_path).profile()
     if args.json:
         print(json.dumps(profile_payload(profile), indent=2))
     else:
-        _print_profile(profile)
+        gazetteer = FileGazetteer(paths.gazetteer_path)
+        names = place_names((interest.topic for interest in profile.interests), gazetteer)
+        _print_profile(profile, names)
     return EXIT_OK
 
 
@@ -347,12 +352,18 @@ def _command_view(args: argparse.Namespace) -> int:
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
     )
+    profile = pipeline.profile(keep=False)
+    trend = pipeline.trend()
+    topics = [interest.topic for interest in profile.interests]
+    if trend is not None:
+        topics += [item.topic for item in trend.trends]
     page = render_view(
         photos.all(),
         pipeline.report(),
-        pipeline.profile(keep=False),
-        pipeline.trend(),
+        profile,
+        trend,
         blur=not args.raw,
+        names=place_names(topics, FileGazetteer(paths.gazetteer_path)),
     )
     destination = args.out if args.out is not None else paths.cache_dir / "kiseki-view.html"
     destination.parent.mkdir(parents=True, exist_ok=True)
