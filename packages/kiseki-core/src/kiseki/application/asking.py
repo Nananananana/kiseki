@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
+from kiseki.domain.insight import Insight, InsightReport
 from kiseki.domain.services.time_expressions import read_time_window
 from kiseki.ports.models import LanguageModel, TextEmbedder
 from kiseki.ports.search import SearchIndex
@@ -49,6 +50,7 @@ class Answer:
     model: str
     since: datetime | None = None
     until: datetime | None = None
+    supporting_insights: tuple[Insight, ...] = ()
 
     @property
     def answered(self) -> bool:
@@ -69,6 +71,23 @@ def derive_confidence(results: tuple[Retrieval, ...]) -> float:
     return strength * coverage
 
 
+def _supporting(
+    insights: InsightReport | None,
+    question: str,
+    results: tuple[Retrieval, ...],
+) -> tuple[Insight, ...]:
+    """Findings whose topic touches the question or its evidence.
+
+    They ride the contract as metadata for the reader; the model
+    never sees them, so an answer can never borrow their certainty.
+    """
+    if insights is None:
+        return ()
+    haystack = question.lower() + " " + " ".join(item.document.text.lower() for item in results)
+    matched = [item for item in insights.insights if item.topic.lower() in haystack]
+    return tuple(matched[:3])
+
+
 def numbered_facts(results: tuple[Retrieval, ...]) -> str:
     return "\n".join(
         f"[F{index}] ({item.document.observed_at:%Y-%m-%d}, {item.document.kind})"
@@ -87,6 +106,7 @@ def ask(
     limit: int = DEFAULT_LIMIT,
     since: datetime | None = None,
     until: datetime | None = None,
+    insights: InsightReport | None = None,
     now: Callable[[], datetime] = _local_now,
 ) -> Answer:
     """One answer. Model errors propagate to the caller.
@@ -120,4 +140,5 @@ def ask(
         model=completion.model,
         since=since,
         until=until,
+        supporting_insights=_supporting(insights, question, results),
     )
