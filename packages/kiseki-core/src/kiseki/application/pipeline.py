@@ -17,6 +17,7 @@ from kiseki.domain.analytics.analytics import (
     summarise_rhythm,
 )
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.comparison import Comparison
 from kiseki.domain.correction import active_exclusions
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
@@ -24,6 +25,7 @@ from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
+from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
 from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
@@ -35,7 +37,7 @@ from kiseki.domain.services.screen_interest_derivation import (
 )
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
-from kiseki.domain.services.trend_derivation import derive_trend
+from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS, derive_trend
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
@@ -85,6 +87,18 @@ class Report:
     places: PlacePreference
     habits: OutingHabits | None
     rhythm: Rhythm
+
+
+def _naive(moment: datetime) -> datetime:
+    return moment.replace(tzinfo=None)
+
+
+def _latest_at_or_before(history: Sequence[Profile], moment: datetime) -> Profile | None:
+    chosen: Profile | None = None
+    for profile in history:
+        if _naive(profile.generated_at) <= _naive(moment):
+            chosen = profile
+    return chosen
 
 
 class Pipeline:
@@ -201,6 +215,37 @@ class Pipeline:
     def _kept_history(self) -> tuple[Profile, ...]:
         history = self._profiles.history() if self._profiles is not None else ()
         return tuple(self._corrected(profile) for profile in history)
+
+    def compare(
+        self,
+        from_at: datetime | None = None,
+        to_at: datetime | None = None,
+    ) -> Comparison | None:
+        """What changed between two kept readings (ADR-0045).
+
+        Defaults to the trend's pair: the latest reading against the
+        most recent one old enough to compare with. With both dates,
+        picks the latest kept reading at or before each. None while
+        the history cannot supply a pair.
+        """
+        history = self._kept_history()
+        if not history:
+            return None
+        latest = self._themes.latest() if self._themes is not None else None
+        themes = latest.themes if latest is not None else ()
+        if from_at is not None and to_at is not None:
+            before = _latest_at_or_before(history, from_at)
+            after = _latest_at_or_before(history, to_at)
+        else:
+            after = history[-1]
+            before = None
+            for profile in history[:-1]:
+                gap = _naive(after.generated_at) - _naive(profile.generated_at)
+                if gap.days >= MIN_TREND_SPAN_DAYS:
+                    before = profile
+        if before is None or after is None:
+            return None
+        return compare_profiles(before, after, themes=themes)
 
     def insights(self) -> InsightReport | None:
         """The current findings, from the kept readings."""

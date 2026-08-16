@@ -12,6 +12,7 @@ from typing import Any
 
 from kiseki.application.asking import Answer
 from kiseki.application.pipeline import Report
+from kiseki.domain.comparison import Comparison
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
@@ -131,6 +132,28 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
                 "score": item.score,
             }
             for item in answer.evidence
+        ],
+    }
+
+
+def comparison_payload(comparison: Comparison, blur: bool = False) -> dict[str, Any]:
+    return {
+        "before_at": comparison.before_at.isoformat(),
+        "after_at": comparison.after_at.isoformat(),
+        "entries": [
+            {
+                "topic": blurred_place(entry.topic) if blur else entry.topic,
+                "change": entry.change.value,
+                "strength_before": entry.strength_before,
+                "strength_after": entry.strength_after,
+                "evidence_before": entry.evidence_before,
+                "evidence_after": entry.evidence_after,
+                "evidence_refs": [
+                    blurred_place(reference) if blur else reference
+                    for reference in entry.evidence_refs
+                ],
+            }
+            for entry in comparison.entries
         ],
     }
 
