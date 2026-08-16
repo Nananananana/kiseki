@@ -75,3 +75,19 @@ def test_the_fake_answers_the_same_contract() -> None:
     fake = FakeGazetteer([(KYOTO, PlaceName("Kyoto", "JP"))])
     assert fake.nearest(GeoPoint(35.0, 135.77), Distance(30_000)) == PlaceName("Kyoto", "JP")
     assert fake.nearest(GeoPoint(43.0, 141.0), Distance(30_000)) is None
+
+
+def test_ascii_name_is_preferred(tmp_path: Path) -> None:
+    row = "\t".join(["1", "\u014csaka", "Osaka", "", "34.6937", "135.5023", "P", "PPL", "JP"])
+    gazetteer = FileGazetteer(_file(tmp_path, [row]))
+    place = gazetteer.nearest(GeoPoint(34.69, 135.50), Distance(10_000))
+    assert place is not None
+    assert place.name == "Osaka"
+
+
+def test_a_missing_ascii_name_falls_back(tmp_path: Path) -> None:
+    row = "\t".join(["1", "Kyoto", "", "", "35.0116", "135.7681", "P", "PPL", "JP"])
+    gazetteer = FileGazetteer(_file(tmp_path, [row]))
+    place = gazetteer.nearest(KYOTO, Distance(10_000))
+    assert place is not None
+    assert place.name == "Kyoto"
