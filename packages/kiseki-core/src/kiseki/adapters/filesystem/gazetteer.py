@@ -17,6 +17,7 @@ from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.ports.places import PlaceName
 
 NAME_COLUMN = 1
+ASCII_NAME_COLUMN = 2
 LATITUDE_COLUMN = 4
 LONGITUDE_COLUMN = 5
 COUNTRY_COLUMN = 8
@@ -47,7 +48,7 @@ class FileGazetteer:
                     continue
                 if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
                     continue
-                name = columns[NAME_COLUMN].strip()
+                name = columns[ASCII_NAME_COLUMN].strip() or columns[NAME_COLUMN].strip()
                 if not name:
                     continue
                 place = PlaceName(name, columns[COUNTRY_COLUMN].strip())

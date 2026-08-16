@@ -76,6 +76,7 @@ def test_the_fake_answers_the_same_contract() -> None:
     assert fake.nearest(GeoPoint(35.0, 135.77), Distance(30_000)) == PlaceName("Kyoto", "JP")
     assert fake.nearest(GeoPoint(43.0, 141.0), Distance(30_000)) is None
 
+
 def test_ascii_name_is_preferred(tmp_path: Path) -> None:
     row = "\t".join(["1", "\u014csaka", "Osaka", "", "34.6937", "135.5023", "P", "PPL", "JP"])
     gazetteer = FileGazetteer(_file(tmp_path, [row]))

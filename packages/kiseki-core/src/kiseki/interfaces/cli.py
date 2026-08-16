@@ -769,6 +769,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(errors="replace")
     args = parser.parse_args(argv)
 
     if getattr(args, "run", None) is None:

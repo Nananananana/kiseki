@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 993 passing, 13 llm-marked and deselected in CI.
+- Tests: 996 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -295,3 +295,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   supporting_insights at once; stored bytes are never rewritten.
   `kiseki correct` / `kiseki corrections`. Next: (2 of 2) the same
   exclusions in ask retrieval.
+- Console-safe names: FileGazetteer prefers the GeoNames asciiname
+  column (falling back to name), and the CLI reconfigures stdout
+  with errors="replace" at startup -- a cp932 console degrades a
+  macron to "?" instead of crashing `kiseki profile`.
