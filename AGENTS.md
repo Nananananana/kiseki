@@ -253,3 +253,15 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   honest "not enough history" until the span exists. proposals/0002
   is feature-complete; released as v0.4.0 (README rewritten,
   docs/releases/v0.4.0.md).
+- v0.5/v0.6 direction (proposals/0004, refining 0003 after the
+  owner's improvement brief): insights as first-class derived
+  objects (topic, kind, direction, magnitude, confidence, evidence
+  refs, novelty; never model-invented), corrections that reach every
+  derivation (append-only, the ADR-0032 shape), compare with
+  deterministic reasons, discovery ranked by novelty and importance
+  (kept apart from confidence), mixed-evidence surfacing instead of
+  asserted contradictions, evidence-based suggest, privacy
+  dashboard, interest export as a one-way privacy boundary; no
+  automatic snapshots (opportunity hints only); the avoid list
+  stands. README repositioned as a local-first personal context
+  engine. Next: v0.5, starting with the Insight object.
