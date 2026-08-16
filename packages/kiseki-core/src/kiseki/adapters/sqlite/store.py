@@ -21,6 +21,7 @@ from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
+from kiseki.domain.correction import Correction, CorrectionVerdict
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -131,6 +132,14 @@ CREATE TABLE IF NOT EXISTS screen_readings (
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     refused    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS corrections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reference TEXT NOT NULL,
+    verdict TEXT NOT NULL,
+    note TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS single_captions (
@@ -755,3 +764,42 @@ class SqliteSingleCaptionRepository:
             "SELECT photo_id, text, model, created_at, refused FROM single_captions ORDER BY rowid"
         )
         return tuple(_to_single_caption(row) for row in cursor)
+
+
+class SqliteCorrectionRepository:
+    """Corrections accumulate and are never rewritten.
+
+    The table is additive to schema version 4, so an existing
+    database gains it on connect. Append-only by contract: there is
+    no UPDATE and no DELETE here. See ADR-0044.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def add(self, correction: Correction) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO corrections (reference, verdict, note, created_at)"
+                " VALUES (?, ?, ?, ?)",
+                (
+                    correction.reference,
+                    correction.verdict.value,
+                    correction.note,
+                    correction.created_at.isoformat(),
+                ),
+            )
+
+    def all(self) -> tuple[Correction, ...]:
+        cursor = self._connection.execute(
+            "SELECT reference, verdict, note, created_at FROM corrections ORDER BY rowid"
+        )
+        return tuple(
+            Correction(
+                reference=reference,
+                verdict=CorrectionVerdict(verdict),
+                note=note,
+                created_at=datetime.fromisoformat(created_at),
+            )
+            for reference, verdict, note, created_at in cursor
+        )

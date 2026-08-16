@@ -17,12 +17,14 @@ from kiseki.domain.analytics.analytics import (
     summarise_rhythm,
 )
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.correction import active_exclusions
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
+from kiseki.domain.services.correcting import apply_corrections
 from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.lifecycle_derivation import derive_lifecycles
@@ -38,6 +40,7 @@ from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
 from kiseki.ports.captions import CaptionRepository
+from kiseki.ports.corrections import CorrectionRepository
 from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
     AnchorRepository,
@@ -97,6 +100,7 @@ class Pipeline:
         themes: ThemeSetRepository | None = None,
         screens: ScreenshotReadingRepository | None = None,
         singles: SingleCaptionRepository | None = None,
+        corrections: CorrectionRepository | None = None,
     ) -> None:
         self._photos = photos
         self._outings = outings
@@ -108,6 +112,7 @@ class Pipeline:
         self._themes = themes
         self._screens = screens
         self._singles = singles
+        self._corrections = corrections
 
     def ingest(self, observations: Sequence[PhotoObservation]) -> int:
         """Take photographs in. Safe to run over an overlapping export."""
@@ -185,7 +190,17 @@ class Pipeline:
             )
         if self._profiles is not None and keep:
             self._profiles.save(profile)
-        return profile
+        return self._corrected(profile)
+
+    def _corrected(self, profile: Profile) -> Profile:
+        """The reading through the correction log. Stored bytes untouched."""
+        if self._corrections is None:
+            return profile
+        return apply_corrections(profile, active_exclusions(self._corrections.all()))
+
+    def _kept_history(self) -> tuple[Profile, ...]:
+        history = self._profiles.history() if self._profiles is not None else ()
+        return tuple(self._corrected(profile) for profile in history)
 
     def insights(self) -> InsightReport | None:
         """The current findings, from the kept readings."""
@@ -193,7 +208,7 @@ class Pipeline:
             return None
         latest = self._themes.latest() if self._themes is not None else None
         return derive_insights(
-            self._profiles.history(),
+            self._kept_history(),
             themes=latest.themes if latest is not None else (),
         )
 
@@ -203,7 +218,7 @@ class Pipeline:
             return None
         latest = self._themes.latest() if self._themes is not None else None
         return derive_lifecycles(
-            self._profiles.history(),
+            self._kept_history(),
             themes=latest.themes if latest is not None else (),
         )
 
@@ -220,7 +235,7 @@ class Pipeline:
             return None
         latest = self._themes.latest() if self._themes is not None else None
         return derive_trend(
-            self._profiles.history(),
+            self._kept_history(),
             themes=latest.themes if latest is not None else (),
         )
 

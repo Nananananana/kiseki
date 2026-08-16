@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 975 passing, 13 llm-marked and deselected in CI.
+- Tests: 993 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -124,7 +124,8 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   narration via `kiseki tell`.
 - CLI: `paths`, `ingest`, `build`, `report`, `profile`, `caption`,
   `subjects`, `tell`, `themes`, `trend`, `serve`, `view`, `screens`,
-  `singles`, `index`, `ask`, `lifecycle`, `insights`.
+  `singles`, `index`, `ask`, `lifecycle`, `insights`, `correct`,
+  `corrections`.
 - Shipped since v0.2.0: themes (ADR-0023) -- labels clustered by
   embedding similarity, with stay co-occurrence vouching for
   middling-similarity joins; named from a closed member list with a
@@ -283,4 +284,14 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   facts, no model call), and `ask` attaches matched findings to the
   answer contract as supporting_insights -- metadata the model never
   sees, so an answer can never borrow their certainty. Insights are
-  complete; next per proposals/0004: corrections.
+  complete.
+- v0.5 (corrections, 1 of 2, ADR-0044): an append-only correction
+  log (reference in the evidence vocabulary, verdict excluded or
+  reinstated, latest word wins) applied as a pure read-time filter
+  -- an excluded topic drops its interest, an excluded reference
+  drops that evidence, an evidence-less interest drops; the Pipeline
+  filters the fresh reading and the whole kept history, reaching
+  profile, trend, lifecycle, insights, tell, view and
+  supporting_insights at once; stored bytes are never rewritten.
+  `kiseki correct` / `kiseki corrections`. Next: (2 of 2) the same
+  exclusions in ask retrieval.
