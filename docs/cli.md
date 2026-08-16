@@ -30,6 +30,8 @@ uv run kiseki report --json
 | `ask` | Answer a question from the readings, with evidence |
 | `lifecycle` | Where each topic stands in its life |
 | `insights` | The current findings, with evidence |
+| `correct` | Exclude a topic or a reading from every derivation |
+| `corrections` | The append-only correction log |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -195,3 +197,12 @@ closed, cited fact list (unnamed places stay silent, as in `tell`);
 `kiseki ask` attaches related findings to its answer contract as
 `supporting_insights` -- metadata for the reader that the model
 never sees.
+
+## Corrections
+
+`kiseki correct topic:<name>` (or caption:<key>, photo:<id>,
+screen:<id>) appends the owner's word to an append-only log; every
+derivation -- profile, trend, lifecycle, insights, tell, view --
+reads through it (ADR-0044). Raw evidence and kept profiles are
+never rewritten; `--reinstate` undoes by appending, and
+`kiseki corrections` shows the log.

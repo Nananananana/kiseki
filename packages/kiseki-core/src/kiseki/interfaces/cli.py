@@ -26,6 +26,7 @@ from kiseki.adapters.sqlite.search import SqliteSearchIndex
 from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
+    SqliteCorrectionRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
@@ -46,6 +47,7 @@ from kiseki.application.single_captioning import run_single_captioning
 from kiseki.application.subject_extraction import run_subject_extraction
 from kiseki.application.theming import run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
+from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
@@ -115,6 +117,7 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
+        corrections=SqliteCorrectionRepository(connection),
     )
 
 
@@ -368,6 +371,7 @@ def _command_view(args: argparse.Namespace) -> int:
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
+        corrections=SqliteCorrectionRepository(connection),
     )
     profile = pipeline.profile(keep=False)
     trend = pipeline.trend()
@@ -621,6 +625,41 @@ def _command_insights(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_correct(args: argparse.Namespace) -> int:
+    from datetime import UTC
+    from datetime import datetime as _datetime
+
+    connection = connect(_paths_for(args).db_path)
+    repository = SqliteCorrectionRepository(connection)
+    verdict = CorrectionVerdict.REINSTATED if args.reinstate else CorrectionVerdict.EXCLUDED
+    repository.add(
+        Correction(
+            reference=args.reference,
+            verdict=verdict,
+            note=args.note,
+            created_at=_datetime.now(UTC),
+        )
+    )
+    print(f"corrected {args.reference} ({verdict.value})")
+    return EXIT_OK
+
+
+def _command_corrections(args: argparse.Namespace) -> int:
+    connection = connect(_paths_for(args).db_path)
+    records = SqliteCorrectionRepository(connection).all()
+    active = active_exclusions(records)
+    print(RULE)
+    print(f"  corrections  {len(records)}")
+    print(f"  excluded  {len(active)}")
+    for record in records:
+        note = f"  ({record.note})" if record.note else ""
+        print(
+            f"    {record.created_at.date().isoformat()}"
+            f"  {record.verdict.value:<10}  {record.reference}{note}"
+        )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -713,6 +752,17 @@ def build_parser() -> argparse.ArgumentParser:
     insights.add_argument("--lang", default="ja", choices=["ja", "en"], help="story language")
     insights.add_argument("--json", action="store_true", help="machine readable output")
     insights.set_defaults(run=_command_insights)
+
+    correct = commands.add_parser(
+        "correct", help="exclude a topic or a reading from every derivation"
+    )
+    correct.add_argument("reference", help="topic:<name>, caption:<key>, photo:<id> or screen:<id>")
+    correct.add_argument("--note", default="", help="why, for future you")
+    correct.add_argument("--reinstate", action="store_true", help="undo an exclusion")
+    correct.set_defaults(run=_command_correct)
+
+    corrections = commands.add_parser("corrections", help="the append-only correction log")
+    corrections.set_defaults(run=_command_corrections)
 
     return parser
 
