@@ -191,6 +191,7 @@ def lifecycle_payload(report: LifecycleReport, blur: bool = False) -> dict[str, 
                 "topic": blurred_place(item.topic) if blur else item.topic,
                 "stage": item.stage.value,
                 "strength": item.strength,
+                "baseline": item.baseline,
                 "seen_profiles": item.seen_profiles,
             }
             for item in report.lifecycles

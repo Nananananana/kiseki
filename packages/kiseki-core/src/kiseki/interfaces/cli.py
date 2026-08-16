@@ -580,6 +580,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
                 f"    {item.stage.value:<10}"
                 f"  {names.get(item.topic, item.topic):<32}"
                 f"  now {item.strength:>5.2f}"
+                f"  (was {item.baseline:>5.2f})"
                 f"  seen {item.seen_profiles}"
             )
     return EXIT_OK

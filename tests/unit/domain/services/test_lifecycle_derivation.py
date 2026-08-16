@@ -135,6 +135,7 @@ def test_seen_profiles_counts_the_appearances():
     item = next(item for item in report.lifecycles if item.topic == "museum")
     assert item.seen_profiles == 3
 
+
 def test_growth_carries_its_baseline():
     history = (
         _profile(0, _interest("museum", 0.5, 0.4)),

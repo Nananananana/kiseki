@@ -83,6 +83,7 @@ class TestLifecycleCommand:
         assert payload["lifecycles"][0]["stage"] in ("new", "returned")
         assert "latest_at" in payload
 
+
 def test_the_arithmetic_travels(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _seed(tmp_path, _profile(0, "onsen"), _profile(20, "museum"))
     assert _run(tmp_path, "lifecycle") == EXIT_OK

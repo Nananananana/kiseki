@@ -69,6 +69,7 @@ def derive_lifecycles(
                 stage=stage,
                 strength=item.strength,
                 seen_profiles=_seen(item.topic, presence),
+                baseline=item.baseline,
             )
         )
 
