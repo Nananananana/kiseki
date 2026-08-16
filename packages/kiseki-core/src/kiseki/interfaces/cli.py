@@ -57,10 +57,13 @@ from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.naming import place_names
 from kiseki.interfaces.payloads import (
+    BLURRED_BY_DEFAULT,
+    NEVER_STORED,
     answer_payload,
     comparison_payload,
     insights_payload,
     lifecycle_payload,
+    privacy_payload,
     profile_payload,
     report_payload,
     trend_payload,
@@ -724,6 +727,34 @@ def _command_compare(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_privacy(args: argparse.Namespace) -> int:
+    report = _pipeline_from(_paths_for(args).db_path).privacy()
+    if args.json:
+        print(json.dumps(privacy_payload(report), indent=2))
+        return EXIT_OK
+    print(RULE)
+    print("  what is stored, in counts")
+    print(f"    photographs       {report.photographs:>6}   located {report.located}")
+    print(f"    stay captions     {report.stay_captions:>6}   refused {report.stay_refused}")
+    print(f"    single captions   {report.single_captions:>6}   refused {report.single_refused}")
+    print(
+        f"    screen readings   {report.screen_readings:>6}"
+        f"   label-silent {report.screens_label_silent}"
+    )
+    print(f"    subject readings  {report.subject_readings:>6}")
+    print(f"    kept profiles     {report.kept_profiles:>6}")
+    print(
+        f"    corrections       {report.corrections:>6}   excluding now {report.active_exclusions}"
+    )
+    print("\n  what the owner has withheld")
+    print(f"    from the preferences  {report.withheld_from_preference} photographs")
+    print("\n  what is never stored, by construction")
+    for name, reason in NEVER_STORED:
+        print(f"    {name:<24}  {reason}")
+    print(f"\n  {BLURRED_BY_DEFAULT}")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -843,6 +874,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument("--json", action="store_true", help="machine readable output")
     compare.set_defaults(run=_command_compare)
+
+    privacy = commands.add_parser("privacy", help="how the owner's data is treated, in counts")
+    privacy.add_argument("--json", action="store_true", help="machine readable output")
+    privacy.set_defaults(run=_command_privacy)
 
     return parser
 
