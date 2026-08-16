@@ -31,9 +31,8 @@ class TestPrivacyCommand:
         assert payload["photographs"] == 0
         assert "never_stored" in payload
 
-def test_screen_readings_are_counted(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+
+def test_screen_readings_are_counted(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     from datetime import UTC, datetime
 
     from kiseki.adapters.sqlite.store import SqliteScreenshotReadingRepository, connect

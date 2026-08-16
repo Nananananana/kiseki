@@ -122,6 +122,7 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
+        screens=SqliteScreenshotReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
     )
 
@@ -376,6 +377,7 @@ def _command_view(args: argparse.Namespace) -> int:
         subjects=SqliteSubjectRepository(connection),
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
+        screens=SqliteScreenshotReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
     )
     profile = pipeline.profile(keep=False)
