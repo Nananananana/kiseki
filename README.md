@@ -1,9 +1,32 @@
 # KISEKI
 
-**Reads a photo library as a sequence, and measures what it says about the
-person who made it.**
+**Your photo library already knows what you like. KISEKI reads it -- on your
+machine, for you alone.**
 
 A Python library. No account, no upload, no network required.
+
+*Kiseki* means "trail" in Japanese: the line your days draw on a map. This
+library reads that line.
+
+---
+
+## Why this exists
+
+Every recommendation you meet today is somebody's average: what people like
+you clicked, what an advertiser paid for, what is popular this week. None of
+it knows that you photograph every bowl of ramen, that you go back to the same
+riverside every few weeks, or that last spring you suddenly started
+photographing gardens.
+
+Your photo library knows all of that. It is the most honest diary nobody
+writes: where you actually went, what you actually stopped for, what you
+found worth keeping.
+
+KISEKI's long-term vision is an assistant that can answer *"where should I go
+on my next day off?"* from who you actually are -- with the evidence to prove
+it, and without your life ever leaving your machine. The versions below build
+toward that: first measure the trail, then read it as interests, then let you
+question it, correct it, and finally act on it.
 
 ---
 
@@ -26,39 +49,55 @@ flowchart LR
 ```
 
 The second reading is what this library is for. Not *where did they go*, but
-*how far do they usually go, how much do they pack into a day, and which places
-did they think were worth a second visit*.
+*how far do they usually go, how much do they pack into a day, which places
+were worth a second visit -- and what does all of that say about what they
+like*.
 
 ---
 
-## What it finds
+## What it can do today
 
-Given two years of an ordinary photo library, it reports things like:
+**Measure the journeys.** Photographs become stops, outings and anchors --
+the places that look like a life -- with honest numbers and no categories:
 
 ```
 places returned to
-  (35.6581, 139.7017)    52 days   304 photos   night   6%  weekday 100%  daytime  90%
-  (35.7148, 139.7967)    12 days    61 photos   night   8%  weekday  33%  daytime  75%
-  (35.6329, 139.8804)    10 days    94 photos   night  60%  weekday  40%  daytime  30%
+  (35.6581, 139.7017)    52 days   304 photos   night   6%  weekday 100%
+  (35.7148, 139.7967)    12 days    61 photos   night   8%  weekday  33%
 
-distinct places      131
-never returned to    85%
-
-distance covered     median  0.0 km    mean  16.7    range 0.0 to 817.1
-time out             median  1.0 h     mean   3.1
-places per outing    median  1.0       mean   1.9
-
-weekend share        37%
+distinct places      131        never returned to    85%
+distance covered     median 0.0 km   mean 16.7   range 0.0 to 817.1
 ```
 
-You can read those three places without being told which is which. That is
-deliberate: the library reports what it observed and assigns no labels, because
-the categories that fit one person's life fit the next person's badly.
-See [ADR-0012](docs/adr/0012-anchors-are-observations-not-categories.md).
+You can read those places without being told which is which. That is
+deliberate: the library reports what it observed and assigns no labels,
+because the categories that fit one person's life fit the next person's
+badly ([ADR-0012](docs/adr/0012-anchors-are-observations-not-categories.md)).
 
-The measure that carries the most is the one time rate. A library where most
-places were seen once describes somebody still looking; a low rate describes
-somebody who has found what they like. No single photograph contains that.
+**Read the interests.** Local vision and language models caption the stays
+and the lone photographs, name their subjects, and merge everything --
+journeys, subjects, screenshots -- into one profile where every interest
+carries its evidence and a confidence.
+
+**Tell the story.** `kiseki tell` narrates the profile in Japanese or
+English, citing a numbered fact for every claim. Places speak by name (from
+an offline gazetteer you download yourself), together with what you
+photographed right there.
+
+**Answer questions.** `kiseki ask "What did I keep eating last year?"`
+retrieves your own captions by words and by meaning, hands the model a closed
+fact list, and returns an answer contract: the answer, the evidence, its time
+range, and a confidence derived from the retrieval -- never from the model.
+"Last year" and its Japanese equivalents become the time window
+automatically.
+
+**Watch it move.** `kiseki trend` reads the drift between kept profiles;
+`kiseki lifecycle` reads where each topic stands in its life -- new,
+returned, growing, declining, dormant, stable. Both are derived on demand and
+stored nowhere.
+
+**Look at it.** `kiseki view` writes one self-contained HTML page -- density
+map on the blur grid, top interests, rhythm, drift -- that talks to no one.
 
 ---
 
@@ -66,26 +105,38 @@ somebody who has found what they like. No single photograph contains that.
 
 ```mermaid
 flowchart LR
-    P["Photographs<br/>time and place"] --> S["Stops<br/>where they stayed"]
-    S --> O["Outings<br/>runs of stops"]
-    S --> A["Anchors<br/>places returned to"]
-    O --> M["Measures<br/>habits and rates"]
-    A --> M
-    M --> R["Profile<br/>v0.2"]
+    P["Photographs<br/>time and place"] --> S["Stops"]
+    S --> O["Outings"]
+    S --> AN["Anchors"]
+    O --> M["Measures"]
+    AN --> M
+    S --> CA["Stay captions<br/>vision model"]
+    P --> SI["Single captions<br/>vision model"]
+    P --> SC["Screen readings<br/>category + labels only"]
+    CA --> SU["Subjects"]
+    SI --> SU
+    M --> PR["Profile<br/>interests with evidence"]
+    SU --> PR
+    SC --> PR
+    PR --> TL["tell<br/>a cited story"]
+    PR --> LC["trend, lifecycle"]
+    CA --> IX["Search index<br/>words + vectors"]
+    SI --> IX
+    SC --> IX
+    IX --> AS["ask<br/>answers with evidence"]
 ```
 
-A **stop** is a stay in one place, found from photograph density and the speed
-implied between shots. Photographs taken through a train window do not become a
-series of stops.
+A **stop** is a stay in one place, found from photograph density and the
+speed implied between shots. An **outing** is a run of stops with no long
+silence between them. An **anchor** is anywhere visited on enough separate
+days to be part of a life. **Measures** count and never interpret
+([ADR-0010](docs/adr/0010-separate-measurement-from-interpretation.md));
+everything that interprets sits above them and cites its evidence.
 
-An **outing** is a run of stops with no long silence between them.
-
-An **anchor** is anywhere visited on enough separate days to be part of a life,
-reported with the shares above and no category.
-
-**Measures** count and summarise. They never interpret; that is v0.2's job, and
-keeping the seam sharp is what makes the numbers testable.
-See [ADR-0010](docs/adr/0010-separate-measurement-from-interpretation.md).
+The models are local (Ollama): a vision model describes, a language model
+phrases, an embedding model indexes. Every model stage is resumable, and
+every narrated or answered word rests on a numbered fact the model was
+given -- it cannot make an answer more certain than the evidence is.
 
 ---
 
@@ -105,9 +156,10 @@ flowchart TB
         PO["ports"]
     end
     subgraph adapters["Adapters, all replaceable"]
-        SQ["SQLite"]
+        SQ["SQLite + FTS5"]
         ME["in-memory"]
-        LLM["a language model<br/>v0.2"]
+        LLM["Ollama models"]
+        GZ["GeoNames file<br/>offline gazetteer"]
     end
     I --> C
     SW --> C
@@ -118,6 +170,7 @@ flowchart TB
     PO -.- SQ
     PO -.- ME
     PO -.- LLM
+    PO -.- GZ
 ```
 
 Three commitments, each enforced rather than promised:
@@ -133,31 +186,35 @@ any program in any language can emit. A
 contract forbids the reference producer from importing the core, so the
 independence is verified rather than asserted.
 
-**Ports are protocols.** Storage and models are `typing.Protocol`, so an
-implementer writes a matching class and never imports this library. One shared
-test suite runs against both the fake and the real implementation, so the fake
-cannot drift. See [ADR-0004](docs/adr/0004-define-ports-as-protocols.md).
+**Ports are protocols.** Storage, models and the gazetteer are
+`typing.Protocol`, so an implementer writes a matching class and never
+imports this library. One shared test suite runs against both the fake and
+the real implementation, so the fake cannot drift.
+See [ADR-0004](docs/adr/0004-define-ports-as-protocols.md).
 
 ---
 
 ## Privacy
 
-The premise requires holding someone's movements for years, so the position is
-structural rather than a promise:
+The premise requires holding someone's movements for years, so the position
+is structural rather than a promise:
 
-- **No coordinate is ever configured.** Home is not a setting; it is inferred,
-  or not inferred, from evidence
-- **Nothing leaves the machine.** No network call is needed to ingest, build or
-  report
-- **No personal data in this repository.** Tests build synthetic photographs at
-  run time; a pre-commit hook refuses to commit an image or a database
-- **Coordinate blurring** is the default on everything served or
-  written: the local API and the HTML view round to about a
-  kilometre unless raw output is asked for explicitly
-- **Screenshot words are never stored**: a screen reading is a
-  category and short labels, with no text field; chat, auth and
-  finance screens are never labelled, and consent flags are enforced
-  in code (ADR-0030, ADR-0032)
+- **No coordinate is ever configured.** Home is not a setting; it is
+  inferred, or not inferred, from evidence
+- **Nothing leaves the machine.** No network call is needed to ingest, build,
+  index, ask or report; even place names come from a file you download
+  yourself
+- **No personal data in this repository.** Tests build synthetic photographs
+  at run time; a pre-commit hook refuses to commit an image or a database
+- **Coordinate blurring is the default** on everything served or written: the
+  local API and the HTML view round to about a kilometre unless raw output is
+  asked for explicitly
+- **Screenshot words are never stored**: a screen reading is a category and
+  short labels, with no text field; chat, auth and finance screens are never
+  labelled, and consent flags are enforced in code (ADR-0030, ADR-0032)
+- **Anchors are never named, and names are never stored**: the gazetteer
+  resolves place names at display time only, and the served story keeps
+  places silent (ADR-0040, ADR-0041)
 
 ---
 
@@ -177,19 +234,24 @@ uv run kiseki ingest ~/kiseki-data/photo-records.json
 uv run kiseki build
 uv run kiseki report
 uv run kiseki caption    # describe each stay with a local vision model
-uv run kiseki subjects   # name what the captions were about
-uv run kiseki profile    # read the measures and subjects as interests
-uv run kiseki tell       # a cited narration of the profile, in Japanese
-uv run kiseki themes     # gather the subject labels into themes
-uv run kiseki trend      # the drift between kept profiles
-uv run kiseki serve      # the same answers over local HTTP
-uv run kiseki view       # one self-contained HTML view of it all
-uv run kiseki screens    # read the screenshots: category and labels only
 uv run kiseki singles    # caption the photographs outside every stay
+uv run kiseki screens    # read the screenshots: category and labels only
+uv run kiseki subjects   # name what the captions were about
+uv run kiseki themes     # gather the subject labels into themes
+uv run kiseki profile    # read the measures and subjects as interests
+uv run kiseki tell       # a cited narration of the profile
+uv run kiseki index      # index the readings for search
+uv run kiseki ask "What do I keep photographing lately?"
+uv run kiseki trend      # the drift between kept profiles
+uv run kiseki lifecycle  # where each topic stands in its life
+uv run kiseki view       # one self-contained HTML view of it all
+uv run kiseki serve      # the same answers over local HTTP
 ```
 
-`kiseki report --json` prints the same measures as a document.
-Full reference: [docs/cli.md](docs/cli.md).
+Full reference: [docs/cli.md](docs/cli.md). Place names need a one-time
+download: [docs/gazetteer.md](docs/gazetteer.md). A weekly
+`kiseki profile` is what feeds `trend` and `lifecycle`; the refresh routine
+lives in [docs/runbook.md](docs/runbook.md).
 
 ---
 
@@ -197,8 +259,12 @@ Full reference: [docs/cli.md](docs/cli.md).
 
 ```mermaid
 flowchart LR
-    V1["v0.1<br/>journeys<br/>and measures"] --> V2["v0.2<br/>captioning<br/>and profiles"]
-    V2 --> V3["v1.0<br/>trips, weather,<br/>multi-device"]
+    V1["v0.1<br/>journeys and<br/>measures"] --> V2["v0.2<br/>captioning and<br/>profiles"]
+    V2 --> V3["v0.3<br/>screens and<br/>consent"]
+    V3 --> V4["v0.4<br/>ask, places,<br/>lifecycle"]
+    V4 --> V5["v0.5<br/>insights and<br/>corrections"]
+    V5 --> V6["v0.6<br/>discovery"]
+    V6 --> V10["v1.0<br/>trips, devices,<br/>PyPI"]
 ```
 
 | Version | Scope | State |
@@ -206,36 +272,29 @@ flowchart LR
 | v0.1 | Stops, outings, anchors, measures, storage, CLI | Released |
 | v0.2.x | Image captioning, written profiles, themes, trend, local API, visualisation | Released |
 | v0.3 | Screenshots as interest evidence, the screen reader, mechanical consent | Released |
-| v0.4 | Hybrid search, temporal questions, place entities, single-photo context (FR-507) | Current |
+| v0.4 | Single-photo context, hybrid search and `ask`, temporal questions, named places, place narration, lifecycle labels | **Released** |
+| v0.5 | The insight engine (deterministic findings, narrated with citations), user corrections (append-only, consent-shaped), profile comparison, timeline and explorer views, interest export, privacy dashboard and audit | Planned |
+| v0.6 | Contradiction surfacing, returned-interest and discovery feeds -- the features that need a grown history | Planned |
 | v1.0 | Overnight trips, weather, several devices merged, incremental rebuilds, PyPI | Planned |
 
-One debt stays open. Roughly a third of an ordinary library is photographs
-that form no stop at all: a dish, a shop window, a cat. Those are complete
-statements of interest, and v0.4 is taking them in: each now gets its
-own caption ([ADR-0033](docs/adr/0033-single-photo-captions.md)); see
-[FR-507](docs/requirements-addendum.md). The other promise is kept: every
-interest names the evidence it rests on, because a guess about somebody is
-only useful if they can check it.
+The versions climb a longer ladder: **Phase 0** measure the trail (done),
+**Phase 1** understand yourself (v0.4-v0.6), **Phase 2** recommendations with
+evidence, **Phase 3** an anonymous interest community, **Phase 4** an
+interest graph. Details: [docs/proposals](docs/proposals).
 
 ---
 
-## Development
+## Documents
 
-```bash
-uv run pytest          # the whole suite; no test calls a model
-uv run mypy packages   # strict
-uv run lint-imports    # the architecture, as four enforced contracts
-```
-
-Built test-first throughout. The
-[decision records](docs/adr/) carry the reasoning, including the parts that
-turned out wrong: [ADR-0012](docs/adr/0012-anchors-are-observations-not-categories.md)
-replaces two earlier attempts that a real photo library broke.
-
-[Contributing](CONTRIBUTING.md) ·
-[Ubiquitous language](docs/ubiquitous-language.md) ·
-[Context map](docs/context-map.md)
+- [Architecture decisions](docs/adr) -- 42 ADRs and counting; the reasoning
+  lives here
+- [CLI reference](docs/cli.md), [runbook](docs/runbook.md),
+  [gazetteer](docs/gazetteer.md)
+- [PhotoRecord v1](docs/photo-record.md) and the
+  [conformance kit](docs/conformance.md)
+- [Release notes](docs/releases)
 
 ## License
 
-MIT
+MIT. Place names come from [GeoNames](https://www.geonames.org/) data
+(CC BY 4.0), downloaded by the user and never bundled.

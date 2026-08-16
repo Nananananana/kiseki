@@ -251,5 +251,5 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   whole kept history through the trend machinery and never stored;
   `kiseki lifecycle` (--json) and GET /lifecycle answer, with an
   honest "not enough history" until the span exists. proposals/0002
-  is feature-complete; next: the v0.4.0 release and the README
-  rewrite.
+  is feature-complete; released as v0.4.0 (README rewritten,
+  docs/releases/v0.4.0.md).
