@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 996 passing, 13 llm-marked and deselected in CI.
+- Tests: 999 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
@@ -293,8 +293,14 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
   filters the fresh reading and the whole kept history, reaching
   profile, trend, lifecycle, insights, tell, view and
   supporting_insights at once; stored bytes are never rewritten.
-  `kiseki correct` / `kiseki corrections`. Next: (2 of 2) the same
-  exclusions in ask retrieval.
+  `kiseki correct` / `kiseki corrections`.
+- v0.5 (corrections, 2 of 2): ask retrieval obeys the same log --
+  an excluded reference maps to its index document (caption: ->
+  stay:, photo: -> single:, screen: -> screen:) and drops before
+  the facts, the confidence and the window are derived; everything
+  excluded means no model call, and the index is never rewritten.
+  Corrections are complete; next per proposals/0004:
+  `kiseki compare` with reasons.
 - Console-safe names: FileGazetteer prefers the GeoNames asciiname
   column (falling back to name), and the CLI reconfigures stdout
   with errors="replace" at startup -- a cp932 console degrades a

@@ -37,7 +37,7 @@ Reach, stated plainly:
 |---|---|
 | profile, trend, lifecycle, insights, tell, view | yes (this ADR) |
 | ask supporting_insights | yes (through insights) |
-| ask retrieval evidence | part 2 |
+| ask retrieval evidence | yes (part 2) |
 | raw evidence, kept profile bytes, search index | never rewritten |
 
 `kiseki correct <reference> [--note] [--reinstate]` appends;
@@ -46,5 +46,9 @@ Reach, stated plainly:
 ## Consequences
 
 - The owner can say "not me" and mean it everywhere, reversibly.
-- Part 2 carries the same exclusions into ask retrieval
-  (caption: -> stay:, photo: -> single:, screen: -> screen:).
+- Part 2 (delivered) carries the same exclusions into ask
+  retrieval: an excluded reference maps to its index document
+  (caption: -> stay:, photo: -> single:, screen: -> screen:) and
+  drops before the facts, the confidence and the window are
+  derived. Everything excluded means no model call. The index
+  itself is never rewritten.

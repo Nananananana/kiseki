@@ -487,6 +487,9 @@ def _command_ask(args: argparse.Namespace) -> int:
             since=since,
             until=until,
             insights=_pipeline_from(_paths_for(args).db_path).insights(),
+            excluded=active_exclusions(
+                SqliteCorrectionRepository(connect(_paths_for(args).db_path)).all()
+            ),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -538,6 +541,7 @@ def _ask_factory(
                 since=since,
                 until=until,
                 insights=_pipeline_from(db_path).insights(),
+                excluded=active_exclusions(SqliteCorrectionRepository(connect(db_path)).all()),
             )
         finally:
             connection.close()

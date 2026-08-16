@@ -9,6 +9,7 @@ evidence there is no model call at all. See ADR-0038.
 """
 
 from collections.abc import Callable
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -71,6 +72,19 @@ def derive_confidence(results: tuple[Retrieval, ...]) -> float:
     return strength * coverage
 
 
+_DOC_PREFIXES = {"caption:": "stay:", "photo:": "single:", "screen:": "screen:"}
+
+
+def excluded_doc_keys(excluded: AbstractSet[str]) -> frozenset[str]:
+    """The index documents an exclusion reaches (ADR-0044, part 2)."""
+    keys: set[str] = set()
+    for reference in excluded:
+        for reference_prefix, document_prefix in _DOC_PREFIXES.items():
+            if reference.startswith(reference_prefix):
+                keys.add(document_prefix + reference[len(reference_prefix) :])
+    return frozenset(keys)
+
+
 def _supporting(
     insights: InsightReport | None,
     question: str,
@@ -106,6 +120,7 @@ def ask(
     limit: int = DEFAULT_LIMIT,
     since: datetime | None = None,
     until: datetime | None = None,
+    excluded: AbstractSet[str] = frozenset(),
     insights: InsightReport | None = None,
     now: Callable[[], datetime] = _local_now,
 ) -> Answer:
@@ -123,6 +138,9 @@ def ask(
         results = retrieve(
             index, embedder, embedding_model, question, limit=limit, since=since, until=until
         )
+    banned = excluded_doc_keys(excluded)
+    if banned:
+        results = tuple(item for item in results if item.document.doc_key not in banned)
     if not results:
         return Answer(question, "", 0.0, None, None, (), "", since=since, until=until)
 

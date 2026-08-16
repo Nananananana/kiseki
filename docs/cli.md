@@ -205,4 +205,5 @@ screen:<id>) appends the owner's word to an append-only log; every
 derivation -- profile, trend, lifecycle, insights, tell, view --
 reads through it (ADR-0044). Raw evidence and kept profiles are
 never rewritten; `--reinstate` undoes by appending, and
-`kiseki corrections` shows the log.
+`kiseki corrections` shows the log. Ask retrieval obeys the same
+log: an excluded reading never returns as answer evidence.
