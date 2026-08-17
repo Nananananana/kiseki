@@ -44,9 +44,7 @@ def test_far_stops_are_two_places():
 
 
 def test_the_revisit_gap_is_the_median():
-    places = derive_place_profiles(
-        _outings(_stop(KYOTO, 0), _stop(KYOTO, 10), _stop(KYOTO, 30))
-    )
+    places = derive_place_profiles(_outings(_stop(KYOTO, 0), _stop(KYOTO, 10), _stop(KYOTO, 30)))
     assert places[0].visits == 3
     assert places[0].median_gap_days == 15
 
@@ -58,7 +56,5 @@ def test_one_visit_has_no_gap():
 
 
 def test_the_most_visited_come_first():
-    places = derive_place_profiles(
-        _outings(_stop(OSAKA, 0), _stop(KYOTO, 1), _stop(KYOTO, 2))
-    )
+    places = derive_place_profiles(_outings(_stop(OSAKA, 0), _stop(KYOTO, 1), _stop(KYOTO, 2)))
     assert [place.visits for place in places] == [2, 1]

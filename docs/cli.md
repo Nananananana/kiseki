@@ -37,6 +37,7 @@ uv run kiseki report --json
 | `export` | The interest export: a one-way abstraction |
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
+| `places` | What your journeys say about each place |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -256,3 +257,11 @@ importance being magnitude scaled by remaining evidence -- and
 keeps the top ten (ADR-0048). Confidence is shown and never ranked
 on; nothing is stored, and there is no read-state. Over HTTP:
 `GET /discover`.
+
+## Places
+
+`kiseki places` reads the owner's own journeys and states, per
+place: visits, first and last, and the median gap between revisits
+-- deterministic clustering of stops, derived on demand, stored
+nowhere. Names come from the gazetteer at display time; an unnamed
+place shows a blurred coordinate. Local only.

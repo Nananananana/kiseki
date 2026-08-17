@@ -15,8 +15,6 @@ def isolated_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
 
-def test_no_journeys_is_said_plainly(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_no_journeys_is_said_plainly(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--data-root", str(tmp_path), "places"]) == EXIT_OK
     assert "no places yet" in capsys.readouterr().out
