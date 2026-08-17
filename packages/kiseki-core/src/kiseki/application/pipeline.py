@@ -19,6 +19,7 @@ from kiseki.domain.analytics.analytics import (
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.correction import active_exclusions
+from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
@@ -27,6 +28,7 @@ from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
+from kiseki.domain.services.discovering import derive_discoveries
 from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.lifecycle_derivation import derive_lifecycles
@@ -298,6 +300,16 @@ class Pipeline:
         if before is None or after is None:
             return None
         return compare_profiles(before, after, themes=themes)
+
+    def discover(self) -> DiscoveryFeed | None:
+        """What is worth a look, from the kept readings (ADR-0048)."""
+        if self._profiles is None:
+            return None
+        latest = self._themes.latest() if self._themes is not None else None
+        return derive_discoveries(
+            self._profiles.history(),
+            themes=latest.themes if latest is not None else (),
+        )
 
     def insights(self) -> InsightReport | None:
         """The current findings, from the kept readings."""

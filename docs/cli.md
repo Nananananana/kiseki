@@ -36,6 +36,7 @@ uv run kiseki report --json
 | `privacy` | How the owner's data is treated, in counts |
 | `export` | The interest export: a one-way abstraction |
 | `doctor` | Categorised, deterministic health checks |
+| `discover` | What is worth a look, ranked by novelty and importance |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -244,3 +245,11 @@ nothing. The [evidence] line is the snapshot opportunity: how many
 readings arrived since the last kept profile, and how old that
 profile is; the weekly `kiseki profile` habit is the cure, never an
 automatic snapshot.
+
+## Discover
+
+`kiseki discover` ranks the insights by novelty times importance --
+importance being magnitude scaled by remaining evidence -- and
+keeps the top ten (ADR-0048). Confidence is shown and never ranked
+on; nothing is stored, and there is no read-state. Over HTTP:
+`GET /discover`.

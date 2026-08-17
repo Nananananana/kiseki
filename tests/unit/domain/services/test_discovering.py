@@ -54,13 +54,13 @@ def test_confidence_never_ranks():
         _profile(0),
         _profile(
             20,
-            _interest("onsen", 0.4, 0.9),
-            _interest("ramen", 0.9, 0.1),
+            _interest("onsen", 0.8, 0.2),
+            _interest("ramen", 0.2, 0.8),
         ),
     )
     feed = derive_discoveries(history)
     assert feed is not None
-    assert [item.topic for item in feed.entries] == ["ramen", "onsen"]
+    assert [item.topic for item in feed.entries] == ["onsen", "ramen"]
 
 
 def test_the_feed_is_capped():

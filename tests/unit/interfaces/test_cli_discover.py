@@ -59,9 +59,7 @@ class TestDiscoverCommand:
         assert main(["--data-root", str(tmp_path), "discover"]) == EXIT_OK
         assert "not enough history" in capsys.readouterr().out
 
-    def test_shows_the_arithmetic(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_shows_the_arithmetic(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         _seed(tmp_path, _profile(0, "onsen"), _profile(20, "museum"))
         assert main(["--data-root", str(tmp_path), "discover"]) == EXIT_OK
         out = capsys.readouterr().out
