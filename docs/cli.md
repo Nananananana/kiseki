@@ -202,7 +202,10 @@ Over HTTP: `GET /insights`. `--story` narrates the findings over a
 closed, cited fact list (unnamed places stay silent, as in `tell`);
 `kiseki ask` attaches related findings to its answer contract as
 `supporting_insights` -- metadata for the reader that the model
-never sees.
+never sees. When an enduring interest and a rising one coexist,
+`kiseki insights` holds them together ("held together -- both are
+you") instead of resolving them (ADR-0049); the payload carries
+them as "mixed".
 
 ## Corrections
 

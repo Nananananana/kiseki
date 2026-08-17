@@ -53,6 +53,7 @@ from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.trends import TrendReport
@@ -637,6 +638,16 @@ def _command_insights(args: argparse.Namespace) -> int:
             f"  confidence {item.confidence:.2f}"
             f"  evidence {len(item.evidence)}"
         )
+    mixed = derive_mixed(report)
+    if mixed:
+        print("\n  held together -- both are you")
+        for pair in mixed:
+            held_label = names.get(pair.held, pair.held)
+            rising_label = names.get(pair.rising, pair.rising)
+            print(
+                f"    {held_label} stayed strong ({pair.held_strength:.2f})"
+                f" while {rising_label} grew (+{pair.rising_magnitude:.2f})"
+            )
     return EXIT_OK
 
 
