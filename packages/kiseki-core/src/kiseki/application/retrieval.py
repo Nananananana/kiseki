@@ -7,9 +7,14 @@ The fusion is arithmetic on ranks: same index, same question, same
 answer. A Japanese question meets the English captions through the
 meaning channel; the words channel adds precision when the words do
 match. An unavailable embedder degrades to words alone rather than
-failing the question. See ADR-0037.
+failing the question. Structured filters -- the time window and the
+spatial reach -- apply inside each channel before ranks form, so a
+filtered question cannot be starved by the rest of the corpus; and
+every retrieval names the channels that found it (proposals/0006).
+See ADR-0037.
 """
 
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -23,6 +28,13 @@ first place does not drown everything below it."""
 CHANNEL_DEPTH = 30
 """How deep each channel is asked before fusion."""
 
+FILTERED_CHANNEL_DEPTH = 300
+"""How deep each channel is asked when a structured filter narrows
+the corpus: the filter discards most of what comes back, so the
+channels must be asked deeper for the survivors to surface at all.
+The reach_prevents_starvation golden case guards this at its scale;
+filtering inside the index itself is the v0.7 follow-up."""
+
 DEFAULT_LIMIT = 8
 
 
@@ -32,6 +44,8 @@ class Retrieval:
 
     document: SearchDocument
     score: float
+    channels: tuple[str, ...] = ()
+    """Which channels found it: retrieval provenance (proposals/0006)."""
 
 
 def retrieve(
@@ -42,29 +56,38 @@ def retrieve(
     limit: int = DEFAULT_LIMIT,
     since: datetime | None = None,
     until: datetime | None = None,
+    allowed: AbstractSet[str] | None = None,
 ) -> tuple[Retrieval, ...]:
     """The best documents for the question, best first."""
-    channels = [index.match_text(query, CHANNEL_DEPTH)]
+    depth = CHANNEL_DEPTH if allowed is None else FILTERED_CHANNEL_DEPTH
+    channels = [("words", index.match_text(query, depth))]
     try:
         vector: tuple[float, ...] | None = embedder.embed([query])[0]
     except ModelUnavailableError:
         vector = None
     if vector is not None:
-        channels.append(index.match_meaning(vector, embedding_model, CHANNEL_DEPTH))
+        channels.append(("meaning", index.match_meaning(vector, embedding_model, depth)))
 
     scores: dict[str, float] = {}
     documents: dict[str, SearchDocument] = {}
-    for hits in channels:
+    found_by: dict[str, set[str]] = {}
+    for channel, hits in channels:
         rank = 0
         for hit in hits:
             if not _within(hit.document, since, until):
+                continue
+            if allowed is not None and hit.document.doc_key not in allowed:
                 continue
             rank += 1
             key = hit.document.doc_key
             scores[key] = scores.get(key, 0.0) + 1.0 / (RRF_K + rank)
             documents[key] = hit.document
+            found_by.setdefault(key, set()).add(channel)
     ordered = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
-    return tuple(Retrieval(documents[key], score) for key, score in ordered[:limit])
+    return tuple(
+        Retrieval(documents[key], score, tuple(sorted(found_by[key])))
+        for key, score in ordered[:limit]
+    )
 
 
 def _within(document: SearchDocument, since: datetime | None, until: datetime | None) -> bool:
