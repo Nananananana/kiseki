@@ -8,7 +8,7 @@ cannot make an answer more certain than the evidence is. With no
 evidence there is no model call at all. See ADR-0038.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +16,7 @@ from datetime import datetime
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
 from kiseki.domain.insight import Insight, InsightReport
 from kiseki.domain.services.time_expressions import read_time_window
+from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.ports.models import LanguageModel, TextEmbedder
 from kiseki.ports.search import SearchIndex
 
@@ -110,6 +111,9 @@ def numbered_facts(results: tuple[Retrieval, ...]) -> str:
     )
 
 
+DEFAULT_REACH = Distance(30_000)
+
+
 def ask(
     index: SearchIndex,
     embedder: TextEmbedder,
@@ -121,6 +125,9 @@ def ask(
     since: datetime | None = None,
     until: datetime | None = None,
     excluded: AbstractSet[str] = frozenset(),
+    near: GeoPoint | None = None,
+    within: Distance = DEFAULT_REACH,
+    locations: Mapping[str, GeoPoint] | None = None,
     insights: InsightReport | None = None,
     now: Callable[[], datetime] = _local_now,
 ) -> Answer:
@@ -137,6 +144,14 @@ def ask(
     if index.document_count() > 0:
         results = retrieve(
             index, embedder, embedding_model, question, limit=limit, since=since, until=until
+        )
+    if near is not None:
+        known = locations if locations is not None else {}
+        results = tuple(
+            item
+            for item in results
+            if item.document.doc_key in known
+            and known[item.document.doc_key].distance_to(near).meters <= within.meters
         )
     banned = excluded_doc_keys(excluded)
     if banned:
