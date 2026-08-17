@@ -13,6 +13,7 @@ from typing import Any
 from kiseki.application.asking import Answer
 from kiseki.application.pipeline import PrivacyReport, Report
 from kiseki.domain.comparison import Comparison
+from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
@@ -188,6 +189,27 @@ def comparison_payload(comparison: Comparison, blur: bool = False) -> dict[str, 
                 ],
             }
             for entry in comparison.entries
+        ],
+    }
+
+
+def discovery_payload(feed: DiscoveryFeed, blur: bool = False) -> dict[str, Any]:
+    return {
+        "oldest_at": feed.oldest_at.isoformat(),
+        "latest_at": feed.latest_at.isoformat(),
+        "discoveries": [
+            {
+                "topic": blurred_place(entry.topic) if blur else entry.topic,
+                "kind": entry.kind.value,
+                "magnitude": entry.magnitude,
+                "confidence": entry.confidence,
+                "evidence": [
+                    blurred_place(reference) if blur else reference for reference in entry.evidence
+                ],
+                "novelty": entry.novelty,
+                "importance": entry.importance,
+            }
+            for entry in feed.entries
         ],
     }
 

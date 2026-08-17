@@ -23,6 +23,7 @@ from kiseki.application.pipeline import Pipeline
 from kiseki.interfaces.payloads import (
     answer_payload,
     comparison_payload,
+    discovery_payload,
     insights_payload,
     lifecycle_payload,
     profile_payload,
@@ -155,6 +156,12 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(200, {"entries": None, "reason": "not enough history"})
             else:
                 self._send(200, comparison_payload(comparison, blur=blur))
+        elif path == "/discover":
+            feed = self.server.pipeline_factory().discover()
+            if feed is None:
+                self._send(200, {"discoveries": None, "reason": "not enough history"})
+            else:
+                self._send(200, discovery_payload(feed, blur=blur))
         elif path == "/insights":
             findings = self.server.pipeline_factory().insights()
             if findings is None:

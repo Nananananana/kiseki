@@ -63,6 +63,7 @@ from kiseki.interfaces.payloads import (
     NEVER_STORED,
     answer_payload,
     comparison_payload,
+    discovery_payload,
     insights_payload,
     lifecycle_payload,
     privacy_payload,
@@ -827,6 +828,43 @@ def _command_doctor(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_discover(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    feed = _pipeline_from(paths.db_path).discover()
+    if feed is None:
+        if args.json:
+            print(json.dumps({"discoveries": None, "reason": "not enough history"}, indent=2))
+        else:
+            print(RULE)
+            print(
+                "  not enough history: discovery needs two profiles"
+                f" at least {MIN_TREND_SPAN_DAYS} days apart"
+            )
+        return EXIT_OK
+    if args.json:
+        print(json.dumps(discovery_payload(feed), indent=2))
+        return EXIT_OK
+    names = place_names(
+        (entry.topic for entry in feed.entries), FileGazetteer(paths.gazetteer_path)
+    )
+    print(RULE)
+    print(f"  oldest        {feed.oldest_at.date().isoformat()}")
+    print(f"  latest        {feed.latest_at.date().isoformat()}")
+    if not feed.entries:
+        print("\n  nothing worth a look yet: nothing new or moving in the history")
+        return EXIT_OK
+    print("\n  worth a look, the most discovery-like first")
+    for entry in feed.entries:
+        print(
+            f"    {entry.kind.value:<10}"
+            f"  {names.get(entry.topic, entry.topic):<32}"
+            f"  novelty {entry.novelty:.2f}"
+            f"  importance {entry.importance:.2f}"
+            f"  confidence {entry.confidence:.2f}"
+        )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -957,6 +995,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = commands.add_parser("doctor", help="categorised, deterministic health checks")
     doctor.set_defaults(run=_command_doctor)
+
+    discover = commands.add_parser("discover", help="what is worth a look, ranked")
+    discover.add_argument("--json", action="store_true", help="machine readable output")
+    discover.set_defaults(run=_command_discover)
 
     return parser
 
