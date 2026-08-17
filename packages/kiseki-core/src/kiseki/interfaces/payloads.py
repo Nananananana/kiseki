@@ -17,6 +17,7 @@ from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
+from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.trends import TrendReport
 
 BLUR_DECIMALS = 2
@@ -234,6 +235,15 @@ def insights_payload(report: InsightReport, blur: bool = False) -> dict[str, Any
                 "derived_from": list(item.derived_from),
             }
             for item in report.insights
+        ],
+        "mixed": [
+            {
+                "held": blurred_place(pair.held) if blur else pair.held,
+                "held_strength": pair.held_strength,
+                "rising": blurred_place(pair.rising) if blur else pair.rising,
+                "rising_magnitude": pair.rising_magnitude,
+            }
+            for pair in derive_mixed(report)
         ],
     }
 
