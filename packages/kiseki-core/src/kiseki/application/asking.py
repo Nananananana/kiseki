@@ -114,6 +114,20 @@ def numbered_facts(results: tuple[Retrieval, ...]) -> str:
 DEFAULT_REACH = Distance(30_000)
 
 
+def _reachable(
+    near: GeoPoint | None,
+    within: Distance,
+    locations: Mapping[str, GeoPoint] | None,
+) -> frozenset[str] | None:
+    """The doc keys within reach, or None when no place was asked."""
+    if near is None:
+        return None
+    known = locations if locations is not None else {}
+    return frozenset(
+        key for key, point in known.items() if point.distance_to(near).meters <= within.meters
+    )
+
+
 def ask(
     index: SearchIndex,
     embedder: TextEmbedder,
@@ -143,7 +157,14 @@ def ask(
     results: tuple[Retrieval, ...] = ()
     if index.document_count() > 0:
         results = retrieve(
-            index, embedder, embedding_model, question, limit=limit, since=since, until=until
+            index,
+            embedder,
+            embedding_model,
+            question,
+            limit=limit,
+            since=since,
+            until=until,
+            allowed=_reachable(near, within, locations),
         )
     if near is not None:
         known = locations if locations is not None else {}

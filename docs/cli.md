@@ -270,4 +270,7 @@ place shows a blurred coordinate. Local only.
 within reach of a point, the way a time window keeps it within a
 year: the index stays coordinate-free (ADR-0036), locations are
 read from the primary store at question time, and a screen reading
-never matches a place condition.
+never matches a place condition. The reach applies inside
+retrieval, before ranking, so a place question is answered from the
+place's own evidence instead of being starved by the rest of the
+corpus.
