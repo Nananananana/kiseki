@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "name": "words_find_the_bowl",
+      "documents": [
+        {"key": "stay:aa", "text": "a bowl of ramen on a counter"},
+        {"key": "stay:bb", "text": "ramen at a market stall"},
+        {"key": "stay:cc", "text": "a museum hall with paintings"}
+      ],
+      "query": "ramen",
+      "expect": ["stay:aa", "stay:bb"]
+    },
+    {
+      "name": "the_window_excludes_the_old",
+      "documents": [
+        {"key": "stay:old", "text": "a bowl of ramen", "observed": "2024-05-01"},
+        {"key": "stay:new", "text": "a bowl of ramen", "observed": "2026-05-01"}
+      ],
+      "query": "ramen",
+      "since": "2026-01-01",
+      "expect": ["stay:new"],
+      "forbid": ["stay:old"]
+    },
+    {
+      "name": "reach_prevents_starvation",
+      "documents": [
+        {"key": "stay:seoul", "text": "ramen at a market"}
+      ],
+      "fill": {"count": 40, "prefix": "stay:far", "text": "a bowl of ramen on a counter"},
+      "query": "ramen",
+      "allowed": ["stay:seoul"],
+      "expect": ["stay:seoul"],
+      "expect_total": 1
+    },
+    {
+      "name": "nothing_within_reach_is_empty",
+      "documents": [
+        {"key": "stay:aa", "text": "a bowl of ramen"}
+      ],
+      "query": "ramen",
+      "allowed": [],
+      "expect": [],
+      "expect_total": 0
+    }
+  ]
+}
