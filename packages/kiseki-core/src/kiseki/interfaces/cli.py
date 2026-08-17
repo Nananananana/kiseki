@@ -54,8 +54,9 @@ from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclu
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.mixing import derive_mixed
+from kiseki.domain.services.place_reading import derive_place_profiles
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
-from kiseki.domain.shared.geo import GeoPoint
+from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.naming import place_names
@@ -876,6 +877,36 @@ def _command_discover(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_places(args: argparse.Namespace) -> int:
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    print(RULE)
+    if not places:
+        print("  no places yet: run `kiseki build` once the photographs are in")
+        return EXIT_OK
+    gazetteer = FileGazetteer(paths.gazetteer_path)
+    shown = places[:15]
+    print(f"  places        {len(places)} (showing {len(shown)}, the most visited first)")
+    print()
+    for place in shown:
+        named = gazetteer.nearest(place.centroid, Distance(25_000))
+        label = (
+            named.label
+            if named is not None
+            else f"{place.centroid.latitude:.2f},{place.centroid.longitude:.2f}"
+        )
+        gap = f"every ~{place.median_gap_days}d" if place.median_gap_days is not None else "once"
+        print(
+            f"    {label:<28}"
+            f"  visits {place.visits:>3}"
+            f"  first {place.first_seen.date().isoformat()}"
+            f"  last {place.last_seen.date().isoformat()}"
+            f"  {gap}"
+        )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -1010,6 +1041,9 @@ def build_parser() -> argparse.ArgumentParser:
     discover = commands.add_parser("discover", help="what is worth a look, ranked")
     discover.add_argument("--json", action="store_true", help="machine readable output")
     discover.set_defaults(run=_command_discover)
+
+    places = commands.add_parser("places", help="what your journeys say about each place")
+    places.set_defaults(run=_command_places)
 
     return parser
 
