@@ -502,6 +502,11 @@ def _command_ask(args: argparse.Namespace) -> int:
             excluded=active_exclusions(
                 SqliteCorrectionRepository(connect(_paths_for(args).db_path)).all()
             ),
+            near=_parse_near(args.near),
+            within=Distance(args.within_km * 1000),
+            locations=(
+                _document_locations(_paths_for(args).db_path) if args.near is not None else None
+            ),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -877,6 +882,44 @@ def _command_discover(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _parse_near(text: str | None) -> GeoPoint | None:
+    if text is None:
+        return None
+    try:
+        latitude_text, longitude_text = text.split(",", 1)
+        point = GeoPoint(float(latitude_text), float(longitude_text))
+    except ValueError:
+        print('--near must be "lat,lon", like "34.69,135.50"', file=sys.stderr)
+        raise SystemExit(EXIT_BAD_INPUT) from None
+    return point
+
+
+def _document_locations(db_path: Path) -> dict[str, GeoPoint]:
+    """doc_key -> location, read from the primary store at question time.
+
+    The index never holds a coordinate (ADR-0036); a stay averages
+    its photographs, a single is its photograph, and a screen
+    reading has no chosen place, so it never appears here.
+    """
+    connection = connect(db_path)
+    located = {
+        photo.photo_id: photo.location
+        for photo in SqlitePhotoRepository(connection).all()
+        if photo.location is not None
+    }
+    mapping: dict[str, GeoPoint] = {}
+    for caption in SqliteCaptionRepository(connection).all():
+        points = [located[pid] for pid in caption.photo_ids if pid in located]
+        if points:
+            mapping[f"stay:{caption.key.value}"] = GeoPoint(
+                sum(point.latitude for point in points) / len(points),
+                sum(point.longitude for point in points) / len(points),
+            )
+    for photo_id, point in located.items():
+        mapping[f"single:{photo_id.value}"] = point
+    return mapping
+
+
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -988,6 +1031,16 @@ def build_parser() -> argparse.ArgumentParser:
     asking.add_argument("--since", default=None, help="ISO date; overrides words like last year")
     asking.add_argument("--until", default=None, help="ISO date, inclusive")
     asking.add_argument("--json", action="store_true", help="machine readable output")
+    asking.add_argument(
+        "--near", default=None, help="lat,lon; keep evidence within --within-km of it"
+    )
+    asking.add_argument(
+        "--within-km",
+        dest="within_km",
+        type=float,
+        default=30.0,
+        help="radius for --near, in kilometres (default 30)",
+    )
     asking.set_defaults(run=_command_ask)
 
     lifecycle = commands.add_parser("lifecycle", help="where each topic stands in its life")

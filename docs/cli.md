@@ -265,3 +265,9 @@ place: visits, first and last, and the median gap between revisits
 -- deterministic clustering of stops, derived on demand, stored
 nowhere. Names come from the gazetteer at display time; an unnamed
 place shows a blurred coordinate. Local only.
+
+`kiseki ask --near "lat,lon" [--within-km N]` keeps answer evidence
+within reach of a point, the way a time window keeps it within a
+year: the index stays coordinate-free (ADR-0036), locations are
+read from the primary store at question time, and a screen reading
+never matches a place condition.
