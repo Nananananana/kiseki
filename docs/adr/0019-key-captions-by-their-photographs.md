@@ -1,5 +1,7 @@
 # 0019 Key captions by their photographs, and let the store be the progress
 
+
+
 ## Status
 
 Accepted

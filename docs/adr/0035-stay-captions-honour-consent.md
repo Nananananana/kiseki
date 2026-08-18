@@ -1,5 +1,7 @@
 # ADR-0035: Stay captions honour consent
 
+
+
 ## Status
 
 Accepted. Completes ADR-0032; closes FR-507.

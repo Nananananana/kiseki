@@ -1,5 +1,7 @@
 # ADR-0038: Ask, with the answer contract
 
+
+
 ## Status
 
 Accepted. Completes hybrid search (proposals/0002, item 2).

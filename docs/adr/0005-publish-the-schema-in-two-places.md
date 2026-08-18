@@ -1,5 +1,7 @@
 # ADR-0005 Publish the schema in two places and test that they match
 
+
+
 ## Status
 
 Accepted

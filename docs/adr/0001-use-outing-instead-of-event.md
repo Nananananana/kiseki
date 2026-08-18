@@ -1,5 +1,7 @@
 # ADR-0001 Use Outing instead of Event
 
+
+
 ## Status
 
 Accepted

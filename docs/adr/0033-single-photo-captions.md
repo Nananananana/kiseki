@@ -1,5 +1,7 @@
 # ADR-0033: Single-photo captions
 
+
+
 ## Status
 
 Accepted.

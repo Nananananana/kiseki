@@ -1,5 +1,7 @@
 # ADR-0004 Define ports as typing.Protocol
 
+
+
 ## Status
 
 Accepted

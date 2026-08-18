@@ -1,5 +1,7 @@
 # Proposal 0001: The memory upgrades
 
+
+
 Status: evaluated. Adopted parts target v0.4; two parts are already
 satisfied by the current design; two parts are declined as proposed
 and adopted in a different shape.

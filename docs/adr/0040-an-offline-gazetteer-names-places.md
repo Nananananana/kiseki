@@ -1,5 +1,7 @@
 # ADR-0040: An offline gazetteer names places
 
+
+
 ## Status
 
 Accepted. Part 1 of proposals/0002, item 4.

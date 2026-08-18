@@ -1,5 +1,7 @@
 # ADR-0048: Discovery ranks by novelty and importance
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, v0.6 item 1.

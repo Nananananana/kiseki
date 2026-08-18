@@ -1,5 +1,7 @@
 # ADR-0009 Identify anchors by timing, not by distance
 
+
+
 ## Status
 
 Accepted

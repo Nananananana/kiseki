@@ -1,5 +1,7 @@
 # ADR-0042: Lifecycle is read, never stored
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0002, item 6; v0.4 is feature-complete.

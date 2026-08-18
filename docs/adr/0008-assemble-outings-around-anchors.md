@@ -1,5 +1,7 @@
 # ADR-0008 Assemble outings around anchors, with silence as a fallback
 
+
+
 ## Status
 
 Accepted

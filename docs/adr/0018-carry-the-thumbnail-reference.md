@@ -1,5 +1,7 @@
 # 0018 Carry the thumbnail reference, and migrate the schema explicitly
 
+
+
 ## Status
 
 Accepted

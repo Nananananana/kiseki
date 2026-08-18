@@ -1,5 +1,7 @@
 # ADR-0051: Readings remember the prompt that made them
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, v0.6 item 5 (deferred to v0.7),

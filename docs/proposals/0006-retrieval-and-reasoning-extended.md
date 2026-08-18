@@ -1,5 +1,7 @@
 # Proposal 0006: Retrieval and reasoning, extended
 
+
+
 Status: Accepted. Folds the owner's next-roadmap brief (2026-08)
 into proposals/0004 and 0005. Nothing here replaces them: the v0.6
 scope, the avoid list, and "v1.0 adds no new intelligence" all

@@ -1,5 +1,7 @@
 # ADR-0041: Places speak in the story
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0002, item 5.

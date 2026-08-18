@@ -1,5 +1,7 @@
 # ADR-0054: An answer is checked past its schema
 
+
+
 ## Status
 
 Accepted. Delivers the evidence-contract validation of

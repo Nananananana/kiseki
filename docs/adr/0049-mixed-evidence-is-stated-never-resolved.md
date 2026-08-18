@@ -1,5 +1,7 @@
 # ADR-0049: Mixed evidence is stated, never resolved
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, v0.6 item 2.
