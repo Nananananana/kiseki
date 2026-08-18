@@ -53,3 +53,20 @@ def test_the_configured_library_is_never_opened(
     (tmp_path / ".env").write_text(f"KISEKI_DATA_ROOT={real}\n", encoding="utf-8")
     assert main(["demo", "--out", str(tmp_path / "sandbox")]) == EXIT_OK
     assert list(real.iterdir()) == []
+
+def test_the_suggestions_are_not_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A demo whose suggest says nothing teaches nothing."""
+    assert main(["demo", "--out", str(tmp_path / "sandbox")]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "go back" in out
+    assert "pick up" in out
+
+
+def test_the_readings_become_interests(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["demo", "--out", str(tmp_path / "sandbox")]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "ramen" in out.split("places")[0]
