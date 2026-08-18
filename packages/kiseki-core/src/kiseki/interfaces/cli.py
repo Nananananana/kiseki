@@ -63,6 +63,7 @@ from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclu
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.cross_timeline import (
+    ALIGNMENT_STRONG,
     compare_timelines,
     derive_drift,
     monthly_counts,
@@ -990,6 +991,11 @@ def _command_drift(args: argparse.Namespace) -> int:
     the day the owner happened to run a command -- so the screens are
     counted by the capture of the photograph they read. Counting the
     first would measure this library rather than the person using it.
+
+    Each verdict is printed with the number behind it. "No shared
+    movement" at 0.05 and at 0.55 are different statements, and a
+    reader who cannot see which one they have cannot judge the
+    threshold that produced it (the posture of ADR-0045).
     """
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -1019,11 +1025,16 @@ def _command_drift(args: argparse.Namespace) -> int:
             print(
                 f"    {result.left:<14} and {result.right:<14}"
                 f"  {result.relation.value:<24}"
+                f"  ({result.alignment:+.2f})"
                 f"  over {result.months} months"
             )
             printed += 1
     if printed:
         print(f"\n  {compare_timelines(named[0], named[1]).caution}")
+        print(
+            f"  the number is how closely two series moved, from -1 to +1;"
+            f" {ALIGNMENT_STRONG:+.2f} is where this library starts saying so"
+        )
     print("\n  each against its own past")
     for name, counts in named:
         drift = derive_drift(name, counts)

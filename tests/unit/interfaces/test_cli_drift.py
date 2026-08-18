@@ -101,3 +101,13 @@ class TestDriftCommand:
         out = capsys.readouterr().out
         assert "over 6 months" in out
         assert "screens         not enough history" not in out
+
+    def test_the_number_behind_the_verdict_is_shown(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """No shared movement at 0.05 and at 0.55 are different statements."""
+        _seed(tmp_path, months=6)
+        assert main(["--data-root", str(tmp_path), "drift"]) == EXIT_OK
+        out = capsys.readouterr().out
+        assert "(+" in out or "(-" in out
+        assert "from -1 to +1" in out
