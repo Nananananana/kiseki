@@ -52,6 +52,10 @@ class Caption:
     model: str
     created_at: datetime
     refused: str | None = None
+    prompt_version: str | None = None
+    """Which prompt version made this reading, when it was recorded.
+    None means it was not recorded -- the reading predates the field.
+    See ADR-0051."""
 
     def __post_init__(self) -> None:
         if not self.photo_ids:

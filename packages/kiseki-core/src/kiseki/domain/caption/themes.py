@@ -60,3 +60,7 @@ class ThemeSet:
     themes: tuple[Theme, ...]
     model: str
     created_at: datetime
+    prompt_version: str | None = None
+    """Which prompt version made this reading, when it was recorded.
+    None means it was not recorded -- the reading predates the field.
+    See ADR-0051."""
