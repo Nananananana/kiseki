@@ -39,6 +39,12 @@ the same place.
 The why is arithmetic, as everywhere: the distance, the share it sits
 inside, and how long it has been.
 
+Ordering by distance was wrong, and the real library said so: within
+any reach, the next street over is always nearest, so the nearest
+three always won and nothing was ever discovered. Day trips are
+ordered by how long it has been -- the reach has already decided what
+is too far -- and only one is offered per part of town, because three
+lines naming one neighbourhood is a list rather than a suggestion.
 ## Consequences
 
 - The first place suggestion the owner ever sees is measured against
