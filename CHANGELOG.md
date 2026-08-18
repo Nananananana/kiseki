@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.6.0
+
+Understand change, and let it point forward: discovery ranked by
+novelty and importance, mixed evidence held side by side, your own
+places read back to you, place-scoped questions, retrieval that
+names its channels and cannot be starved, and the first suggestions
+-- all from your own evidence.
+
+- Discovery ranks by novelty and importance (ADR-0048): `kiseki
+  discover` / GET /discover; confidence shown, never ranked on; no
+  read-state.
+- Mixed evidence is stated, never resolved (ADR-0049): enduring and
+  rising interests held together in `kiseki insights` and the
+  payload.
+- Places the evidence knows: `kiseki places` -- visits, first and
+  last, median revisit gap, per deterministically clustered place.
+- Ask keeps evidence within reach: `--near` / `--within-km`; the
+  index stays coordinate-free, locations resolved from the primary
+  store at question time.
+- Retrieval names its channels and filters before ranks
+  (proposals/0006): provenance on every retrieval, structured
+  filters inside the channels, deeper channels under a filter, and
+  a model-free golden retrieval dataset in CI.
+- Suggestions come from your own evidence (ADR-0050): go back and
+  pick up, the why always arithmetic, declinable via
+  `kiseki correct`.
+- Prompt-version tracking moves to the start of v0.7, beside
+  `kiseki reread` and prompt regression.
+- New commands: `discover`, `places`, `suggest`.
+- Tests: 1037 -> 1077.
+
 ## v0.5.0
 
 Discover yourself, correct the record: deterministic insights with
