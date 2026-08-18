@@ -61,7 +61,11 @@ from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
-from kiseki.domain.services.day_trips import derive_day_trips, derive_reach
+from kiseki.domain.services.day_trips import (
+    derive_day_trips,
+    derive_reach,
+    spread_out,
+)
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import derive_place_profiles
 from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
@@ -1015,6 +1019,13 @@ def _command_suggest(args: argparse.Namespace) -> int:
             )
     reach = derive_reach(SqliteOutingRepository(connection).all())
     trips = derive_day_trips(places, reach, _datetime.now()) if reach else ()
+    trips = spread_out(trips)
+    names.update(
+        place_names(
+            (trip.reference for trip in trips),
+            FileGazetteer(paths.gazetteer_path),
+        )
+    )
     for trip in trips:
         label = names.get(trip.reference, trip.reference)
         distance = trip.distance_km or 0.0
@@ -1139,6 +1150,7 @@ def _command_demo(args: argparse.Namespace) -> int:
     feed = pipeline.discover()
     comparison = pipeline.compare()
     suggestions = derive_suggestions(places, lifecycle, _datetime.now())
+    suggestions = spread_out(suggestions)
 
     print(RULE)
     print("  a synthetic library, so the engine can be seen")

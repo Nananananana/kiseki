@@ -10,9 +10,10 @@ from kiseki.domain.services.day_trips import (
     REACH_SHARE,
     derive_day_trips,
     derive_reach,
+    spread_out,
 )
 from kiseki.domain.services.place_reading import PlaceProfile
-from kiseki.domain.services.suggesting import SuggestionKind
+from kiseki.domain.services.suggesting import Suggestion, SuggestionKind
 from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
@@ -211,3 +212,47 @@ def test_a_single_candidate_still_survives_the_spread() -> None:
     assert reach is not None
     trips = derive_day_trips((_home(), _place(12, 2, 400)), reach, TODAY)
     assert len(trips) == 1
+
+
+def _place_suggestion(reference: str, days: int) -> Suggestion:
+    return Suggestion(
+        kind=SuggestionKind.REVISIT,
+        reference=reference,
+        confidence=1.0,
+        days_since=days,
+        cadence_days=30,
+    )
+
+
+def test_a_topic_passes_through_the_spread() -> None:
+    topic = Suggestion(
+        kind=SuggestionKind.REVIVE,
+        reference="skiing",
+        confidence=0.5,
+        seen_profiles=2,
+        baseline=0.3,
+    )
+    assert spread_out([topic]) == (topic,)
+
+
+def test_two_suggestions_in_one_neighbourhood_become_one() -> None:
+    first = _place_suggestion("place:34.78100,135.46900", 600)
+    second = _place_suggestion("place:34.78300,135.47100", 300)
+    far = _place_suggestion("place:34.90000,135.46900", 200)
+    kept = spread_out([first, second, far])
+    assert [item.reference for item in kept] == [first.reference, far.reference]
+
+
+def test_the_spread_keeps_the_order_it_was_given() -> None:
+    topic = Suggestion(
+        kind=SuggestionKind.REVIVE,
+        reference="skiing",
+        confidence=0.5,
+        seen_profiles=2,
+        baseline=0.3,
+    )
+    place = _place_suggestion("place:34.78100,135.46900", 600)
+    assert [item.reference for item in spread_out([place, topic])] == [
+        place.reference,
+        "skiing",
+    ]
