@@ -32,6 +32,9 @@ SINGLE_CAPTION_PROMPT = (
     " objects, activities."
 )
 
+SINGLE_CAPTION_PROMPT_VERSION = "single-caption/1"
+"""Bump when SINGLE_CAPTION_PROMPT changes. See ADR-0051."""
+
 CAPTIONED_KINDS = ("photo", "other")
 """Screenshots and documents have their own reader (ADR-0030). A kind
 of None predates the field; by the rules of its time that was a
@@ -112,6 +115,7 @@ def run_single_captioning(
                 text=completion.text,
                 model=completion.model,
                 created_at=when,
+                prompt_version=SINGLE_CAPTION_PROMPT_VERSION,
             )
         )
         captioned += 1

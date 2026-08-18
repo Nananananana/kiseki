@@ -51,6 +51,10 @@ NAMING_SYSTEM = (
 MAX_NAME_WORDS = 3
 
 
+THEME_PROMPT_VERSION = "themes/1"
+"""Bump when the naming prompt changes. See ADR-0051."""
+
+
 def cluster_labels(
     vectors: dict[str, tuple[float, ...]],
     stays: dict[str, frozenset[str]],
@@ -169,7 +173,15 @@ def run_theming(
     built = tuple(
         Theme(name=name, members=cluster) for name, cluster in zip(names, clusters, strict=True)
     )
-    themes.save(ThemeSet(key=key, themes=built, model=model, created_at=now()))
+    themes.save(
+        ThemeSet(
+            key=key,
+            themes=built,
+            model=model,
+            created_at=now(),
+            prompt_version=THEME_PROMPT_VERSION,
+        )
+    )
     return ThemeRunReport(len(built), len(labels), False, fallback_named)
 
 

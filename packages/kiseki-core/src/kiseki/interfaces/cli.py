@@ -35,19 +35,24 @@ from kiseki.adapters.sqlite.store import (
     SqliteSingleCaptionRepository,
     SqliteSubjectRepository,
     SqliteThemeSetRepository,
+    clear_outdated,
     connect,
+    count_outdated,
 )
 from kiseki.application.asking import Answer, ask
-from kiseki.application.captioning import run_captioning
+from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
 from kiseki.application.exporting import interest_export
 from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narrative import tell
 from kiseki.application.pipeline import Pipeline, Report
-from kiseki.application.screen_reading import run_screen_reading
-from kiseki.application.single_captioning import run_single_captioning
-from kiseki.application.subject_extraction import run_subject_extraction
-from kiseki.application.theming import run_theming
+from kiseki.application.screen_reading import SCREEN_PROMPT_VERSION, run_screen_reading
+from kiseki.application.single_captioning import (
+    SINGLE_CAPTION_PROMPT_VERSION,
+    run_single_captioning,
+)
+from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
+from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
@@ -985,6 +990,38 @@ def _command_suggest(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+REREAD_STAGES = {
+    "captions": ("captions", CAPTION_PROMPT_VERSION),
+    "singles": ("single_captions", SINGLE_CAPTION_PROMPT_VERSION),
+    "subjects": ("subjects", SUBJECT_PROMPT_VERSION),
+    "themes": ("theme_sets", THEME_PROMPT_VERSION),
+    "screens": ("screen_readings", SCREEN_PROMPT_VERSION),
+}
+
+
+def _command_reread(args: argparse.Namespace) -> int:
+    if args.apply and args.stage is None:
+        print("reread --apply needs --stage", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    print(RULE)
+    if args.apply:
+        table, current = REREAD_STAGES[args.stage]
+        removed = clear_outdated(connection, table, current)
+        print(f"  cleared {removed} readings older than {current}")
+        print(f"  run `kiseki {args.stage}` to make them again")
+        return EXIT_OK
+    stages = [args.stage] if args.stage is not None else list(REREAD_STAGES)
+    print("  reread")
+    for stage in stages:
+        table, current = REREAD_STAGES[stage]
+        outdated = count_outdated(connection, table, current)
+        total: int = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        print(f"    {stage:<10}  {outdated:>5} of {total} readings predate {current}")
+    print("\n  nothing was changed; add --stage <name> --apply to clear one")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -1135,6 +1172,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     suggest = commands.add_parser("suggest", help="from your own evidence, pointed forward")
     suggest.set_defaults(run=_command_suggest)
+
+    reread = commands.add_parser("reread", help="what a newer prompt version left behind")
+    reread.add_argument(
+        "--stage", choices=sorted(REREAD_STAGES), default=None, help="one reading stage"
+    )
+    reread.add_argument(
+        "--apply", action="store_true", help="clear the outdated readings of one stage"
+    )
+    reread.set_defaults(run=_command_reread)
 
     return parser
 

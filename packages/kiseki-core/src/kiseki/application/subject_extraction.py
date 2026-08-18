@@ -23,6 +23,8 @@ from kiseki.ports.singles import SingleCaptionRepository
 from kiseki.ports.subjects import SubjectRepository
 
 MAX_SUBJECTS = 5
+SUBJECT_PROMPT_VERSION = "subjects/1"
+"""Bump when SUBJECT_SYSTEM changes. See ADR-0051."""
 SUBJECT_SYSTEM = (
     "You extract subjects from photo captions. Answer with a JSON array"
     " of 1 to 5 short subject labels: concrete things, activities, or"
@@ -132,6 +134,7 @@ def run_subject_extraction(
                 labels=labels,
                 model=completion.model,
                 created_at=when,
+                prompt_version=SUBJECT_PROMPT_VERSION,
             )
         )
         extracted += 1

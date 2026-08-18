@@ -24,6 +24,9 @@ from kiseki.ports.repositories import OutingRepository, PhotoRepository
 from kiseki.ports.thumbnails import ThumbnailMissingError, ThumbnailSource
 
 DEFAULT_IMAGES_PER_STOP = 3
+CAPTION_PROMPT_VERSION = "stay-caption/1"
+"""Bump when CAPTION_PROMPT changes: `kiseki reread` finds every stay
+caption an older prompt wrote. See ADR-0051."""
 CAPTION_PROMPT = (
     "Describe what these photographs of one place show, in one or two"
     " sentences. Name the concrete subjects: food, buildings, nature,"
@@ -135,6 +138,7 @@ def run_captioning(
                 text=completion.text,
                 model=completion.model,
                 created_at=when,
+                prompt_version=CAPTION_PROMPT_VERSION,
             )
         )
         captioned += 1
