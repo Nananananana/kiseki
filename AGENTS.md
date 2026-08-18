@@ -117,6 +117,14 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1124 passing, 13 llm-marked and deselected in CI.
+- The current-state documents were audited against the code after
+  v0.7 and now describe today: the context map gained the reading
+  context and dropped the claim that preference extraction cannot
+  see photographs; the ubiquitous language was rewritten around the
+  types that exist, with the four scores and the words that
+  outgrew their definitions named as history; concept and
+  architecture lost their v0.2 future tense. FR-507 is recorded as
+  implemented.
 - Where the truth lives: docs/README.md names what each document
   is for and keeps three things apart -- what is true now, why it
   became true (docs/adr, history, never rewritten to match the

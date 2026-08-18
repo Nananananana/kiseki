@@ -1,12 +1,16 @@
 # Requirements addendum
 
+> This tracks requirements and how far they are implemented.
+> Decisions are recorded in `docs/adr/`; proposed changes in
+> `docs/proposals/`.
+
 Requirements added after the original specification. Each carries the reasoning
 that prompted it.
 
 ## FR-507 Preference from photographs that form no stop
 
 **Version** v0.2
-**Status** Accepted, not implemented
+**Status** Implemented in v0.4 (ADR-0033, ADR-0034, ADR-0035)
 
 ### Requirement
 
@@ -51,7 +55,7 @@ them would make a journey out of a photograph of lunch.
 ## FR-906 Concept diagrams in the README
 
 **Version** v0.1
-**Status** Accepted, part of issue #16
+**Status** Implemented; the README was rewritten again in v0.5
 
 ### Requirement
 
