@@ -132,3 +132,54 @@ def test_the_nearest_regular_place_measures() -> None:
     assert len(trips) == 1
     assert trips[0].distance_km is not None
     assert round(trips[0].distance_km) == 4
+
+
+def _stay(km: float, visits: int, span_days: int, days_ago: int) -> PlaceProfile:
+    """A place visited several times, over a span of the caller's choosing."""
+    degrees = km / 111.0
+    last = TODAY - timedelta(days=days_ago)
+    return PlaceProfile(
+        centroid=GeoPoint(CENTRE.latitude + degrees, CENTRE.longitude),
+        visits=visits,
+        first_seen=last - timedelta(days=span_days),
+        last_seen=last,
+        median_gap_days=span_days // max(1, visits - 1),
+    )
+
+
+def test_a_holiday_is_not_a_base() -> None:
+    """Three nights in one town is three visits, not somewhere to set out from."""
+    reach = derive_reach([_outing(km) for km in (5, 8, 9)])
+    assert reach is not None
+    holiday = _stay(500, 3, 3, 400)
+    near_the_holiday = PlaceProfile(
+        centroid=GeoPoint(CENTRE.latitude + 500 / 111.0 + 0.02, CENTRE.longitude),
+        visits=1,
+        first_seen=TODAY - timedelta(days=401),
+        last_seen=TODAY - timedelta(days=400),
+        median_gap_days=None,
+    )
+    trips = derive_day_trips((_home(), holiday, near_the_holiday), reach, TODAY)
+    assert trips == ()
+
+
+def test_a_day_spent_in_one_place_says_nothing_about_reach() -> None:
+    standing_still = Outing.of([_stop(CENTRE)])
+    assert derive_reach([standing_still]) is None
+    mixed = derive_reach([standing_still, _outing(12)])
+    assert mixed is not None
+    assert mixed.outings == 1
+    assert round(mixed.usual_km) == 12
+
+
+def test_the_next_street_is_not_a_day_trip() -> None:
+    reach = derive_reach([_outing(km) for km in (5, 8, 9)])
+    assert reach is not None
+    assert derive_day_trips((_home(), _place(0.3, 1, 300)), reach, TODAY) == ()
+
+
+def test_a_place_a_few_kilometres_out_still_counts() -> None:
+    reach = derive_reach([_outing(km) for km in (5, 8, 9)])
+    assert reach is not None
+    trips = derive_day_trips((_home(), _place(4, 1, 300)), reach, TODAY)
+    assert len(trips) == 1
