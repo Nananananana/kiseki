@@ -994,6 +994,7 @@ def _command_suggest(args: argparse.Namespace) -> int:
     places = derive_place_profiles(SqliteOutingRepository(connection).all())
     lifecycle = _pipeline_from(paths.db_path).lifecycle()
     suggestions = derive_suggestions(places, lifecycle, _datetime.now())
+    suggestions = spread_out(suggestions)
     print(RULE)
     if not suggestions:
         print("  nothing to suggest: the evidence is thin, or everything is current")
