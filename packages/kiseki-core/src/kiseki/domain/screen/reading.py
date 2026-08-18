@@ -42,6 +42,10 @@ class ScreenshotReading:
     model: str
     created_at: datetime
     refused: str | None = None
+    prompt_version: str | None = None
+    """Which prompt version made this reading, when it was recorded.
+    None means it was not recorded -- the reading predates the field.
+    See ADR-0051."""
 
     def __post_init__(self) -> None:
         if self.refused is None and self.category not in CATEGORIES:

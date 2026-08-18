@@ -36,7 +36,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -107,7 +107,8 @@ CREATE TABLE IF NOT EXISTS captions (
     text       TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    refused    TEXT
+    refused    TEXT,
+    prompt_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
@@ -115,14 +116,16 @@ CREATE TABLE IF NOT EXISTS subjects (
     labels     TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    refused    TEXT
+    refused    TEXT,
+    prompt_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS theme_sets (
     key        TEXT PRIMARY KEY,
     document   TEXT NOT NULL,
     model      TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    prompt_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS screen_readings (
@@ -131,7 +134,8 @@ CREATE TABLE IF NOT EXISTS screen_readings (
     labels     TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    refused    TEXT
+    refused    TEXT,
+    prompt_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS corrections (
@@ -147,7 +151,8 @@ CREATE TABLE IF NOT EXISTS single_captions (
     text       TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    refused    TEXT
+    refused    TEXT,
+    prompt_version TEXT
 );
 """
 
@@ -177,6 +182,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 3:
             _migrate_v3_to_v4(connection)
             version = 4
+        if version == 4:
+            _migrate_v4_to_v5(connection)
+            version = 5
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -485,8 +493,36 @@ class SqliteProfileRepository:
         return tuple(_profile_from(row[0]) for row in cursor)
 
 
+PROMPT_VERSION_TABLES = (
+    "captions",
+    "subjects",
+    "theme_sets",
+    "screen_readings",
+    "single_captions",
+)
+
+
+def _has_column(connection: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row[1] == column for row in rows)
+
+
+def _migrate_v4_to_v5(connection: sqlite3.Connection) -> None:
+    """The one change from 4 to 5: every reading names its prompt version.
+
+    Additive and explicit (ADR-0018). Existing rows keep NULL, which
+    says the version was not recorded rather than that it was empty.
+    A table created fresh by this version already has the column, so
+    the migration asks before it adds. See ADR-0051.
+    """
+    for table in PROMPT_VERSION_TABLES:
+        if not _has_column(connection, table, "prompt_version"):
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN prompt_version TEXT")
+    connection.execute("UPDATE schema_version SET version = ?", (5,))
+
+
 def _to_caption(row: tuple[Any, ...]) -> Caption:
-    key, photo_ids, text, model, created_at, refused = row
+    key, photo_ids, text, model, created_at, refused, prompt_version = row
     return Caption(
         key=CaptionKey(key),
         photo_ids=tuple(PhotoId(value) for value in json.loads(photo_ids)),
@@ -494,6 +530,7 @@ def _to_caption(row: tuple[Any, ...]) -> Caption:
         model=model,
         created_at=datetime.fromisoformat(created_at),
         refused=refused,
+        prompt_version=prompt_version,
     )
 
 
@@ -514,8 +551,8 @@ class SqliteCaptionRepository:
         with self._connection:
             self._connection.execute(
                 "INSERT OR REPLACE INTO captions"
-                " (key, photo_ids, text, model, created_at, refused)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
+                " (key, photo_ids, text, model, created_at, refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     caption.key.value,
                     json.dumps([identifier.value for identifier in caption.photo_ids]),
@@ -523,12 +560,14 @@ class SqliteCaptionRepository:
                     caption.model,
                     caption.created_at.isoformat(),
                     caption.refused,
+                    caption.prompt_version,
                 ),
             )
 
     def get(self, key: CaptionKey) -> Caption | None:
         row = self._connection.execute(
-            "SELECT key, photo_ids, text, model, created_at, refused FROM captions WHERE key = ?",
+            "SELECT key, photo_ids, text, model, created_at, refused, prompt_version"
+            " FROM captions WHERE key = ?",
             (key.value,),
         ).fetchone()
         if row is None:
@@ -537,19 +576,21 @@ class SqliteCaptionRepository:
 
     def all(self) -> tuple[Caption, ...]:
         cursor = self._connection.execute(
-            "SELECT key, photo_ids, text, model, created_at, refused FROM captions ORDER BY rowid"
+            "SELECT key, photo_ids, text, model, created_at, refused, prompt_version"
+            " FROM captions ORDER BY rowid"
         )
         return tuple(_to_caption(row) for row in cursor)
 
 
 def _to_subjects(row: tuple[Any, ...]) -> SubjectExtraction:
-    key, labels, model, created_at, refused = row
+    key, labels, model, created_at, refused, prompt_version = row
     return SubjectExtraction(
         key=CaptionKey(key),
         labels=tuple(json.loads(labels)),
         model=model,
         created_at=datetime.fromisoformat(created_at),
         refused=refused,
+        prompt_version=prompt_version,
     )
 
 
@@ -567,20 +608,22 @@ class SqliteSubjectRepository:
         with self._connection:
             self._connection.execute(
                 "INSERT OR REPLACE INTO subjects"
-                " (key, labels, model, created_at, refused)"
-                " VALUES (?, ?, ?, ?, ?)",
+                " (key, labels, model, created_at, refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     reading.key.value,
                     json.dumps(list(reading.labels)),
                     reading.model,
                     reading.created_at.isoformat(),
                     reading.refused,
+                    reading.prompt_version,
                 ),
             )
 
     def get(self, key: CaptionKey) -> SubjectExtraction | None:
         row = self._connection.execute(
-            "SELECT key, labels, model, created_at, refused FROM subjects WHERE key = ?",
+            "SELECT key, labels, model, created_at, refused, prompt_version"
+            " FROM subjects WHERE key = ?",
             (key.value,),
         ).fetchone()
         if row is None:
@@ -589,13 +632,14 @@ class SqliteSubjectRepository:
 
     def all(self) -> tuple[SubjectExtraction, ...]:
         cursor = self._connection.execute(
-            "SELECT key, labels, model, created_at, refused FROM subjects ORDER BY rowid"
+            "SELECT key, labels, model, created_at, refused, prompt_version"
+            " FROM subjects ORDER BY rowid"
         )
         return tuple(_to_subjects(row) for row in cursor)
 
 
 def _to_theme_set(row: tuple[Any, ...]) -> ThemeSet:
-    key, document, model, created_at = row
+    key, document, model, created_at, prompt_version = row
     data = json.loads(document)
     themes = tuple(
         Theme(name=item["name"], members=tuple(item["members"])) for item in data["themes"]
@@ -605,6 +649,7 @@ def _to_theme_set(row: tuple[Any, ...]) -> ThemeSet:
         themes=themes,
         model=model,
         created_at=datetime.fromisoformat(created_at),
+        prompt_version=prompt_version,
     )
 
 
@@ -629,19 +674,21 @@ class SqliteThemeSetRepository:
         )
         with self._connection:
             self._connection.execute(
-                "INSERT OR REPLACE INTO theme_sets (key, document, model, created_at)"
-                " VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO theme_sets"
+                " (key, document, model, created_at, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?)",
                 (
                     theme_set.key.value,
                     document,
                     theme_set.model,
                     theme_set.created_at.isoformat(),
+                    theme_set.prompt_version,
                 ),
             )
 
     def get(self, key: ThemeSetKey) -> ThemeSet | None:
         row = self._connection.execute(
-            "SELECT key, document, model, created_at FROM theme_sets WHERE key = ?",
+            "SELECT key, document, model, created_at, prompt_version FROM theme_sets WHERE key = ?",
             (key.value,),
         ).fetchone()
         if row is None:
@@ -650,7 +697,8 @@ class SqliteThemeSetRepository:
 
     def latest(self) -> ThemeSet | None:
         row = self._connection.execute(
-            "SELECT key, document, model, created_at FROM theme_sets ORDER BY rowid DESC LIMIT 1"
+            "SELECT key, document, model, created_at, prompt_version"
+            " FROM theme_sets ORDER BY rowid DESC LIMIT 1"
         ).fetchone()
         if row is None:
             return None
@@ -658,7 +706,7 @@ class SqliteThemeSetRepository:
 
 
 def _to_screen_reading(row: tuple[Any, ...]) -> "ScreenshotReading":
-    photo_id, category, labels, model, created_at, refused = row
+    photo_id, category, labels, model, created_at, refused, prompt_version = row
     return ScreenshotReading(
         photo_id=PhotoId(photo_id),
         category=category,
@@ -666,6 +714,7 @@ def _to_screen_reading(row: tuple[Any, ...]) -> "ScreenshotReading":
         model=model,
         created_at=datetime.fromisoformat(created_at),
         refused=refused,
+        prompt_version=prompt_version,
     )
 
 
@@ -683,8 +732,8 @@ class SqliteScreenshotReadingRepository:
         with self._connection:
             self._connection.execute(
                 "INSERT OR REPLACE INTO screen_readings"
-                " (photo_id, category, labels, model, created_at, refused)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
+                " (photo_id, category, labels, model, created_at, refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     reading.photo_id.value,
                     reading.category,
@@ -692,12 +741,13 @@ class SqliteScreenshotReadingRepository:
                     reading.model,
                     reading.created_at.isoformat(),
                     reading.refused,
+                    reading.prompt_version,
                 ),
             )
 
     def get(self, photo_id: PhotoId) -> ScreenshotReading | None:
         row = self._connection.execute(
-            "SELECT photo_id, category, labels, model, created_at, refused"
+            "SELECT photo_id, category, labels, model, created_at, refused, prompt_version"
             " FROM screen_readings WHERE photo_id = ?",
             (photo_id.value,),
         ).fetchone()
@@ -707,20 +757,21 @@ class SqliteScreenshotReadingRepository:
 
     def all(self) -> tuple[ScreenshotReading, ...]:
         cursor = self._connection.execute(
-            "SELECT photo_id, category, labels, model, created_at, refused"
+            "SELECT photo_id, category, labels, model, created_at, refused, prompt_version"
             " FROM screen_readings ORDER BY rowid"
         )
         return tuple(_to_screen_reading(row) for row in cursor)
 
 
 def _to_single_caption(row: tuple[Any, ...]) -> SingleCaption:
-    photo_id, text, model, created_at, refused = row
+    photo_id, text, model, created_at, refused, prompt_version = row
     return SingleCaption(
         photo_id=PhotoId(photo_id),
         text=text,
         model=model,
         created_at=datetime.fromisoformat(created_at),
         refused=refused,
+        prompt_version=prompt_version,
     )
 
 
@@ -738,20 +789,21 @@ class SqliteSingleCaptionRepository:
         with self._connection:
             self._connection.execute(
                 "INSERT OR REPLACE INTO single_captions"
-                " (photo_id, text, model, created_at, refused)"
-                " VALUES (?, ?, ?, ?, ?)",
+                " (photo_id, text, model, created_at, refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     caption.photo_id.value,
                     caption.text,
                     caption.model,
                     caption.created_at.isoformat(),
                     caption.refused,
+                    caption.prompt_version,
                 ),
             )
 
     def get(self, photo_id: PhotoId) -> SingleCaption | None:
         row = self._connection.execute(
-            "SELECT photo_id, text, model, created_at, refused"
+            "SELECT photo_id, text, model, created_at, refused, prompt_version"
             " FROM single_captions WHERE photo_id = ?",
             (photo_id.value,),
         ).fetchone()
@@ -761,7 +813,8 @@ class SqliteSingleCaptionRepository:
 
     def all(self) -> tuple[SingleCaption, ...]:
         cursor = self._connection.execute(
-            "SELECT photo_id, text, model, created_at, refused FROM single_captions ORDER BY rowid"
+            "SELECT photo_id, text, model, created_at, refused, prompt_version"
+            " FROM single_captions ORDER BY rowid"
         )
         return tuple(_to_single_caption(row) for row in cursor)
 
