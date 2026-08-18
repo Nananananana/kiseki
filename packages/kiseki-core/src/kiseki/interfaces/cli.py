@@ -983,19 +983,28 @@ def _document_locations(db_path: Path) -> dict[str, GeoPoint]:
 
 
 def _command_drift(args: argparse.Namespace) -> int:
-    """Three timelines on one axis, and what may not be concluded."""
+    """Three timelines on one axis, and what may not be concluded.
+
+    Every series is counted by the moment in the owner's life. A screen
+    reading carries created_at -- the day the model read it, which is
+    the day the owner happened to run a command -- so the screens are
+    counted by the capture of the photograph they read. Counting the
+    first would measure this library rather than the person using it.
+    """
     paths = _paths_for(args)
     connection = connect(paths.db_path)
+    photographs = SqlitePhotoRepository(connection).all()
+    taken_at = {photo.photo_id: photo.captured_at for photo in photographs}
+    screens = [
+        taken_at[reading.photo_id]
+        for reading in SqliteScreenshotReadingRepository(connection).all()
+        if reading.photo_id in taken_at
+    ]
+    outings = [outing.time_range.start for outing in SqliteOutingRepository(connection).all()]
     series = {
-        "photographs": monthly_counts(
-            [photo.captured_at for photo in SqlitePhotoRepository(connection).all()]
-        ),
-        "outings": monthly_counts(
-            [outing.time_range.start for outing in SqliteOutingRepository(connection).all()]
-        ),
-        "screens": monthly_counts(
-            [reading.created_at for reading in SqliteScreenshotReadingRepository(connection).all()]
-        ),
+        "photographs": monthly_counts([photo.captured_at for photo in photographs]),
+        "outings": monthly_counts(outings),
+        "screens": monthly_counts(screens),
     }
     named = [(name, counts) for name, counts in series.items() if counts]
     print(RULE)
