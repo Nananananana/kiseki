@@ -62,6 +62,11 @@ from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.services.cross_timeline import (
+    compare_timelines,
+    derive_drift,
+    monthly_counts,
+)
 from kiseki.domain.services.day_trips import (
     derive_day_trips,
     derive_reach,
@@ -977,6 +982,52 @@ def _document_locations(db_path: Path) -> dict[str, GeoPoint]:
     return mapping
 
 
+def _command_drift(args: argparse.Namespace) -> int:
+    """Three timelines on one axis, and what may not be concluded."""
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    series = {
+        "photographs": monthly_counts(
+            [photo.captured_at for photo in SqlitePhotoRepository(connection).all()]
+        ),
+        "outings": monthly_counts(
+            [outing.time_range.start for outing in SqliteOutingRepository(connection).all()]
+        ),
+        "screens": monthly_counts(
+            [reading.created_at for reading in SqliteScreenshotReadingRepository(connection).all()]
+        ),
+    }
+    named = [(name, counts) for name, counts in series.items() if counts]
+    print(RULE)
+    if len(named) < 2:
+        print("  not enough history: two timelines are needed to compare")
+        return EXIT_OK
+    print("  what moved with what")
+    printed = 0
+    for index, left in enumerate(named):
+        for right in named[index + 1 :]:
+            result = compare_timelines(left, right)
+            print(
+                f"    {result.left:<14} and {result.right:<14}"
+                f"  {result.relation.value:<24}"
+                f"  over {result.months} months"
+            )
+            printed += 1
+    if printed:
+        print(f"\n  {compare_timelines(named[0], named[1]).caution}")
+    print("\n  each against its own past")
+    for name, counts in named:
+        drift = derive_drift(name, counts)
+        if drift is None:
+            print(f"    {name:<14}  not enough history")
+            continue
+        print(
+            f"    {name:<14}  {drift.stage.value:<38}"
+            f"  {drift.latest:.0f} this month, {drift.baseline:.1f} before"
+        )
+    return EXIT_OK
+
+
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -1436,6 +1487,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     places = commands.add_parser("places", help="what your journeys say about each place")
     places.set_defaults(run=_command_places)
+
+    drift = commands.add_parser("drift", help="what moved with what, and each against its own past")
+    drift.set_defaults(run=_command_drift)
 
     suggest = commands.add_parser("suggest", help="from your own evidence, pointed forward")
     suggest.set_defaults(run=_command_suggest)
