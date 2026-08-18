@@ -44,6 +44,16 @@ already reads. This shape is for the ones that never became one."""
 REGULAR_VISITS = 3
 """Visits enough for a place to count as one the owner comes from."""
 
+REGULAR_SPAN_DAYS = 30
+"""And spread over long enough to be a life rather than a holiday.
+Three nights in one town abroad is three visits; it is not somewhere
+the owner sets out from, and treating it as one put a distant island
+six hundred metres from itself. The same distinction `go back` makes
+between a cadence and a trip (ADR-0050)."""
+
+MIN_TRIP_KM = 1.0
+"""Nearer than this is not a day trip; it is the next street."""
+
 DAY_TRIP_CAP = 3
 CONFIDENCE_SATURATION = 6
 METRES_PER_KM = 1000.0
@@ -71,9 +81,14 @@ def _quantile(ordered: Sequence[float], share: float) -> float:
 
 
 def derive_reach(outings: Sequence[Outing]) -> Reach | None:
-    """The distances the owner covers in a day, from their own outings."""
+    """The distances the owner covers on a day they go somewhere.
+
+    Outings with a single stop are left out: a day spent in one place
+    says nothing about how far the owner travels, and counting it as
+    zero drags the reach down until nothing is ever within it.
+    """
     distances = sorted(
-        outing.travelled.meters / METRES_PER_KM for outing in outings if outing.stops
+        outing.travelled.meters / METRES_PER_KM for outing in outings if len(outing.stops) > 1
     )
     if not distances:
         return None
@@ -95,7 +110,12 @@ def _regular(places: Sequence[PlaceProfile]) -> tuple[GeoPoint, ...]:
     Falls back to the most visited place when nothing qualifies, so a
     thin library still measures against something the owner knows.
     """
-    regular = [place.centroid for place in places if place.visits >= REGULAR_VISITS]
+    regular = [
+        place.centroid
+        for place in places
+        if place.visits >= REGULAR_VISITS
+        and (_naive(place.last_seen) - _naive(place.first_seen)).days >= REGULAR_SPAN_DAYS
+    ]
     if regular:
         return tuple(regular)
     busiest = max(places, key=lambda place: place.visits)
@@ -119,7 +139,7 @@ def derive_day_trips(
         if days_since < QUIET_DAYS:
             continue
         km = min(origin.distance_to(place.centroid).meters / METRES_PER_KM for origin in origins)
-        if km <= 0 or km > reach.usual_km:
+        if km < MIN_TRIP_KM or km > reach.usual_km:
             continue
         reference = f"place:{place.centroid.latitude:.5f},{place.centroid.longitude:.5f}"
         candidates.append(
