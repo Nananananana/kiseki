@@ -99,6 +99,7 @@ def test_a_theme_without_a_twin_label_is_unchanged() -> None:
     interests = _derive({"aa": ("ramen",), "bb": ("udon",)}, themes=themes)
     assert [interest.topic for interest in interests] == ["food"]
 
+
 def test_a_theme_named_after_the_record_is_not_an_interest() -> None:
     themes = (Theme(name="text", members=("ramen", "udon")),)
     interests = _derive({"aa": ("ramen",), "bb": ("udon",)}, themes=themes)
