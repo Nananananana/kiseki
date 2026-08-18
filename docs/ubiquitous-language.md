@@ -1,81 +1,96 @@
 # Ubiquitous language
 
-Every term below has exactly one meaning in this codebase. Class names, module
-names, database tables, and API fields all use these words and no synonyms.
+> This defines the domain words in current use. Decisions are recorded
+> in `docs/adr/`; proposed changes in `docs/proposals/`.
 
-## Core terms
+Every term below has exactly one meaning in this codebase. Class names,
+module names, database tables and API fields use these words and no
+synonyms.
 
-| Term | Definition |
+## What the library works with
+
+| Term | Definition | Type |
+|---|---|---|
+| Photograph | A record with a capture time, optionally a location, a thumbnail reference and consent flags. The record is the subject, not the image file. | `PhotoObservation` |
+| Stop | A stay at one place, made of consecutive photographs. | `Stop` |
+| Outing | A departure and a return: an ordered list of stops. | `Outing` |
+| Anchor | A place the person returns to repeatedly. | `Anchor` |
+| Place | A cluster of stops read back as one place, with visits, first and last, and a revisit cadence. | `PlaceProfile` |
+| Place name | The human-readable name of a coordinate, resolved at display time and never stored. | `PlaceName` |
+
+## What the readers say
+
+| Term | Definition | Type |
+|---|---|---|
+| Caption | One model's description of the photographs of one stay, or its recorded refusal. | `Caption` |
+| Single caption | The same, for one photograph that belongs to no stay. | `SingleCaption` |
+| Screen reading | What a reader found on one screenshot: a category and labels, never text. | `ScreenshotReading` |
+| Subjects | The labels a caption was about. | `SubjectExtraction` |
+| Theme | Labels gathered under a name; a set of them is keyed by the label universe. | `Theme`, `ThemeSet` |
+| Prompt version | Which prompt made a reading; NULL means it was not recorded. | field on every reading |
+
+## What is derived
+
+| Term | Definition | Type |
+|---|---|---|
+| Interest | A topic the evidence supports, with a score, a confidence and the evidence behind it. | `Interest` |
+| Evidence | A reference to what a statement rests on, in the profile's own vocabulary: `topic:`, `caption:`, `photo:`, `screen:`, `place:`. | `InterestEvidence` |
+| Profile | Every interest as of one reading, kept when asked. | `Profile` |
+| Trend | What moved between two kept profiles. | `TrendReport` |
+| Lifecycle | Where a topic stands: new, returned, growing, declining, dormant, stable. | `TopicLifecycle` |
+| Insight | A finding derived from the trend and lifecycle machinery, with its novelty. | `Insight`, `InsightReport` |
+| Discovery | An insight ranked for attention, by novelty times importance. | `Discovery`, `DiscoveryFeed` |
+| Comparison | What changed between two readings, with the arithmetic on both sides. | `Comparison`, `ComparisonEntry` |
+| Mixed pair | Two tendencies held side by side, neither resolved away. | `MixedPair` |
+| Correction | The owner's word against a reading, appended and applied at read. | `Correction` |
+| Suggestion | Something to do next, derived from the owner's own evidence, with the arithmetic that earned it. | `Suggestion` |
+| Retrieval | One document found for a question, with the channels that found it. | `Retrieval` |
+| Answer | A reply that cites its evidence, with a confidence and a time range. | `Answer` |
+
+## The four scores, which are never one
+
+| Score | Says |
 |---|---|
-| Photo | A single record with a capture time, and optionally a location. The record is the subject, not the image file. |
-| Stop | A stay at one place, made up of one or more consecutive photos. |
-| Leg | The movement between two consecutive stops. Always inferred, never observed. |
-| Outing | One departure from an anchor and return to it. An ordered list of stops. |
-| Trip | A sequence of outings spanning at least one night away. |
-| Anchor | A place the person returns to repeatedly. Home, workplace, or a second base. |
-| Destination | A visited place that is not an anchor. What a person would call a travel destination. |
-| Impression | A short description of what a stop was like, produced from its photos. |
-| Narrative | A description of a whole outing as a sequence, produced from its stops. |
-| PreferenceProfile | A description of what a person tends to do, derived from outings over a period. |
-| Suggestion | A proposal returned in response to a question, always accompanied by evidence. |
-| Evidence | The outings a suggestion or profile statement was derived from. |
-| Owner | The person a photo belongs to. Carries consent flags. |
-| Confidence | How well supported a derived statement is, with the number of supporting records. |
+| Confidence | How strongly the evidence supports a statement |
+| Importance | How much a finding deserves attention |
+| Novelty | How new or changed a finding is |
+| Similarity | How close a document is to a question |
 
-## Relationships
-
-```
-Photo    -- grouped into -->  Stop
-Stop     -- ordered into -->  Outing
-Outing   -- spanned by   -->  Trip
-Outing   -- located near -->  Anchor or Destination
-Outing   -- summarised into --> PreferenceProfile
-```
-
-A `Stop` never exists on its own. It only exists inside an `Outing`.
+Similarity is never confidence, and confidence never ranks a feed. See
+`docs/proposals/0006`.
 
 ## Terms we avoid
 
 | Avoided | Use instead | Reason |
 |---|---|---|
 | Event | Outing | Collides with the programming sense of the word. See ADR-0001. |
-| Trip (for a single day) | Outing | `Trip` is reserved for stays involving at least one night. |
-| Cluster | Stop | `Cluster` describes an algorithm, not a thing in the domain. |
-| Location | GeoPoint | `Location` is ambiguous between coordinates and a named place. |
-| Place | PlaceLabel | Only used for the human-readable name of a coordinate. |
-| Visit | Stop | Redundant with `Stop`. |
-| User | Owner | Photos have owners; the library has callers. |
+| Cluster | Stop | Describes an algorithm, not a thing in the domain. |
+| Location | GeoPoint | Ambiguous between coordinates and a named place. |
+| Visit | Stop | Redundant. |
+| User | Owner | Photographs have owners; the library has callers. |
+| Recommendation | Suggestion | A suggestion carries its evidence; a recommendation implies a catalogue. |
 
 ## Observed versus inferred
 
-The domain distinguishes what was recorded from what was derived. This
-distinction is expressed in types, not in comments.
+The domain distinguishes what was recorded from what was derived, in
+types rather than in comments.
 
 | Observed | Inferred |
 |---|---|
-| Photo capture time | Leg duration and travel mode |
-| Photo coordinates (`location_source = measured`) | Coordinates filled in from a companion device (`interpolated`) |
-| Stop boundaries when photos are dense | Stop boundaries across a long gap |
-| Number of outings in a period | Everything in a PreferenceProfile |
+| Capture time and coordinates | Stop boundaries across a long gap |
+| What a reader said, including a refusal | Every interest, trend, insight and suggestion |
+| The owner's corrections | Which readings a correction reaches |
 
-Anything inferred carries a `Confidence`. Nothing inferred is presented as fact.
+Anything inferred carries a confidence, and nothing inferred is
+presented as fact. References between aggregates are made by
+identifier, never by object reference: an `Outing` holds `PhotoId`
+values, not observations.
 
-## Mapping to code
+## Words that outgrew their definitions
 
-| Term | Type | Kind |
-|---|---|---|
-| Photo | `Photo` | Aggregate root |
-| Stop | `Stop` | Entity, inside `Outing` |
-| Leg | `Leg` | Value object |
-| Outing | `Outing` | Aggregate root |
-| Trip | `Trip` | Aggregate root |
-| Anchor | `Anchor` | Aggregate root |
-| Destination | `Destination` | Value object |
-| Impression | `Impression` | Value object |
-| Narrative | `Narrative` | Value object |
-| PreferenceProfile | `PreferenceProfile` | Aggregate root |
-| Confidence | `Confidence` | Value object |
-| Owner | `Owner` | Value object |
-
-References between aggregates are made by identifier, never by object
-reference. An `Outing` holds `PhotoId` values, not `Photo` instances.
+`Trip`, `Leg`, `Impression` and `Narrative` were defined before the
+code existed and no type carries them today. Overnight trips are
+planned (`docs/proposals/0007`, v0.9); the others were replaced by
+`Caption` and by narration that is generated and never stored. They are
+listed here so that a reader meeting them in an old ADR knows they are
+history, not vocabulary.

@@ -1,5 +1,8 @@
 # Architecture
 
+> This describes the current architecture. Decisions are recorded in
+> `docs/adr/`; proposed changes in `docs/proposals/`.
+
 ## Layers
 
 ```mermaid
@@ -14,8 +17,9 @@ flowchart TB
 ```
 
 Dependencies point inward. The domain layer at the centre imports nothing from
-the standard library beyond `dataclasses`, `datetime`, `math`, `enum` and
-`hashlib`, and nothing from outside it at all.
+the standard library beyond `dataclasses`, `datetime`, `math`, `enum`,
+`hashlib`, `statistics` and the typing and collections protocols, and
+nothing from outside it at all.
 
 Four contracts in `.importlinter` enforce this, and run in CI:
 
@@ -67,10 +71,20 @@ flowchart LR
     ST --> AE["estimate_anchors"]
     OA --> OU[("outings")]
     AE --> AN[("anchors")]
-    OU --> AN2["analytics"]
-    AN --> AN2
-    AN2 --> OUT["report"]
+    OU --> RD["readings<br/>captions, singles,<br/>screens, subjects"]
+    PH --> RD
+    RD --> PR["interests<br/>and profile"]
+    AN --> PR
+    PR --> IT["interpretation<br/>trend, lifecycle, insights,<br/>compare, discover, suggest"]
+    RD --> IX["search index"]
+    IX --> AS["ask"]
+    PR --> AS
 ```
+
+Readings accumulate and resume; interests and everything past them are
+derived on demand, through the correction log. Nothing between
+`readings` and `ask` is stored except the search index and the profiles
+the owner chooses to keep.
 
 Photographs accumulate. Outings and anchors are derived, and are replaced
 wholesale on every rebuild rather than amended, because adding one photograph
@@ -82,12 +96,20 @@ See [ADR-0013](adr/0013-derived-data-is-replaced-not-amended.md).
 
 | Layer | What it covers | Runs in CI |
 |---|---|---|
-| unit | domain, config, application, CLI | yes, in under two seconds |
+| unit | domain, config, application, CLI | yes, in seconds |
 | contract | one suite applied to both the fake and the real adapter | yes |
 | integration | anything calling a real model, marked `llm` | no |
 
 The application layer is tested entirely against fakes: no database, no
 filesystem, no model. That is why the ports exist.
+
+Two suites exist to catch what unit tests cannot. The golden retrieval
+dataset (`tests/golden/retrieval.json`) states, for fixed corpora, which
+documents a question must return; it needs no model and runs in CI, and
+it has already caught two ways a filtered question could be starved.
+The answer check (ADR-0054) validates a model's reply against the
+evidence it was given, so a prompt change that starts inventing
+citations is visible.
 
 ## Decision records
 

@@ -1,5 +1,9 @@
 # Concept
 
+> This describes what KISEKI is for and why it is shaped as it is.
+> Decisions are recorded in `docs/adr/`; proposed changes in
+> `docs/proposals/`.
+
 ## The problem
 
 People cannot describe their own preferences accurately. Asked what sort of day
@@ -26,16 +30,18 @@ Everything in this library follows from taking that seriously.
 ### Sequence before content
 
 Stop extraction, outing assembly and anchor estimation all run on time and place
-alone, before any image is opened. Image understanding arrives in v0.2, and by
-then the structure it describes already exists.
+alone, before any image is opened. Image understanding came later, and by then
+the structure it describes already existed.
 
 This ordering also keeps the expensive part small. Captioning every photograph
 in a library is prohibitive; captioning one representative image per stop is not.
 
 ### Measure, then interpret
 
-The analytics count and summarise. They never write a sentence. Interpretation
-belongs to a language model in v0.2, reading those numbers.
+The analytics count and summarise. They never write a sentence.
+Interpretation belongs to a language model reading those numbers -- and
+every derivation between the two, from interests to insights to
+suggestions, is arithmetic a reader can check.
 
 The seam matters. Measures can be asserted against exact values; sentences
 cannot. With the split, changing a prompt cannot silently change what was
@@ -52,9 +58,10 @@ more informative than the label `workplace` would have been. See ADR-0012.
 
 ### What is not measured cannot be claimed
 
-A profile in v0.2 can only say what the measures support, and must cite the
-outings behind each statement. A guess about somebody is only useful if they can
-check it.
+A profile can only say what the evidence supports, and every statement
+names the evidence behind it. A guess about somebody is only useful if
+they can check it -- and disagree: a correction is appended and reaches
+every derivation (ADR-0044).
 
 ## What this is not
 
@@ -78,5 +85,9 @@ A question answered from your own history, with its reasoning shown:
 > gardens; and of the places you have returned to, four of the top five are
 > outdoors. Drawn from 47 outings over two years.
 
-Every clause there is a measure this library already computes. What v0.2 adds is
-the sentence, and what v1.0 adds is knowing whether it will rain.
+Every clause there is a measure this library already computes, and the
+sentence is written today -- `kiseki ask` answers from evidence and
+cites it, `kiseki suggest` points forward from the owner's own history.
+What is still ahead is the reach beyond that history: a day-trip radius
+learned from real distances, and one optional adapter that knows
+whether it will rain (`docs/proposals/0005`, v0.8).
