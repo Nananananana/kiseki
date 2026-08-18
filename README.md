@@ -378,7 +378,9 @@ flowchart LR
     V6 --> V7["v0.7<br/>live<br/>with it"]
     V7 --> V8["v0.8<br/>recommend with<br/>evidence"]
     V8 --> V9["v0.9<br/>devices and<br/>years"]
-    V9 --> V10["v1.0<br/>personal context<br/>engine"]
+    V9 --> S1["v0.10<br/>more than<br/>photographs"]
+    S1 --> S2["v0.11<br/>the first<br/>new sources"]
+    S2 --> V10["v1.0<br/>personal context<br/>engine"]
 ```
 
 | Version | Value | State |
@@ -391,7 +393,9 @@ flowchart LR
 | v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest`, retrieval provenance and a spatial filter, a golden retrieval dataset in CI | Released |
 | v0.7 | Live with it: incremental builds, one `kiseki refresh`, insights and discovery in the view, structured model output with evidence-contract validation, prompt regression on the model-upgrade path, label calibration | Planned |
 | v0.8 | Recommend with evidence: `suggest` learns places from your own reach; cross-timeline analysis and drift detection (never a causal claim); the optional external-provider boundary, core never depending on it | Planned |
-| v0.9 | Devices and years: several devices merged, overnight trips, retention | Planned |
+| v0.9 | Devices and years: several devices merged, overnight trips, retention, deletion semantics, privacy regression tests | Planned |
+| v0.10 | More than photographs, the boundary: records as siblings (PhotoRecord v1 frozen), the new-source checklist as a gate, provenance graphs, per-source privacy counts | Planned |
+| v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
 The versions climb a longer ladder: **Phase 0** measure the trail (done),
