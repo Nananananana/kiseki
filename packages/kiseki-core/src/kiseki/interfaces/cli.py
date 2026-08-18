@@ -405,6 +405,9 @@ def _command_view(args: argparse.Namespace) -> int:
         trend,
         blur=not args.raw,
         names=place_names(topics, FileGazetteer(paths.gazetteer_path)),
+        insights=_pipeline_from(_paths_for(args).db_path).insights(),
+        comparison=_pipeline_from(_paths_for(args).db_path).compare(),
+        feed=_pipeline_from(_paths_for(args).db_path).discover(),
     )
     destination = args.out if args.out is not None else paths.cache_dir / "kiseki-view.html"
     destination.parent.mkdir(parents=True, exist_ok=True)
