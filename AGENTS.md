@@ -117,6 +117,12 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1114 passing, 13 llm-marked and deselected in CI.
+- v0.7 (incremental build, decided by measurement): held behind a
+  measured trigger. At 4,956 photographs a full build takes 0.3
+  seconds, profile 1.2, index 0.5. The incremental path is written
+  when a full build passes ten seconds or a refresh passes a minute
+  outside the model stages -- and an incremental result must equal
+  the full rebuild, proven by a test. See proposals/0005.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged
