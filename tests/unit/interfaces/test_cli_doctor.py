@@ -79,3 +79,23 @@ class TestDoctorCommand:
     ) -> None:
         assert _run(tmp_path) == EXIT_OK
         assert "places stay unnamed" in capsys.readouterr().out
+
+    def test_a_missing_reduced_copy_is_counted(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from kiseki.adapters.sqlite.store import SqlitePhotoRepository
+        from kiseki.domain.photo.observation import PhotoObservation
+
+        connection = _connection(tmp_path)
+        SqlitePhotoRepository(connection).save_all(
+            [
+                PhotoObservation(
+                    PhotoId("sha256:aa"),
+                    BASE,
+                    thumbnail_ref="2026/08/absent.jpg",
+                )
+            ]
+        )
+        connection.close()
+        assert _run(tmp_path) == EXIT_OK
+        assert "no reduced copy" in capsys.readouterr().out

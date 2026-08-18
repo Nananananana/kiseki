@@ -248,7 +248,9 @@ exporting is a command the owner runs on purpose.
 
 `kiseki doctor` runs categorised, deterministic checks -- [schema],
 [integrity], [privacy], [evidence], [consistency] -- and fixes
-nothing. The [evidence] line is the snapshot opportunity: how many
+nothing. [consistency] counts photographs whose
+reduced copy is missing from the thumbnail directory: the readers
+refuse those, and the refusals are recoverable (`kiseki retry`).The [evidence] line is the snapshot opportunity: how many
 readings arrived since the last kept profile, and how old that
 profile is; the weekly `kiseki profile` habit is the cure, never an
 automatic snapshot.
