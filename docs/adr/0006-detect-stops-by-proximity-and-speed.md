@@ -1,5 +1,7 @@
 # ADR-0006 Detect stops by proximity and speed
 
+
+
 ## Status
 
 Accepted

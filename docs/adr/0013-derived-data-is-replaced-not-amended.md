@@ -1,5 +1,7 @@
 # ADR-0013 Derived data is replaced, not amended
 
+
+
 ## Status
 
 Accepted

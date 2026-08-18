@@ -1,5 +1,7 @@
 # Proposal 0003: The personal context engine (v0.5-v0.6)
 
+
+
 Status: accepted direction, August 2026. Sequencing: after
 proposals/0002 (v0.4) completes; nothing here preempts it.
 

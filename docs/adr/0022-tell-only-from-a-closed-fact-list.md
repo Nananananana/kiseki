@@ -1,5 +1,7 @@
 # 0022 Tell only from a closed fact list, and cite it
 
+
+
 ## Status
 
 Accepted

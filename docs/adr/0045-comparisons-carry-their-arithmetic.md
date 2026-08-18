@@ -1,5 +1,7 @@
 # ADR-0045: Comparisons carry their arithmetic
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, item 3 (domain in part 1, the

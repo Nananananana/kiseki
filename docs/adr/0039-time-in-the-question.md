@@ -1,5 +1,7 @@
 # ADR-0039: Time in the question
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0002, item 3.

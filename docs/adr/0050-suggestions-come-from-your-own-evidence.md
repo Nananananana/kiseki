@@ -1,5 +1,7 @@
 # ADR-0050: Suggestions come from your own evidence
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, v0.6 item 4 (the internal

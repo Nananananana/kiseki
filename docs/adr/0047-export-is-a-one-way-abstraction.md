@@ -1,5 +1,7 @@
 # ADR-0047: Export is a one-way abstraction
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, item 6.

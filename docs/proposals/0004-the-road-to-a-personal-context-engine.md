@@ -1,5 +1,7 @@
 # Proposal 0004: The road to a personal context engine
 
+
+
 Status: Accepted. Refines the v0.5/v0.6 slices of proposals/0003
 after the owner's improvement brief (2026-08); the three pillars and
 everything shipped through v0.4 stand unchanged.

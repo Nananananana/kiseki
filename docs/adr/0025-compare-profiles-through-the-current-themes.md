@@ -1,5 +1,7 @@
 # 0025. Compare profiles through the current themes
 
+
+
 ## Status
 
 Accepted

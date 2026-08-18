@@ -1,5 +1,7 @@
 # ADR-0044: Corrections are appended, applied at read
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, item 2 (part 1 of 2).

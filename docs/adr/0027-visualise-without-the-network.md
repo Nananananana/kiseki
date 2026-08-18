@@ -1,5 +1,7 @@
 # 0027. Visualise without the network
 
+
+
 ## Status
 
 Accepted

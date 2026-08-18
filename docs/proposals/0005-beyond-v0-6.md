@@ -1,5 +1,7 @@
 # Proposal 0005: Beyond v0.6 -- living with a context engine
 
+
+
 Status: Accepted. Extends proposals/0004 past v0.6; the v0.6 scope
 itself stands as 0004 wrote it (discovery ranked by novelty and
 importance, mixed-evidence surfacing, personal place intelligence,

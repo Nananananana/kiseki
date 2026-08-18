@@ -1,5 +1,7 @@
 # ADR-0036: A search index beside the stores
 
+
+
 ## Status
 
 Accepted.

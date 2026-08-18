@@ -1,5 +1,7 @@
 # Proposal 0007: The road to v1.0, and evidence beyond photographs
 
+
+
 Status: Accepted. Re-plans v0.8 to v1.0 after v0.7 shipped, adds
 v0.10 and v0.11, and answers the owner's question about other kinds
 of history -- web pages, watched videos -- with a boundary before a

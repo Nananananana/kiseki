@@ -1,5 +1,7 @@
 # ADR-0034: Single captions join the subjects
 
+
+
 ## Status
 
 Accepted.

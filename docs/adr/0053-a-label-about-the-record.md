@@ -1,5 +1,7 @@
 # ADR-0053: A label about the record is not a label about the world
 
+
+
 ## Status
 
 Accepted. Delivers the label calibration of proposals/0005, v0.7.

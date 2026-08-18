@@ -1,5 +1,7 @@
 # ADR-0052: A missing thumbnail is not the model's word
 
+
+
 ## Status
 
 Accepted. Amends ADR-0015 without weakening it.

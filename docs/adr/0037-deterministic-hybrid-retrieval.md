@@ -1,5 +1,7 @@
 # ADR-0037: Deterministic hybrid retrieval
 
+
+
 ## Status
 
 Accepted.

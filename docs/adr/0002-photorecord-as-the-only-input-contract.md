@@ -1,5 +1,7 @@
 # ADR-0002 PhotoRecord is the only input contract
 
+
+
 ## Status
 
 Accepted

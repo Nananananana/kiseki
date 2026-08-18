@@ -1,5 +1,7 @@
 # ADR-0010 Separate measurement from interpretation
 
+
+
 ## Status
 
 Accepted

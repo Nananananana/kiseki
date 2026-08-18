@@ -1,5 +1,7 @@
 # ADR-0007 Derive outing identity from content
 
+
+
 ## Status
 
 Accepted

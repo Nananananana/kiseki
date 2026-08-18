@@ -117,6 +117,13 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1124 passing, 13 llm-marked and deselected in CI.
+- Where the truth lives: docs/README.md names what each document
+  is for and keeps three things apart -- what is true now, why it
+  became true (docs/adr, history, never rewritten to match the
+  present), and what might become true (docs/proposals, not
+  evidence that anything exists). A current-state document that
+  disagrees with the code is a defect, not a difference of
+  opinion.
 - The road to v1.0 (proposals/0007): v0.8 recommends with evidence
   (places from the owner's own reach, the provider boundary,
   cross-timeline drift, kiseki demo, a narration check); v0.9

@@ -1,5 +1,7 @@
 # 0028. Carry the content kind
 
+
+
 ## Status
 
 Accepted

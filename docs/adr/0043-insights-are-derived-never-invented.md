@@ -1,5 +1,7 @@
 # ADR-0043: Insights are derived, never invented
 
+
+
 ## Status
 
 Accepted. Opens v0.5 (proposals/0004, item 1).

@@ -1,5 +1,7 @@
 # ADR-0011 A frequently visited place is not automatically an anchor
 
+
+
 ## Status
 
 Accepted. Amends ADR-0009.

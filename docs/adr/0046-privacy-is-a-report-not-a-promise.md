@@ -1,5 +1,7 @@
 # ADR-0046: Privacy is a report, not a promise
 
+
+
 ## Status
 
 Accepted. Delivers proposals/0004, item 5.

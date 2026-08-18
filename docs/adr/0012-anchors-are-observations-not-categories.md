@@ -1,5 +1,7 @@
 # ADR-0012 Anchors are observations, not categories
 
+
+
 ## Status
 
 Accepted. Supersedes ADR-0009 and ADR-0011.

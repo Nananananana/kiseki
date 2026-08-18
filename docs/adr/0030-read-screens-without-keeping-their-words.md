@@ -1,5 +1,7 @@
 # 0030. Read screens without keeping their words
 
+
+
 ## Status
 
 Accepted
