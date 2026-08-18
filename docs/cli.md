@@ -39,6 +39,7 @@ uv run kiseki report --json
 | `discover` | What is worth a look, ranked by novelty and importance |
 | `places` | What your journeys say about each place |
 | `suggest` | From your own evidence, pointed forward |
+| `reread` | What a newer prompt version left behind |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.

@@ -521,6 +521,41 @@ def _migrate_v4_to_v5(connection: sqlite3.Connection) -> None:
     connection.execute("UPDATE schema_version SET version = ?", (5,))
 
 
+def _outdated_clause(table: str) -> str:
+    """Answered readings whose prompt version is older, or unrecorded.
+
+    A refusal is left alone: it is governed by ADR-0015, not by the
+    prompt version. theme_sets has no refusal column, so it has no
+    refusals to leave alone.
+    """
+    if table not in PROMPT_VERSION_TABLES:
+        raise ValueError(f"{table!r} does not carry a prompt version")
+    refusals = "" if table == "theme_sets" else " AND refused IS NULL"
+    return f"(prompt_version IS NULL OR prompt_version <> ?){refusals}"
+
+
+def count_outdated(connection: sqlite3.Connection, table: str, current: str) -> int:
+    """How many readings an older prompt version left behind."""
+    clause = _outdated_clause(table)
+    row = connection.execute(f"SELECT COUNT(*) FROM {table} WHERE {clause}", (current,)).fetchone()
+    total: int = row[0]
+    return total
+
+
+def clear_outdated(connection: sqlite3.Connection, table: str, current: str) -> int:
+    """Remove those readings, so a resumable run makes them again.
+
+    Nothing is rewritten in place and nothing is regenerated here:
+    the rows go, and `kiseki caption`, `kiseki subjects` and their
+    kin fill the gap on their next run. See ADR-0051.
+    """
+    clause = _outdated_clause(table)
+    removed = count_outdated(connection, table, current)
+    with connection:
+        connection.execute(f"DELETE FROM {table} WHERE {clause}", (current,))
+    return removed
+
+
 def _to_caption(row: tuple[Any, ...]) -> Caption:
     key, photo_ids, text, model, created_at, refused, prompt_version = row
     return Caption(

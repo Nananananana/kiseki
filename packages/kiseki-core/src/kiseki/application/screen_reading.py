@@ -18,6 +18,9 @@ from kiseki.ports.thumbnails import ThumbnailMissingError, ThumbnailSource
 
 SCREENSHOT = "screenshot"
 
+SCREEN_PROMPT_VERSION = "screen/1"
+"""Bump when the reader's prompt changes. See ADR-0051."""
+
 
 @dataclass(frozen=True)
 class ScreenRunReport:
@@ -81,6 +84,7 @@ def run_screen_reading(
                 labels=result.labels,
                 model=result.model,
                 created_at=when,
+                prompt_version=SCREEN_PROMPT_VERSION,
             )
         )
         read += 1
