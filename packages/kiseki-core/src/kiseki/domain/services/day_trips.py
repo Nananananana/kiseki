@@ -57,11 +57,14 @@ MIN_TRIP_KM = 1.0
 DAY_TRIP_CAP = 3
 
 NEIGHBOUR_KM = 2.0
-"""Two candidates closer together than this are the same outing to the
-same part of town. Only the one gone longest is offered: three lines
-naming one place is a list, not a suggestion."""
+"""Two place suggestions closer together than this are the same outing
+to the same part of town. Only the first is offered: three lines naming
+one neighbourhood is a list, not a suggestion. The rule is applied once,
+to every place suggestion there is -- a `go back` and a `day trip` to
+the same street are the same repetition to a reader."""
 CONFIDENCE_SATURATION = 6
 METRES_PER_KM = 1000.0
+PLACE_PREFIX = "place:"
 
 
 @dataclass(frozen=True)
@@ -170,17 +173,23 @@ def derive_day_trips(
         candidates,
         key=lambda pair: (-(pair[1].days_since or 0), pair[0], pair[1].reference),
     )
-    return _spread_out(ordered)[:DAY_TRIP_CAP]
+    return spread_out([suggestion for _km, suggestion in ordered])[:DAY_TRIP_CAP]
 
 
-def _spread_out(
-    ordered: Sequence[tuple[float, Suggestion]],
-) -> tuple[Suggestion, ...]:
-    """One suggestion per part of town, the longest gone kept."""
+def spread_out(suggestions: Sequence[Suggestion]) -> tuple[Suggestion, ...]:
+    """The same suggestions, one per part of town, order preserved.
+
+    Suggestions about topics rather than places pass through untouched:
+    the rule is about a reader seeing one neighbourhood three times, and
+    a topic has no neighbourhood.
+    """
     kept: list[Suggestion] = []
     points: list[GeoPoint] = []
-    for _km, suggestion in ordered:
+    for suggestion in suggestions:
         point = _point_of(suggestion)
+        if point is None:
+            kept.append(suggestion)
+            continue
         if any(other.distance_to(point).meters / METRES_PER_KM < NEIGHBOUR_KM for other in points):
             continue
         kept.append(suggestion)
@@ -188,6 +197,12 @@ def _spread_out(
     return tuple(kept)
 
 
-def _point_of(suggestion: Suggestion) -> GeoPoint:
-    latitude, longitude = suggestion.reference.removeprefix("place:").split(",")
-    return GeoPoint(float(latitude), float(longitude))
+def _point_of(suggestion: Suggestion) -> GeoPoint | None:
+    """The coordinate a place suggestion names, or None for a topic."""
+    if not suggestion.reference.startswith(PLACE_PREFIX):
+        return None
+    try:
+        latitude, longitude = suggestion.reference.removeprefix(PLACE_PREFIX).split(",")
+        return GeoPoint(float(latitude), float(longitude))
+    except ValueError:
+        return None
