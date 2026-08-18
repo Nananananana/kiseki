@@ -55,6 +55,7 @@ from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import derive_place_profiles
+from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
@@ -950,6 +951,40 @@ def _command_places(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_suggest(args: argparse.Namespace) -> int:
+    from datetime import datetime as _datetime
+
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    lifecycle = _pipeline_from(paths.db_path).lifecycle()
+    suggestions = derive_suggestions(places, lifecycle, _datetime.now())
+    print(RULE)
+    if not suggestions:
+        print("  nothing to suggest: the evidence is thin, or everything is current")
+        return EXIT_OK
+    names = place_names(
+        (item.reference for item in suggestions), FileGazetteer(paths.gazetteer_path)
+    )
+    print("  from your own evidence, the most overdue first")
+    print()
+    for item in suggestions:
+        label = names.get(item.reference, item.reference)
+        if item.kind is SuggestionKind.REVISIT:
+            print(
+                f"    go back    {label:<28}"
+                f"  every ~{item.cadence_days}d, {item.days_since} days since"
+                f"  confidence {item.confidence:.2f}"
+            )
+        else:
+            print(
+                f"    pick up    {label:<28}"
+                f"  seen in {item.seen_profiles} readings, was {item.baseline:.2f}"
+                f"  confidence {item.confidence:.2f}"
+            )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kiseki",
@@ -1097,6 +1132,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     places = commands.add_parser("places", help="what your journeys say about each place")
     places.set_defaults(run=_command_places)
+
+    suggest = commands.add_parser("suggest", help="from your own evidence, pointed forward")
+    suggest.set_defaults(run=_command_suggest)
 
     return parser
 
