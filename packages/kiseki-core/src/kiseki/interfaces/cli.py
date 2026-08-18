@@ -41,6 +41,7 @@ from kiseki.adapters.sqlite.store import (
     count_outdated,
     count_recoverable,
 )
+from kiseki.application.answer_validation import validate_answer
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
 from kiseki.application.exporting import interest_export
@@ -543,6 +544,8 @@ def _command_ask(args: argparse.Namespace) -> int:
         print("\n  related findings")
         for item in answer.supporting_insights:
             print(f"    {item.kind.value:<10}  {item.topic}")
+    for defect in validate_answer(answer):
+        print(f"  check         {defect.value}")
     return EXIT_OK
 
 
