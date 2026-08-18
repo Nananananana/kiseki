@@ -15,6 +15,9 @@ from collections.abc import Sequence
 from html import escape
 
 from kiseki.application.pipeline import Report
+from kiseki.domain.comparison import ChangeKind, Comparison
+from kiseki.domain.discovery import DiscoveryFeed
+from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
@@ -74,6 +77,9 @@ def render_view(
     trends: TrendReport | None,
     blur: bool = True,
     names: dict[str, str] | None = None,
+    insights: InsightReport | None = None,
+    comparison: Comparison | None = None,
+    feed: DiscoveryFeed | None = None,
 ) -> str:
     """One page: density, interests, rhythm, drift. Blur by default.
 
@@ -85,8 +91,11 @@ def render_view(
         (
             _density_section(density_cells(photos)),
             _interest_section(profile, blur, resolved),
+            _discovery_section(feed, blur, resolved),
+            _insight_section_findings(insights, blur, resolved),
             _rhythm_section(report),
             _trend_section(trends, blur, resolved),
+            _comparison_section(comparison, blur, resolved),
         )
     )
     return (
@@ -215,6 +224,79 @@ def _trend_section(trends: TrendReport | None, blur: bool, names: dict[str, str]
             f"<span>{escape(trend.direction.value)}</span>"
             f'<span class="nums">now {trend.strength:.2f},'
             f" was {trend.baseline:.2f}</span>"
+            "</div>"
+        )
+    return _section(title, header + "".join(rows))
+
+
+_NO_HISTORY = (
+    '<p class="note">not enough history: two kept profiles'
+    f" at least {MIN_TREND_SPAN_DAYS} days apart are needed</p>"
+)
+
+
+def _discovery_section(feed: DiscoveryFeed | None, blur: bool, names: dict[str, str]) -> str:
+    title = "Worth a look"
+    if feed is None:
+        return _section(title, _NO_HISTORY)
+    if not feed.entries:
+        return _section(title, '<p class="note">nothing new or moving yet</p>')
+    rows = []
+    for entry in feed.entries:
+        rows.append(
+            '<div class="row">'
+            f'<span class="label">{escape(_label(entry.topic, blur, names))}</span>'
+            f"<span>{escape(entry.kind.value)}</span>"
+            f'<span class="nums">novelty {entry.novelty:.2f},'
+            f" importance {entry.importance:.2f},"
+            f" confidence {entry.confidence:.2f}</span>"
+            "</div>"
+        )
+    return _section(title, "".join(rows))
+
+
+def _insight_section_findings(
+    report: InsightReport | None, blur: bool, names: dict[str, str]
+) -> str:
+    title = "What the readings found"
+    if report is None:
+        return _section(title, _NO_HISTORY)
+    if not report.insights:
+        return _section(title, '<p class="note">no findings yet</p>')
+    rows = []
+    for finding in report.insights:
+        rows.append(
+            '<div class="row">'
+            f'<span class="label">{escape(_label(finding.topic, blur, names))}</span>'
+            f"<span>{escape(finding.kind.value)}</span>"
+            f'<span class="nums">{finding.magnitude:.2f},'
+            f" confidence {finding.confidence:.2f},"
+            f" evidence {len(finding.evidence)}</span>"
+            "</div>"
+        )
+    return _section(title, "".join(rows))
+
+
+def _comparison_section(comparison: Comparison | None, blur: bool, names: dict[str, str]) -> str:
+    title = "What changed"
+    if comparison is None:
+        return _section(title, _NO_HISTORY)
+    moved = [entry for entry in comparison.entries if entry.change is not ChangeKind.STEADY]
+    if not moved:
+        return _section(title, '<p class="note">nothing moved between the two readings</p>')
+    header = (
+        f'<p class="note">{comparison.before_at.date().isoformat()} to'
+        f" {comparison.after_at.date().isoformat()}</p>"
+    )
+    rows = []
+    for entry in moved:
+        rows.append(
+            '<div class="row">'
+            f'<span class="label">{escape(_label(entry.topic, blur, names))}</span>'
+            f"<span>{escape(entry.change.value)}</span>"
+            f'<span class="nums">{entry.strength_before:.2f} to'
+            f" {entry.strength_after:.2f},"
+            f" evidence {entry.evidence_before} to {entry.evidence_after}</span>"
             "</div>"
         )
     return _section(title, header + "".join(rows))

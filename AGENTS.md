@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1111 passing, 13 llm-marked and deselected in CI.
+- Tests: 1114 passing, 13 llm-marked and deselected in CI.
 - Pipeline proven end to end on a real library: 3,756 photographs
   ingested; 271 stops; 144 outings; captions, subject readings,
   themes and screen readings (218 of 221 screenshots); a merged

@@ -17,12 +17,14 @@ WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 class _Rhythm:
-    by_weekday = {"Mon": 1}
-    by_month = {"2026-06": 1}
+    def __init__(self) -> None:
+        self.by_weekday = {"Mon": 1}
+        self.by_month = {"2026-06": 1}
 
 
 class _Report:
-    rhythm = _Rhythm()
+    def __init__(self) -> None:
+        self.rhythm = _Rhythm()
 
 
 def _insights() -> InsightReport:
@@ -68,9 +70,7 @@ def _feed() -> DiscoveryFeed:
 
 
 def _render(**kwargs) -> str:
-    return render_view(
-        [], _Report(), Profile(generated_at=WHEN, interests=()), None, **kwargs
-    )
+    return render_view([], _Report(), Profile(generated_at=WHEN, interests=()), None, **kwargs)
 
 
 def test_the_findings_reach_the_page() -> None:
