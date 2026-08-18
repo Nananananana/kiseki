@@ -55,6 +55,11 @@ MIN_TRIP_KM = 1.0
 """Nearer than this is not a day trip; it is the next street."""
 
 DAY_TRIP_CAP = 3
+
+NEIGHBOUR_KM = 2.0
+"""Two candidates closer together than this are the same outing to the
+same part of town. Only the one gone longest is offered: three lines
+naming one place is a list, not a suggestion."""
 CONFIDENCE_SATURATION = 6
 METRES_PER_KM = 1000.0
 
@@ -127,7 +132,14 @@ def derive_day_trips(
     reach: Reach,
     today: datetime,
 ) -> tuple[Suggestion, ...]:
-    """Quiet places inside the owner's own reach, the nearest first."""
+    """Quiet places inside the owner's own reach, the longest gone first.
+
+    Ordering by distance filled the list with the next street over:
+    everything within walking distance is inside any reach, so the
+    nearest three always won and nothing was ever discovered. What
+    makes a suggestion worth reading is how long it has been, and the
+    reach already decided what counts as too far.
+    """
     if not places:
         return ()
     origins = _regular(places)
@@ -154,5 +166,28 @@ def derive_day_trips(
                 ),
             )
         )
-    ordered = sorted(candidates, key=lambda pair: (pair[0], pair[1].reference))
-    return tuple(suggestion for _km, suggestion in ordered[:DAY_TRIP_CAP])
+    ordered = sorted(
+        candidates,
+        key=lambda pair: (-(pair[1].days_since or 0), pair[0], pair[1].reference),
+    )
+    return _spread_out(ordered)[:DAY_TRIP_CAP]
+
+
+def _spread_out(
+    ordered: Sequence[tuple[float, Suggestion]],
+) -> tuple[Suggestion, ...]:
+    """One suggestion per part of town, the longest gone kept."""
+    kept: list[Suggestion] = []
+    points: list[GeoPoint] = []
+    for _km, suggestion in ordered:
+        point = _point_of(suggestion)
+        if any(other.distance_to(point).meters / METRES_PER_KM < NEIGHBOUR_KM for other in points):
+            continue
+        kept.append(suggestion)
+        points.append(point)
+    return tuple(kept)
+
+
+def _point_of(suggestion: Suggestion) -> GeoPoint:
+    latitude, longitude = suggestion.reference.removeprefix("place:").split(",")
+    return GeoPoint(float(latitude), float(longitude))

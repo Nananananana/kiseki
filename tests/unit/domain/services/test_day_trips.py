@@ -183,3 +183,31 @@ def test_a_place_a_few_kilometres_out_still_counts() -> None:
     assert reach is not None
     trips = derive_day_trips((_home(), _place(4, 1, 300)), reach, TODAY)
     assert len(trips) == 1
+
+
+def test_the_longest_gone_comes_first() -> None:
+    """Distance decided what is possible; time decides what is worth reading."""
+    reach = derive_reach([_outing(km) for km in (10, 30, 40)])
+    assert reach is not None
+    trips = derive_day_trips((_home(), _place(3, 1, 200), _place(25, 1, 700)), reach, TODAY)
+    assert [trip.days_since for trip in trips] == [700, 200]
+
+
+def test_one_suggestion_per_part_of_town() -> None:
+    """Three clusters in one neighbourhood are one place to a reader."""
+    reach = derive_reach([_outing(km) for km in (10, 30, 40)])
+    assert reach is not None
+    trips = derive_day_trips(
+        (_home(), _place(5.0, 1, 300), _place(5.5, 1, 400), _place(20, 1, 250)),
+        reach,
+        TODAY,
+    )
+    assert len(trips) == 2
+    assert [trip.days_since for trip in trips] == [400, 250]
+
+
+def test_a_single_candidate_still_survives_the_spread() -> None:
+    reach = derive_reach([_outing(km) for km in (10, 30, 40)])
+    assert reach is not None
+    trips = derive_day_trips((_home(), _place(12, 2, 400)), reach, TODAY)
+    assert len(trips) == 1
