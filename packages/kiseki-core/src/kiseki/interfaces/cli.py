@@ -1026,6 +1026,46 @@ RETRY_STAGES = {
 }
 
 
+REFRESH_STAGES = (
+    "build",
+    "caption",
+    "singles",
+    "screens",
+    "subjects",
+    "themes",
+    "index",
+    "profile",
+)
+"""The weekly routine, in the order the pipeline needs.
+
+Ingest is deliberately absent: taking in new records is its own act,
+with its own source and its own risks. Refresh brings the readings
+and the derivations up to date with what is already in.
+"""
+
+
+def _command_refresh(args: argparse.Namespace) -> int:
+    if args.dry_run:
+        print(RULE)
+        print("  refresh would run, in order")
+        for stage in REFRESH_STAGES:
+            print(f"    kiseki {stage}")
+        print("    kiseki doctor")
+        print("\n  ingest is not included: taking in new records is its own act")
+        return EXIT_OK
+    parser = build_parser()
+    base = ["--data-root", args.data_root] if getattr(args, "data_root", None) else []
+    for stage in REFRESH_STAGES:
+        print(RULE)
+        print(f"  {stage}")
+        parsed = parser.parse_args([*base, stage])
+        code: int = parsed.run(parsed)
+        if code != EXIT_OK:
+            print(f"  {stage} stopped ({code}); nothing after it ran", file=sys.stderr)
+            return code
+    return _command_doctor(args)
+
+
 def _command_retry(args: argparse.Namespace) -> int:
     if args.apply and args.stage is None:
         print("retry --apply needs --stage", file=sys.stderr)
@@ -1238,6 +1278,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--apply", action="store_true", help="take back one stage's recoverable refusals"
     )
     retry.set_defaults(run=_command_retry)
+
+    refresh = commands.add_parser("refresh", help="the weekly routine, in one idempotent command")
+    refresh.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="print the order and run nothing",
+    )
+    refresh.set_defaults(run=_command_refresh)
 
     return parser
 

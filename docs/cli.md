@@ -41,6 +41,7 @@ uv run kiseki report --json
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |
+| `refresh` | The weekly routine, in one idempotent command |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -289,3 +290,16 @@ dormant after several readings (pick up) -- each with the
 arithmetic that earned it (ADR-0050). References speak the
 profile's vocabulary, so `kiseki correct` can decline a
 suggestion. Local only; no model, no catalogue, nothing stored.
+
+## Refresh
+
+`kiseki refresh` runs the weekly routine in the order the pipeline
+needs -- build, caption, singles, screens, subjects, themes, index,
+profile -- and finishes with the doctor. Every stage is the same
+command you would type, with the same defaults, and every stage is
+resumable, so running refresh twice costs only what changed. A
+stage that fails stops the run, and nothing after it is attempted.
+`--dry-run` prints the order and runs nothing.
+
+Ingest is deliberately not part of it: taking in new records is its
+own act, with its own source and its own risks.
