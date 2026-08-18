@@ -7,6 +7,12 @@ and often". Nothing outside the library is consulted, and no place is
 invented -- the candidates are places the owner has already been, once
 or twice, and not for a long time.
 
+Distance is measured from whichever of the owner's regular places is
+nearest, not from one chosen centre. A life has more than one place it
+returns to -- a home and a station, a home and an office -- and asking
+"how far is this from the single most visited spot" gives the wrong
+answer for everything anchored to the others.
+
 A place with a rhythm is not offered here. That is what `go back` is
 for (ADR-0050); this is for the ones that never became a habit and
 deserved to. See ADR-0055.
@@ -21,6 +27,7 @@ from datetime import datetime
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.services.place_reading import PlaceProfile
 from kiseki.domain.services.suggesting import Suggestion, SuggestionKind
+from kiseki.domain.shared.geo import GeoPoint
 
 REACH_SHARE = 0.8
 """The share of outings the usual reach must cover. Not a rule about
@@ -33,6 +40,9 @@ again is telling the owner something they had forgotten."""
 MAX_VISITS = 2
 """More visits than this and the place has a rhythm, which `go back`
 already reads. This shape is for the ones that never became one."""
+
+REGULAR_VISITS = 3
+"""Visits enough for a place to count as one the owner comes from."""
 
 DAY_TRIP_CAP = 3
 CONFIDENCE_SATURATION = 6
@@ -79,19 +89,28 @@ def _naive(moment: datetime) -> datetime:
     return moment.replace(tzinfo=None)
 
 
+def _regular(places: Sequence[PlaceProfile]) -> tuple[GeoPoint, ...]:
+    """The places the owner sets out from: every one they return to.
+
+    Falls back to the most visited place when nothing qualifies, so a
+    thin library still measures against something the owner knows.
+    """
+    regular = [place.centroid for place in places if place.visits >= REGULAR_VISITS]
+    if regular:
+        return tuple(regular)
+    busiest = max(places, key=lambda place: place.visits)
+    return (busiest.centroid,)
+
+
 def derive_day_trips(
     places: Sequence[PlaceProfile],
     reach: Reach,
     today: datetime,
 ) -> tuple[Suggestion, ...]:
-    """Quiet places inside the owner's own reach, the nearest first.
-
-    The centre is where the owner is most often: the most visited place
-    of their own history, not an address anyone had to supply.
-    """
+    """Quiet places inside the owner's own reach, the nearest first."""
     if not places:
         return ()
-    centre = max(places, key=lambda place: place.visits).centroid
+    origins = _regular(places)
     candidates: list[tuple[float, Suggestion]] = []
     for place in places:
         if place.visits > MAX_VISITS:
@@ -99,7 +118,7 @@ def derive_day_trips(
         days_since = (_naive(today) - _naive(place.last_seen)).days
         if days_since < QUIET_DAYS:
             continue
-        km = centre.distance_to(place.centroid).meters / METRES_PER_KM
+        km = min(origin.distance_to(place.centroid).meters / METRES_PER_KM for origin in origins)
         if km <= 0 or km > reach.usual_km:
             continue
         reference = f"place:{place.centroid.latitude:.5f},{place.centroid.longitude:.5f}"

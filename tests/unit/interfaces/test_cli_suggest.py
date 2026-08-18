@@ -67,3 +67,10 @@ class TestSuggestCommand:
         out = capsys.readouterr().out
         assert "pick up" in out
         assert "skiing" in out
+
+    def test_without_outings_the_reach_is_not_claimed(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """No outings, no reach: the command says nothing it cannot support."""
+        assert main(["--data-root", str(tmp_path), "suggest"]) == EXIT_OK
+        assert "your outings cover under" not in capsys.readouterr().out

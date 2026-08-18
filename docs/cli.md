@@ -284,6 +284,9 @@ corpus.
 
 ## Suggest
 
+`kiseki suggest` also offers a day trip: somewhere inside the reach
+the owner's own outings describe, visited once or twice and quiet for
+half a year (ADR-0055).
 `kiseki suggest` offers, deterministically: places you used to
 revisit and have not lately -- a habit, not a single trip: the
 visits must span at least a month (go back), and interests that went
