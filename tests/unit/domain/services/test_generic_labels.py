@@ -98,3 +98,17 @@ def test_a_theme_without_a_twin_label_is_unchanged() -> None:
     themes = (Theme(name="food", members=("ramen", "udon")),)
     interests = _derive({"aa": ("ramen",), "bb": ("udon",)}, themes=themes)
     assert [interest.topic for interest in interests] == ["food"]
+
+
+def test_a_theme_named_after_the_record_is_not_an_interest() -> None:
+    themes = (Theme(name="text", members=("ramen", "udon")),)
+    interests = _derive({"aa": ("ramen",), "bb": ("udon",)}, themes=themes)
+    topics = sorted(interest.topic for interest in interests)
+    assert topics == ["ramen", "udon"]
+
+
+def test_its_members_keep_their_own_evidence() -> None:
+    themes = (Theme(name="metadata", members=("ramen", "udon")),)
+    interests = _derive({"aa": ("ramen",), "bb": ("ramen", "udon")}, themes=themes)
+    ramen = next(interest for interest in interests if interest.topic == "ramen")
+    assert len(ramen.evidence) == 2

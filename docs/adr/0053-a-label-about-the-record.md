@@ -34,6 +34,11 @@ posture corrections already established (ADR-0044).
 A theme now absorbs the label that shares its name: same word, same
 meaning, one interest, with the evidence of both.
 
+A theme name is a label too: the naming model can call a cluster
+"text" as readily as a reader can call a screenshot that. A theme
+whose name is generic is not emitted, and its members speak for
+themselves -- the cluster was real, the word for it was not.
+
 ## Consequences
 
 - The profile shrinks and means more; `kiseki correct` no longer has

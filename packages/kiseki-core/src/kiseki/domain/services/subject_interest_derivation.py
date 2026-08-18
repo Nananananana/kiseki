@@ -118,6 +118,8 @@ def derive_subject_interests(
     absorbed: set[str] = set()
     theme_entries: dict[str, list[tuple[datetime, str, str]]] = {}
     for theme in themes:
+        if is_generic(theme.name):
+            continue
         contributing = [
             member for member in theme.members if member in sightings and member not in ambient
         ]
