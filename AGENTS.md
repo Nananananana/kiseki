@@ -117,6 +117,16 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1124 passing, 13 llm-marked and deselected in CI.
+- The road to v1.0 (proposals/0007): v0.8 recommends with evidence
+  (places from the owner's own reach, the provider boundary,
+  cross-timeline drift, kiseki demo, a narration check); v0.9
+  merges devices and learns overnight trips; v0.10 adds the
+  boundary for other kinds of history -- records are siblings, not
+  subclasses, PhotoRecord v1 frozen, adapters converging inside the
+  core; v0.11 lands web pages and watched videos as categories and
+  labels with the text discarded at ingest; v1.0 goes public and
+  adds no new intelligence. Every version reserves its last issue
+  for what the previous version's data says.
 - v0.7 (incremental build, decided by measurement): held behind a
   measured trigger. At 4,956 photographs a full build takes 0.3
   seconds, profile 1.2, index 0.5. The incremental path is written
