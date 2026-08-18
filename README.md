@@ -246,6 +246,9 @@ uv run kiseki correct ...    # your word against a reading
 uv run kiseki privacy        # how your data is treated, in counts
 uv run kiseki export         # the one-way interest export
 uv run kiseki doctor         # categorised health checks
+uv run kiseki discover       # what is worth a look, ranked
+uv run kiseki places         # what your journeys say per place
+uv run kiseki suggest        # from your own evidence, forward
 uv run kiseki view           # one self-contained HTML page
 uv run kiseki serve          # the same answers over local HTTP
 ```
@@ -357,9 +360,8 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.5 -- insights, corrections and the privacy
-dashboard.
-**Next:** v0.6 -- discovery and suggestion
+**Current:** v0.6 -- discovery, places and suggestions.
+**Next:** v0.7 -- living with the engine
 ([docs/proposals](docs/proposals)).
 
 ---
@@ -385,8 +387,8 @@ flowchart LR
 | v0.2.x | Understand interests: captions, profiles, themes, trend, API, view | Released |
 | v0.3 | Expand the evidence: screenshots without their words, mechanical consent | Released |
 | v0.4 | Search personal context: `ask` with evidence, temporal questions, named places, lifecycles | Released |
-| v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | **Released** |
-| v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest`, retrieval provenance and a spatial filter, a golden retrieval dataset in CI | Planned |
+| v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | Released |
+| v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest`, retrieval provenance and a spatial filter, a golden retrieval dataset in CI | **Released** |
 | v0.7 | Live with it: incremental builds, one `kiseki refresh`, insights and discovery in the view, structured model output with evidence-contract validation, prompt regression on the model-upgrade path, label calibration | Planned |
 | v0.8 | Recommend with evidence: `suggest` learns places from your own reach; cross-timeline analysis and drift detection (never a causal claim); the optional external-provider boundary, core never depending on it | Planned |
 | v0.9 | Devices and years: several devices merged, overnight trips, retention | Planned |
