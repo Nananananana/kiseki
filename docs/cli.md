@@ -42,6 +42,7 @@ uv run kiseki report --json
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |
 | `refresh` | The weekly routine, in one idempotent command |
+| `demo` | A synthetic library, so the engine can be seen |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -303,3 +304,13 @@ stage that fails stops the run, and nothing after it is attempted.
 
 Ingest is deliberately not part of it: taking in new records is its
 own act, with its own source and its own risks.
+
+## Demo
+
+`kiseki demo` builds a synthetic library in a sandbox, shows every
+deterministic derivation against it -- interests, places, lifecycle,
+insights, discovery, comparison, suggestions -- and sweeps up, unless
+`--keep` is given. No model is called, and no configuration is read:
+the sandbox path is the one given and nothing can redirect it, which
+is the point. It is how the engine is seen without a real library, and
+how CI sees it too.
