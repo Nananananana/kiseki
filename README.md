@@ -360,8 +360,8 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.7 -- living with the engine.
-**Next:** v0.8 -- recommendations with evidence
+**Current:** v0.8 -- recommendations with evidence.
+**Next:** v0.9 -- many devices, long years
 ([docs/proposals](docs/proposals)).
 
 ---
