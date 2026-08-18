@@ -1072,6 +1072,120 @@ def _command_refresh(args: argparse.Namespace) -> int:
     return _command_doctor(args)
 
 
+def _command_demo(args: argparse.Namespace) -> int:
+    """Build a synthetic library, show every derivation, sweep up.
+
+    Reads no configuration on purpose: the sandbox path is the one
+    given, and nothing else can redirect it.
+    """
+    import gc
+    import shutil
+    from datetime import datetime as _datetime
+
+    from kiseki.adapters.sqlite.store import (
+        SqliteCaptionRepository as _DemoCaptions,
+    )
+    from kiseki.adapters.sqlite.store import (
+        SqlitePhotoRepository as _DemoPhotos,
+    )
+    from kiseki.adapters.sqlite.store import (
+        SqliteProfileRepository as _DemoProfiles,
+    )
+    from kiseki.adapters.sqlite.store import (
+        SqliteSubjectRepository as _DemoSubjects,
+    )
+    from kiseki.application.demo import demo_photographs, demo_profiles, demo_readings
+    from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
+
+    root = Path(args.out) if args.out else Path.cwd() / "kiseki-demo"
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True)
+    db_path = root / "kiseki-demo.sqlite3"
+    connection = connect(db_path)
+    _DemoPhotos(connection).save_all(demo_photographs())
+    demo_captions = _DemoCaptions(connection)
+    demo_subjects = _DemoSubjects(connection)
+    for caption, reading in demo_readings():
+        demo_captions.save(caption)
+        demo_subjects.save(reading)
+    demo_profiles_store = _DemoProfiles(connection)
+    for snapshot in demo_profiles():
+        demo_profiles_store.save(snapshot)
+    connection.close()
+
+    pipeline = _pipeline_from(db_path)
+    pipeline.rebuild()
+    profile = pipeline.profile(keep=False)
+    connection = connect(db_path)
+    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    lifecycle = pipeline.lifecycle()
+    insights = pipeline.insights()
+    feed = pipeline.discover()
+    comparison = pipeline.compare()
+    suggestions = derive_suggestions(places, lifecycle, _datetime.now())
+
+    print(RULE)
+    print("  a synthetic library, so the engine can be seen")
+    print(f"\n  interests     {len(profile.interests)}")
+    for interest in profile.ranked()[:5]:
+        print(f"    {interest.topic:<22}  score {interest.score:.2f}")
+    print(f"\n  places        {len(places)}")
+    for place in places[:3]:
+        cadence = (
+            f"every ~{place.median_gap_days}d" if place.median_gap_days is not None else "once"
+        )
+        print(f"    {place.visits:>3} visits  {cadence}")
+    print("\n  lifecycle")
+    if lifecycle is None:
+        print("    not enough history")
+    else:
+        for item in lifecycle.lifecycles[:4]:
+            print(f"    {item.topic:<22}  {item.stage.value}")
+    print("\n  insights")
+    if insights is None:
+        print("    not enough history")
+    else:
+        for finding in insights.insights[:4]:
+            print(f"    {finding.topic:<22}  {finding.kind.value}")
+    print("\n  discover")
+    if feed is None:
+        print("    not enough history")
+    else:
+        for entry in feed.entries[:4]:
+            print(
+                f"    {entry.topic:<22}  novelty {entry.novelty:.2f}"
+                f"  importance {entry.importance:.2f}"
+            )
+    print("\n  compare")
+    if comparison is None:
+        print("    not enough history")
+    else:
+        for change in comparison.entries[:4]:
+            print(
+                f"    {change.topic:<22}  {change.change.value:<9}"
+                f"  {change.strength_before:.2f} -> {change.strength_after:.2f}"
+            )
+    print("\n  suggest")
+    if not suggestions:
+        print("    nothing to suggest")
+    for suggestion in suggestions[:4]:
+        kind = "go back" if suggestion.kind is SuggestionKind.REVISIT else "pick up"
+        print(f"    {kind:<9}  {suggestion.reference}")
+
+    connection.close()
+    del pipeline
+    gc.collect()
+    # Windows will not delete a file another handle still holds, and the
+    # pipeline keeps its own connection. Letting go is part of sweeping up.
+    if args.keep:
+        print(f"\n  kept at {root}")
+    else:
+        shutil.rmtree(root)
+        print("\n  the sandbox was swept up; --keep leaves it in place")
+    return EXIT_OK
+
+
 def _command_retry(args: argparse.Namespace) -> int:
     if args.apply and args.stage is None:
         print("retry --apply needs --stage", file=sys.stderr)
@@ -1284,6 +1398,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--apply", action="store_true", help="take back one stage's recoverable refusals"
     )
     retry.set_defaults(run=_command_retry)
+
+    demo = commands.add_parser("demo", help="a synthetic library, so the engine can be seen")
+    demo.add_argument("--out", default=None, help="where to build the sandbox")
+    demo.add_argument("--keep", action="store_true", help="leave the sandbox in place")
+    demo.set_defaults(run=_command_demo)
 
     refresh = commands.add_parser("refresh", help="the weekly routine, in one idempotent command")
     refresh.add_argument(

@@ -37,9 +37,7 @@ def test_the_sandbox_is_swept_up(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert not target.exists()
 
 
-def test_keeping_it_says_where_it_is(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_keeping_it_says_where_it_is(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     target = tmp_path / "sandbox"
     assert main(["demo", "--out", str(target), "--keep"]) == EXIT_OK
     assert target.is_dir()
