@@ -35,6 +35,14 @@ against a history that already contains it is how a change hides:
 the first draft of this did exactly that and reported a tripling as
 steady.
 
+A timeline must be counted by when the thing happened, not by when
+the library noticed. The first run of `kiseki drift` reported the
+screens as one month long, because the count used the reading's
+created_at -- the day the model was run -- rather than the day the
+screenshot was taken. That measured the library instead of the
+person. Every series is counted by the moment in the owner's life:
+photographs by capture, outings by their start, screens by the
+capture of the photograph they read.
 ## Consequences
 
 - `suggest` and the narration can say what moved together without
