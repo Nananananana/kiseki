@@ -19,6 +19,13 @@ covers, summarised by the share that describes most of them
 (REACH_SHARE, four in five). "Within reach" therefore means "you have
 gone this far, and usually no further".
 
+Distance is measured from whichever regular place is nearest.
+A life has more than one place it returns to, and the demo showed
+what a single centre costs: two places tied for most visited, the
+wrong one chosen, and somewhere six kilometres from home judged
+fifteen away. Every place with three visits or more is one the
+owner comes from.
+
 The centre is the place the owner is most often -- the most visited
 place in their own history. No address is asked for and none is
 stored.

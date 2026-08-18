@@ -114,3 +114,21 @@ def test_without_a_centre_nothing_is_offered() -> None:
     reach = derive_reach([_outing(10)])
     assert reach is not None
     assert derive_day_trips((), reach, TODAY) == ()
+
+
+def test_the_nearest_regular_place_measures() -> None:
+    """A life has more than one place it comes from."""
+    reach = derive_reach([_outing(km) for km in (5, 8, 9)])
+    assert reach is not None
+    second_home = PlaceProfile(
+        centroid=GeoPoint(CENTRE.latitude + 30 / 111.0, CENTRE.longitude),
+        visits=12,
+        first_seen=TODAY - timedelta(days=400),
+        last_seen=TODAY,
+        median_gap_days=7,
+    )
+    nearby = _place(34, 1, 300)
+    trips = derive_day_trips((_home(12), second_home, nearby), reach, TODAY)
+    assert len(trips) == 1
+    assert trips[0].distance_km is not None
+    assert round(trips[0].distance_km) == 4

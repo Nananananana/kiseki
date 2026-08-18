@@ -61,6 +61,7 @@ from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.services.day_trips import derive_day_trips, derive_reach
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import derive_place_profiles
 from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
@@ -1012,6 +1013,20 @@ def _command_suggest(args: argparse.Namespace) -> int:
                 f"  seen in {item.seen_profiles} readings, was {item.baseline:.2f}"
                 f"  confidence {item.confidence:.2f}"
             )
+    reach = derive_reach(SqliteOutingRepository(connection).all())
+    trips = derive_day_trips(places, reach, _datetime.now()) if reach else ()
+    for trip in trips:
+        label = names.get(trip.reference, trip.reference)
+        distance = trip.distance_km or 0.0
+        print(
+            f"    day trip   {label:<28}"
+            f"  {distance:.0f} km out, last seen {trip.days_since} days ago"
+        )
+    if reach is not None and trips:
+        print(
+            f"\n  {int(reach.share * 10)} in 10 of your outings cover under"
+            f" {reach.usual_km:.0f} km; a day trip is measured against that"
+        )
     return EXIT_OK
 
 
@@ -1128,7 +1143,7 @@ def _command_demo(args: argparse.Namespace) -> int:
     print(RULE)
     print("  a synthetic library, so the engine can be seen")
     print(f"\n  interests     {len(profile.interests)}")
-    for interest in profile.ranked()[:5]:
+    for interest in profile.ranked()[:8]:
         print(f"    {interest.topic:<22}  score {interest.score:.2f}")
     print(f"\n  places        {len(places)}")
     for place in places[:3]:
@@ -1172,6 +1187,16 @@ def _command_demo(args: argparse.Namespace) -> int:
     for suggestion in suggestions[:4]:
         kind = "go back" if suggestion.kind is SuggestionKind.REVISIT else "pick up"
         print(f"    {kind:<9}  {suggestion.reference}")
+    demo_reach = derive_reach(SqliteOutingRepository(connection).all())
+    demo_trips = derive_day_trips(places, demo_reach, _datetime.now()) if demo_reach else ()
+    for trip in demo_trips:
+        distance = trip.distance_km or 0.0
+        print(f"    day trip   {trip.reference}  {distance:.0f} km out")
+    if demo_reach is not None:
+        print(
+            f"\n  {int(demo_reach.share * 10)} in 10 of your outings cover under"
+            f" {demo_reach.usual_km:.0f} km"
+        )
 
     connection.close()
     del pipeline

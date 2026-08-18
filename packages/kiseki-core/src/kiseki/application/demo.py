@@ -1,7 +1,8 @@
 """A synthetic library, so the engine can be seen without a real one.
 
 Everything here is invented: places visited on a rhythm, one the owner
-has fallen out of, three stays captioned and read into labels, and
+has fallen out of, one within reach that never became a habit, one too
+far to be a day trip, three stays captioned and read into labels, and
 three profiles kept far enough apart that the trend, the lifecycle and
 the comparison have something to say.
 
@@ -29,6 +30,15 @@ LAPSED = GeoPoint(35.0116, 135.7681)
 month apart, none for half a year. Without one, `kiseki suggest` has
 nothing to say, and a demo whose suggestions are empty teaches nothing
 about what a suggestion is."""
+
+NEARBY = GeoPoint(34.8350, 135.4690)
+"""Six kilometres out, visited twice a year ago and never since: the
+shape a day trip is for -- inside the owner's own reach, and forgotten."""
+
+DISTANT = GeoPoint(38.2680, 140.8690)
+"""Four hundred kilometres away, equally forgotten, and deliberately
+not offered: the reach is read from the owner's outings, not wished
+for."""
 
 READINGS = (
     ("museum", "a quiet hall of paintings"),
@@ -60,7 +70,8 @@ def _observation(index: int, at: datetime, where: GeoPoint) -> PhotoObservation:
 
 
 def demo_photographs(now: datetime | None = None) -> tuple[PhotoObservation, ...]:
-    """Twelve weeks of a rhythm, a monthly outing, and a place left behind."""
+    """Twelve weeks of a rhythm that leaves the house -- so the reach is a
+    real distance -- and three places left behind."""
     today = _now(now)
     photographs: list[PhotoObservation] = []
     index = 0
@@ -69,17 +80,23 @@ def demo_photographs(now: datetime | None = None) -> tuple[PhotoObservation, ...
         for offset in range(3):
             index += 1
             photographs.append(_observation(index, visit + timedelta(minutes=12 * offset), HOME))
-        if week % 4 == 0:
-            for offset in range(2):
-                index += 1
-                photographs.append(
-                    _observation(index, visit + timedelta(hours=6, minutes=15 * offset), AWAY)
-                )
+        for offset in range(2):
+            index += 1
+            photographs.append(
+                _observation(index, visit + timedelta(minutes=40 + 15 * offset), AWAY)
+            )
     for month in range(4):
         visit = today - timedelta(days=180 + 30 * month)
         for offset in range(3):
             index += 1
             photographs.append(_observation(index, visit + timedelta(minutes=10 * offset), LAPSED))
+    for number, (where, days_ago) in enumerate(((NEARBY, 300), (NEARBY, 330), (DISTANT, 400))):
+        visit = today - timedelta(days=days_ago)
+        for offset in range(3):
+            index += 1
+            photographs.append(
+                _observation(index, visit + timedelta(minutes=10 * offset + number), where)
+            )
     return tuple(photographs)
 
 

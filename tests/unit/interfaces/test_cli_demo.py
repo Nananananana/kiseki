@@ -68,6 +68,7 @@ def test_the_readings_become_interests(tmp_path: Path, capsys: pytest.CaptureFix
     out = capsys.readouterr().out
     assert "ramen" in out.split("places")[0]
 
+
 def test_a_day_trip_is_offered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Somewhere inside the owner's own reach, quiet for long enough."""
     assert main(["demo", "--out", str(tmp_path / "sandbox")]) == EXIT_OK
@@ -76,9 +77,7 @@ def test_a_day_trip_is_offered(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert "your outings cover under" in out
 
 
-def test_the_far_place_is_not_offered(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_the_far_place_is_not_offered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The demo also contains somewhere far away, and it stays unmentioned."""
     assert main(["demo", "--out", str(tmp_path / "sandbox")]) == EXIT_OK
     out = capsys.readouterr().out
