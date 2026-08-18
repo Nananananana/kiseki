@@ -38,6 +38,7 @@ uv run kiseki report --json
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
 | `places` | What your journeys say about each place |
+| `suggest` | From your own evidence, pointed forward |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
@@ -274,3 +275,12 @@ never matches a place condition. The reach applies inside
 retrieval, before ranking, so a place question is answered from the
 place's own evidence instead of being starved by the rest of the
 corpus.
+
+## Suggest
+
+`kiseki suggest` offers, deterministically: places you used to
+revisit and have not lately (go back), and interests that went
+dormant after several readings (pick up) -- each with the
+arithmetic that earned it (ADR-0050). References speak the
+profile's vocabulary, so `kiseki correct` can decline a
+suggestion. Local only; no model, no catalogue, nothing stored.
