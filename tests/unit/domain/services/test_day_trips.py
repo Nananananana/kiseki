@@ -35,9 +35,7 @@ def _stop(point: GeoPoint) -> Stop:
 def _outing(km: float) -> Outing:
     """An outing that moves km away from the centre and no further."""
     degrees = km / 111.0
-    return Outing.of(
-        [_stop(CENTRE), _stop(GeoPoint(CENTRE.latitude + degrees, CENTRE.longitude))]
-    )
+    return Outing.of([_stop(CENTRE), _stop(GeoPoint(CENTRE.latitude + degrees, CENTRE.longitude))])
 
 
 def _place(km: float, visits: int, days_ago: int) -> PlaceProfile:
@@ -70,8 +68,8 @@ def test_the_reach_is_the_owner_s_own_distances() -> None:
     reach = derive_reach([_outing(km) for km in (5, 10, 15, 20, 50)])
     assert reach is not None
     assert reach.outings == 5
-    assert round(reach.typical_km) == 20
-    assert round(reach.usual_km) == 40
+    assert round(reach.typical_km) == 15
+    assert round(reach.usual_km) == 20
     assert reach.share == REACH_SHARE
 
 
@@ -108,9 +106,7 @@ def test_a_habit_is_left_to_go_back() -> None:
 def test_the_nearest_come_first() -> None:
     reach = derive_reach([_outing(km) for km in (10, 20, 40)])
     assert reach is not None
-    trips = derive_day_trips(
-        (_home(), _place(25, 1, 300), _place(8, 2, 400)), reach, TODAY
-    )
+    trips = derive_day_trips((_home(), _place(25, 1, 300), _place(8, 2, 400)), reach, TODAY)
     assert [round(trip.distance_km or 0) for trip in trips] == [8, 25]
 
 

@@ -37,6 +37,7 @@ CONFIDENCE_SATURATION = 6
 class SuggestionKind(Enum):
     REVISIT = "revisit"
     REVIVE = "revive"
+    DAY_TRIP = "day_trip"
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class Suggestion:
     cadence_days: int | None = None
     seen_profiles: int | None = None
     baseline: float | None = None
+    distance_km: float | None = None
 
     def __post_init__(self) -> None:
         if not self.reference:
