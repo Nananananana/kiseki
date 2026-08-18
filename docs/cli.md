@@ -279,7 +279,8 @@ corpus.
 ## Suggest
 
 `kiseki suggest` offers, deterministically: places you used to
-revisit and have not lately (go back), and interests that went
+revisit and have not lately -- a habit, not a single trip: the
+visits must span at least a month (go back), and interests that went
 dormant after several readings (pick up) -- each with the
 arithmetic that earned it (ADR-0050). References speak the
 profile's vocabulary, so `kiseki correct` can decline a

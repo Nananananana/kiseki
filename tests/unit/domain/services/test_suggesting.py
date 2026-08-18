@@ -4,7 +4,11 @@ from datetime import UTC, datetime, timedelta
 
 from kiseki.domain.lifecycle import LifecycleReport, LifecycleStage, TopicLifecycle
 from kiseki.domain.services.place_reading import PlaceProfile
-from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
+from kiseki.domain.services.suggesting import (
+    HABIT_SPAN_DAYS,
+    SuggestionKind,
+    derive_suggestions,
+)
 from kiseki.domain.shared.geo import GeoPoint
 
 TODAY = datetime(2026, 8, 1, 12, tzinfo=UTC)
@@ -79,3 +83,32 @@ def test_the_feed_is_capped_and_revisits_come_first():
     assert len(suggestions) == 5
     assert suggestions[0].kind is SuggestionKind.REVISIT
     assert suggestions[-1].kind is SuggestionKind.REVIVE
+
+
+def _burst(visits: int, gap: int, span: int, days_ago: int) -> PlaceProfile:
+    """A place whose visits sit inside a span of days."""
+    last = TODAY - timedelta(days=days_ago)
+    return PlaceProfile(
+        centroid=KYOTO,
+        visits=visits,
+        first_seen=last - timedelta(days=span),
+        last_seen=last,
+        median_gap_days=gap,
+    )
+
+
+def test_a_trip_is_not_a_cadence():
+    assert derive_suggestions((_burst(4, 2, 3, 368),), None, TODAY) == ()
+
+
+def test_a_habit_spanning_months_still_counts():
+    suggestions = derive_suggestions((_burst(4, 10, 200, 44),), None, TODAY)
+    assert len(suggestions) == 1
+    assert suggestions[0].kind is SuggestionKind.REVISIT
+
+
+def test_the_span_boundary_is_stated_once():
+    short = _burst(4, 10, HABIT_SPAN_DAYS - 1, 44)
+    long_enough = _burst(4, 10, HABIT_SPAN_DAYS, 44)
+    assert derive_suggestions((short,), None, TODAY) == ()
+    assert len(derive_suggestions((long_enough,), None, TODAY)) == 1
