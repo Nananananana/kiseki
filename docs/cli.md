@@ -38,6 +38,7 @@ uv run kiseki report --json
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
 | `places` | What your journeys say about each place |
+| `drift` | What moved with what, and each against its own past |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |
@@ -321,3 +322,12 @@ insights, discovery, comparison, suggestions -- and sweeps up, unless
 the sandbox path is the one given and nothing can redirect it, which
 is the point. It is how the engine is seen without a real library, and
 how CI sees it too.
+
+## Drift
+
+`kiseki drift` counts photographs, outings and screen readings by
+month and lays them on one axis: which pairs moved together, which
+moved apart, and where each one stands against its own past
+(ADR-0058). Moving together is not causing, and the command says so
+every time it says anything -- there is no word for "because" in this
+vocabulary.
