@@ -16,6 +16,7 @@ from kiseki.domain.interests import (
     Profile,
 )
 from kiseki.domain.screen.reading import SENSITIVE_CATEGORIES, ScreenshotReading
+from kiseki.domain.services.generic_labels import is_generic
 
 MIN_SCREEN_LABEL_COUNT = 2
 """A label seen on one screenshot is an accident; on two, a pattern
@@ -42,6 +43,8 @@ def derive_screen_interests(
     by_label: dict[str, list[ScreenshotReading]] = {}
     for reading in eligible:
         for label in reading.labels:
+            if is_generic(label):
+                continue
             by_label.setdefault(label, []).append(reading)
 
     counted = {
