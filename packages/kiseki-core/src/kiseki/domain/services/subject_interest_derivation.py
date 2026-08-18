@@ -1,8 +1,11 @@
 """Reads the subject readings as interests.
 
 One label becomes one interest, with PHOTOGRAPH evidence pointing at
-the captions the label was read from. When themes are given, a theme
-speaks for its members: the theme aggregates their sightings (a
+the captions the label was read from. Labels about the record rather
+than the world are left out entirely (ADR-0053). When themes are
+given, a theme speaks for its members: the theme aggregates their
+sightings, and a label that shares the theme's own name is one of
+them rather than a second interest with the same word (a
 shared stay counts once) and the absorbed members stop speaking solo.
 See ADR-0021 and ADR-0024.
 
@@ -28,6 +31,7 @@ from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import EvidenceKind, Interest, InterestEvidence
 from kiseki.domain.photo.observation import PhotoObservation
+from kiseki.domain.services.generic_labels import is_generic
 
 AMBIENT_SHARE = 0.25
 """A label in more than this share of the readings is ambient, not an
@@ -103,7 +107,7 @@ def derive_subject_interests(
             reference = f"photo:{single.photo_id.value}"
         counted += 1
         for label in {_normalised(raw) for raw in reading.labels}:
-            if label:
+            if label and not is_generic(label):
                 sightings.setdefault(label, []).append((observed, reading.key.value, reference))
 
     if not counted:
@@ -120,6 +124,10 @@ def derive_subject_interests(
         if len(contributing) < MIN_CONTRIBUTING_MEMBERS:
             continue
         merged: dict[str, tuple[datetime, str]] = {}
+        twin = theme.name if theme.name in sightings else None
+        if twin is not None:
+            for observed, stay, reference in sightings[twin]:
+                merged[stay] = (observed, reference)
         for member in contributing:
             for observed, stay, reference in sightings[member]:
                 if stay not in merged or observed < merged[stay][0]:
@@ -128,6 +136,8 @@ def derive_subject_interests(
             (observed, stay, reference) for stay, (observed, reference) in merged.items()
         ]
         absorbed.update(contributing)
+        if twin is not None:
+            absorbed.add(twin)
 
     interests = [_interest_for(name, entries) for name, entries in theme_entries.items()]
     interests += [

@@ -56,9 +56,7 @@ def test_the_stoplist_knows_a_record_word_from_a_world_word() -> None:
 
 
 def test_a_generic_label_never_becomes_an_interest() -> None:
-    interests = _derive(
-        {"aa": ("ramen", "date"), "bb": ("ramen", "screenshot")}
-    )
+    interests = _derive({"aa": ("ramen", "date"), "bb": ("ramen", "screenshot")})
     topics = [interest.topic for interest in interests]
     assert "ramen" in topics
     assert "date" not in topics
