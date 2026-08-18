@@ -29,6 +29,11 @@ what it said; the check says what is wrong with it -- the posture
 corrections (ADR-0044) and the label stoplist (ADR-0053) already
 take: store what was said, judge at reading time.
 
+The check reads a grouped citation -- "[F1, F5]" -- as the two
+citations it is. Real answers group; a check that called that
+uncited would report a defect the answer does not have, and a check
+that cries wolf is worse than no check.
+
 ## Consequences
 
 - The owner can see an unsupported claim without reading the

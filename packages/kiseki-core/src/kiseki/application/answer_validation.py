@@ -20,7 +20,13 @@ from enum import Enum, unique
 
 from kiseki.application.asking import Answer
 
-CITATION = re.compile(r"\[F(\d+)\]")
+CITATION_GROUP = re.compile(r"\[\s*F\s*\d+(?:\s*,\s*F?\s*\d+)*\s*\]")
+"""Readers cite one fact per bracket, and models group them:
+"[F1][F5]" and "[F1, F5]" say the same thing, so the check reads
+both. Anything looser is not a citation, and the answer is told so
+rather than being given the benefit of the doubt."""
+
+NUMBER = re.compile(r"\d+")
 YEAR = re.compile(r"(?<!\d)(19|20)(\d{2})(?!\d)")
 
 
@@ -39,7 +45,11 @@ def validate_answer(answer: Answer) -> tuple[AnswerDefect, ...]:
         return ()
 
     defects: list[AnswerDefect] = []
-    cited = [int(number) for number in CITATION.findall(answer.answer)]
+    cited = [
+        int(number)
+        for group in CITATION_GROUP.findall(answer.answer)
+        for number in NUMBER.findall(group)
+    ]
     if not cited:
         defects.append(AnswerDefect.UNCITED)
     elif any(number < 1 or number > len(answer.evidence) for number in cited):

@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1121 passing, 13 llm-marked and deselected in CI.
+- Tests: 1124 passing, 13 llm-marked and deselected in CI.
 - v0.7 (incremental build, decided by measurement): held behind a
   measured trigger. At 4,956 photographs a full build takes 0.3
   seconds, profile 1.2, index 0.5. The incremental path is written
