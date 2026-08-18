@@ -856,6 +856,17 @@ def _command_doctor(args: argparse.Namespace) -> int:
         print(f"    [consistency]  gazetteer present, {gazetteer.entries} entries")
     else:
         print("    [consistency]  no gazetteer file; places stay unnamed (docs/gazetteer.md)")
+    photographs = SqlitePhotoRepository(connection).all()
+    missing = sum(
+        1
+        for photograph in photographs
+        if photograph.thumbnail_ref and not (paths.thumbs_dir / photograph.thumbnail_ref).is_file()
+    )
+    if missing:
+        print(
+            f"    [consistency]  {missing} photographs have no reduced copy"
+            f" under {paths.thumbs_dir}; the readers will refuse them"
+        )
     return EXIT_OK
 
 
