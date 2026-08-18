@@ -84,6 +84,7 @@ def test_the_feed_is_capped_and_revisits_come_first():
     assert suggestions[0].kind is SuggestionKind.REVISIT
     assert suggestions[-1].kind is SuggestionKind.REVIVE
 
+
 def _burst(visits: int, gap: int, span: int, days_ago: int) -> PlaceProfile:
     """A place whose visits sit inside a span of days."""
     last = TODAY - timedelta(days=days_ago)

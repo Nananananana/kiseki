@@ -2,8 +2,9 @@
 
 Two deterministic shapes, no model, no external catalogue: a place
 the owner used to revisit and has not lately (visits and cadence
-say so), and an interest that went dormant after being seen in
-several readings. Every suggestion's why is arithmetic the reader
+say so, over a span long enough to be a habit rather than a trip),
+and an interest that went dormant after being seen in several
+readings. Every suggestion's why is arithmetic the reader
 can check, and its reference speaks the profile's own vocabulary,
 so `kiseki correct` can decline a suggestion the way it declines a
 reading. See ADR-0050.
@@ -22,6 +23,12 @@ from kiseki.domain.services.place_reading import PlaceProfile
 SUGGESTION_CAP = 5
 OVERDUE_FACTOR = 2
 MIN_VISITS = 3
+HABIT_SPAN_DAYS = 30
+"""How far apart the first and last visit must sit before a cadence
+counts as a habit. Three days in a row on a holiday produce a
+two-day median gap and a year of absence; that is a trip, and
+saying "you are overdue" about it would be arithmetic pretending to
+be understanding."""
 MIN_SEEN = 2
 CONFIDENCE_SATURATION = 6
 
@@ -66,6 +73,8 @@ def derive_suggestions(
         if place.visits < MIN_VISITS:
             continue
         if place.median_gap_days is None or place.median_gap_days <= 0:
+            continue
+        if (_naive(place.last_seen) - _naive(place.first_seen)).days < HABIT_SPAN_DAYS:
             continue
         days_since = (_naive(today) - _naive(place.last_seen)).days
         if days_since <= OVERDUE_FACTOR * place.median_gap_days:
