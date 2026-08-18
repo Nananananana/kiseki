@@ -112,3 +112,31 @@ def test_its_members_keep_their_own_evidence() -> None:
     interests = _derive({"aa": ("ramen",), "bb": ("ramen", "udon")}, themes=themes)
     ramen = next(interest for interest in interests if interest.topic == "ramen")
     assert len(ramen.evidence) == 2
+
+
+def test_the_criterion_catches_what_the_library_showed() -> None:
+    """Words a real refresh surfaced, each about the record, not the world."""
+    for label in (
+        "location",
+        "property",
+        "description",
+        "timeline",
+        "color",
+        "score",
+        "pattern",
+        "space",
+        "symbol",
+        "selection",
+        "revision",
+        "transformation",
+    ):
+        assert is_generic(label), label
+
+
+def test_the_declined_words_stay_in() -> None:
+    """What someone actually works with is not an abstraction."""
+    from kiseki.domain.services.generic_labels import DECLINED
+
+    for label in DECLINED:
+        assert not is_generic(label), label
+    assert "python" in DECLINED

@@ -41,6 +41,14 @@ A theme name is a label too: the naming model can call a cluster
 whose name is generic is not emitted, and its members speak for
 themselves -- the cluster was real, the word for it was not.
 
+The list grows by its test, not by taste. A refresh that reads new
+screens surfaces new words -- location, property, description,
+timeline -- and each is admitted only if it names the form of a
+record, an act of recording, or an abstraction with no thing behind
+it. Words considered and left out are recorded beside the list with
+the reason: python, vscode, ikea and yolo are what this owner
+actually works with, and a stoplist nobody can argue with is a
+stoplist nobody can correct.
 ## Consequences
 
 - The profile shrinks and means more; `kiseki correct` no longer has
