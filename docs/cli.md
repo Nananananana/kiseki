@@ -40,6 +40,7 @@ uv run kiseki report --json
 | `places` | What your journeys say about each place |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
+| `retry` | Refusals the environment caused, not the model |
 
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.

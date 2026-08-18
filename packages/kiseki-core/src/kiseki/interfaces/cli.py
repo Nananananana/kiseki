@@ -36,8 +36,10 @@ from kiseki.adapters.sqlite.store import (
     SqliteSubjectRepository,
     SqliteThemeSetRepository,
     clear_outdated,
+    clear_recoverable,
     connect,
     count_outdated,
+    count_recoverable,
 )
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
@@ -826,6 +828,12 @@ def _command_doctor(args: argparse.Namespace) -> int:
         f"    [integrity]    {refusals} caption refusals recorded;"
         " a rerun will not retry them (ADR-0015)"
     )
+    recoverable = sum(count_recoverable(connection, table) for table in RETRY_STAGES.values())
+    if recoverable:
+        print(
+            f"                   {recoverable} of all refusals are recoverable"
+            " (the image was missing); `kiseki retry` says which"
+        )
     print(
         f"    [privacy]      {report.screens_label_silent} label-silent screens;"
         f" {report.active_exclusions} references excluded by correction"
@@ -997,6 +1005,35 @@ REREAD_STAGES = {
     "themes": ("theme_sets", THEME_PROMPT_VERSION),
     "screens": ("screen_readings", SCREEN_PROMPT_VERSION),
 }
+
+
+RETRY_STAGES = {
+    "captions": "captions",
+    "singles": "single_captions",
+    "subjects": "subjects",
+    "screens": "screen_readings",
+}
+
+
+def _command_retry(args: argparse.Namespace) -> int:
+    if args.apply and args.stage is None:
+        print("retry --apply needs --stage", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    print(RULE)
+    if args.apply:
+        removed = clear_recoverable(connection, RETRY_STAGES[args.stage])
+        print(f"  took back {removed} refusals the environment caused")
+        print(f"  run `kiseki {args.stage}` to try them again")
+        return EXIT_OK
+    stages = [args.stage] if args.stage is not None else list(RETRY_STAGES)
+    print("  refusals the environment caused, not the model")
+    for stage in stages:
+        table = RETRY_STAGES[stage]
+        print(f"    {stage:<10}  {count_recoverable(connection, table):>5} recoverable")
+    print("\n  the model's own refusals are never taken back (ADR-0015)")
+    print("  nothing was changed; add --stage <name> --apply to take one back")
+    return EXIT_OK
 
 
 def _command_reread(args: argparse.Namespace) -> int:
@@ -1181,6 +1218,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--apply", action="store_true", help="clear the outdated readings of one stage"
     )
     reread.set_defaults(run=_command_reread)
+
+    retry = commands.add_parser("retry", help="refusals the environment caused, not the model")
+    retry.add_argument(
+        "--stage", choices=sorted(RETRY_STAGES), default=None, help="one reading stage"
+    )
+    retry.add_argument(
+        "--apply", action="store_true", help="take back one stage's recoverable refusals"
+    )
+    retry.set_defaults(run=_command_retry)
 
     return parser
 

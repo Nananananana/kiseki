@@ -556,6 +556,44 @@ def clear_outdated(connection: sqlite3.Connection, table: str, current: str) -> 
     return removed
 
 
+REFUSAL_TABLES = ("captions", "subjects", "screen_readings", "single_captions")
+
+RECOVERABLE_REFUSAL = "no thumbnail%"
+"""A refusal the environment caused, not the model: the image the
+reader needed was not on disk. See ADR-0052."""
+
+
+def _recoverable_clause(table: str) -> str:
+    if table not in REFUSAL_TABLES:
+        raise ValueError(f"{table!r} does not record refusals")
+    return "refused LIKE ?"
+
+
+def count_recoverable(connection: sqlite3.Connection, table: str) -> int:
+    """How many refusals the environment caused rather than the model."""
+    clause = _recoverable_clause(table)
+    row = connection.execute(
+        f"SELECT COUNT(*) FROM {table} WHERE {clause}", (RECOVERABLE_REFUSAL,)
+    ).fetchone()
+    total: int = row[0]
+    return total
+
+
+def clear_recoverable(connection: sqlite3.Connection, table: str) -> int:
+    """Take those refusals back, so a resumable run may try again.
+
+    The model's own refusals stay exactly where they are (ADR-0015).
+    Nothing is regenerated here: the rows go, and the next run of the
+    stage asks again -- and records the same refusal if the image is
+    still missing. See ADR-0052.
+    """
+    clause = _recoverable_clause(table)
+    removed = count_recoverable(connection, table)
+    with connection:
+        connection.execute(f"DELETE FROM {table} WHERE {clause}", (RECOVERABLE_REFUSAL,))
+    return removed
+
+
 def _to_caption(row: tuple[Any, ...]) -> Caption:
     key, photo_ids, text, model, created_at, refused, prompt_version = row
     return Caption(

@@ -38,9 +38,7 @@ def _seed(tmp_path: Path, name: str, refused: str) -> None:
 
 
 class TestRetryCommand:
-    def test_every_stage_reports(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_every_stage_reports(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         assert main(["--data-root", str(tmp_path), "retry"]) == EXIT_OK
         out = capsys.readouterr().out
         for stage in ("captions", "singles", "subjects", "screens"):
