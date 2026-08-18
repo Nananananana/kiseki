@@ -19,12 +19,19 @@ down before they are felt.
 Operational maturity: the weekly habit becomes cheap, and the
 library survives its own growth.
 
-1. Incremental build (moved up from v1.0): ingest already appends
-   and every model stage resumes; the remaining full-recompute is
-   the journey build. Stops and outings are windowed by silence, so
-   a rebuild can start from the last unchanged outing instead of
-   photograph one. Derived state stays derived: an incremental
-   result must equal the full rebuild, and a test proves it.
+1. Incremental build -- held behind a measured trigger. The
+   reasoning was sound and the measurement disagreed: at 4,956
+   photographs a full `kiseki build` takes 0.3 seconds, `profile`
+   1.2 and `index` half a second. Ten times the library is three
+   seconds. Until the numbers hurt, an incremental path would add a
+   second way for stops and outings to be wrong -- exactly the
+   complexity the avoid list warns about, bought with no gain. The
+   trigger, so the decision is not taste: when a full build passes
+   ten seconds, or the weekly `kiseki refresh` passes a minute
+   outside the model stages, the incremental path is written, with
+   the equality it must satisfy -- an incremental result equals the
+   full rebuild, proven by a test -- as its first requirement. Same
+   discipline the vector extension is held to in proposals/0006.
 2. `kiseki refresh`: one idempotent command running the whole
    routine (ingest, build, caption, singles, screens, subjects,
    themes, profile, index) with the doctor's summary at the end --
@@ -40,6 +47,17 @@ library survives its own growth.
    (date, data, object and kin) at subject-extraction time, and the
    duplicate-topic cleanup -- corrections handle them one by one
    today; v0.7 stops them at the source.
+
+### v0.7, as it actually landed
+
+Prompt-version tracking and `kiseki reread` (ADR-0051), recoverable
+refusals and `kiseki retry` (ADR-0052), the doctor's reduced-copy
+check, one `kiseki refresh`, the label calibration (ADR-0053, with
+theme names judged by the same test), the cadence calibration
+(a habit is not a trip), and the findings in the view. What remains
+of v0.7 is the reasoning work proposals/0006 assigned to it:
+structured model output, evidence-contract validation past the
+schema, and prompt regression on the reread path.
 
 ## v0.8 -- recommend with evidence (Phase 2 begins)
 
