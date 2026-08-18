@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1160 passing, 13 llm-marked and deselected in CI.
+- Tests: 1168 passing, 13 llm-marked and deselected in CI.
 - The current-state documents were audited against the code after
   v0.7 and now describe today: the context map gained the reading
   context and dropped the claim that preference extraction cannot
