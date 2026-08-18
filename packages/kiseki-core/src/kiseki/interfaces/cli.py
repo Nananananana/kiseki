@@ -47,7 +47,8 @@ from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
 from kiseki.application.exporting import interest_export
 from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
-from kiseki.application.narrative import tell
+from kiseki.application.narration_validation import validate_narration
+from kiseki.application.narrative import narrative_facts, tell
 from kiseki.application.pipeline import Pipeline, Report
 from kiseki.application.screen_reading import SCREEN_PROMPT_VERSION, run_screen_reading
 from kiseki.application.single_captioning import (
@@ -287,6 +288,16 @@ def _command_subjects(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def narration_checks(story: str, facts: Sequence[str]) -> None:
+    """Print what the narration check found, if it found anything.
+
+    The story is printed as the model wrote it, and the doubts are
+    printed beneath it: the reader sees both at once (ADR-0057).
+    """
+    for defect in validate_narration(story, facts):
+        print(f"  check         {defect.value}")
+
+
 def _command_tell(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -311,6 +322,16 @@ def _command_tell(args: argparse.Namespace) -> int:
         print(f"the model could not answer: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT
     print(story)
+    narration_checks(
+        story,
+        narrative_facts(
+            profile,
+            report,
+            names=names,
+            singles=singles.all(),
+            photos=photos.all(),
+        ),
+    )
     return EXIT_OK
 
 
