@@ -213,6 +213,10 @@ never sees. When an enduring interest and a rising one coexist,
 you") instead of resolving them (ADR-0049); the payload carries
 them as "mixed".
 
+`kiseki tell` prints the narration check beneath the story: a
+narration that cites nothing, cites a fact that does not exist, or
+states a number no fact states is reported, never rewritten
+(ADR-0057).
 ## Corrections
 
 `kiseki correct topic:<name>` (or caption:<key>, photo:<id>,
