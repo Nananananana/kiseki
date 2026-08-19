@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 
+from kiseki.domain.shared.moment import naive
+
 
 @unique
 class ChangeKind(Enum):
@@ -55,5 +57,5 @@ class Comparison:
     entries: tuple[ComparisonEntry, ...]
 
     def __post_init__(self) -> None:
-        if self.before_at > self.after_at:
+        if naive(self.before_at) > naive(self.after_at):
             raise ValueError("the earlier reading cannot follow the later")

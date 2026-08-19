@@ -30,6 +30,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from kiseki.domain.shared.moment import naive
+
 
 @dataclass(frozen=True)
 class RetentionPolicy:
@@ -75,7 +77,7 @@ REFUSAL_TABLES = ("captions", "subjects", "screen_readings", "single_captions")
 
 
 def _naive(moment: datetime) -> datetime:
-    return moment.replace(tzinfo=None)
+    return naive(moment)
 
 
 def _older_photographs(connection: sqlite3.Connection, cutoff: datetime) -> tuple[str, ...]:

@@ -19,6 +19,7 @@ from enum import Enum, unique
 
 from kiseki.domain.lifecycle import LifecycleReport, LifecycleStage
 from kiseki.domain.services.place_reading import PlaceProfile
+from kiseki.domain.shared.moment import naive
 
 SUGGESTION_CAP = 5
 OVERDUE_FACTOR = 2
@@ -65,7 +66,7 @@ class Suggestion:
 
 
 def _naive(moment: datetime) -> datetime:
-    return moment.replace(tzinfo=None)
+    return naive(moment)
 
 
 def derive_suggestions(

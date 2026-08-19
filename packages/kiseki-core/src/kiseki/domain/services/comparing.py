@@ -17,6 +17,7 @@ from kiseki.domain.caption.themes import Theme
 from kiseki.domain.comparison import ChangeKind, Comparison, ComparisonEntry
 from kiseki.domain.interests import Profile
 from kiseki.domain.services.trend_derivation import TREND_DELTA
+from kiseki.domain.shared.moment import naive
 
 REFERENCE_CAP = 3
 
@@ -35,7 +36,7 @@ def compare_profiles(
     themes: Sequence[Theme] = (),
 ) -> Comparison:
     """Every topic's change between the two readings, the loudest first."""
-    if before.generated_at > after.generated_at:
+    if naive(before.generated_at) > naive(after.generated_at):
         raise ValueError("compare expects the earlier reading first")
     mapping = {member: theme.name for theme in themes for member in theme.members}
     before_view = _by_topic(before, mapping)

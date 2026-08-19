@@ -15,6 +15,7 @@ from collections.abc import Sequence
 
 from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import Profile
+from kiseki.domain.shared.moment import days_between
 from kiseki.domain.trends import TopicTrend, TrendDirection, TrendReport
 
 MIN_TREND_SPAN_DAYS = 14
@@ -65,7 +66,8 @@ def derive_trend(
 def _baseline_for(latest: Profile, earlier: Sequence[Profile]) -> Profile | None:
     """The most recent profile old enough to compare with."""
     for candidate in reversed(earlier):
-        if (latest.generated_at - candidate.generated_at).days >= MIN_TREND_SPAN_DAYS:
+        span = days_between(candidate.generated_at, latest.generated_at)
+        if span >= MIN_TREND_SPAN_DAYS:
             return candidate
     return None
 

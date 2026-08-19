@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from kiseki.domain.insight import InsightKind
+from kiseki.domain.shared.moment import naive
 
 
 @dataclass(frozen=True)
@@ -46,5 +47,5 @@ class DiscoveryFeed:
     entries: tuple[Discovery, ...]
 
     def __post_init__(self) -> None:
-        if self.oldest_at > self.latest_at:
+        if naive(self.oldest_at) > naive(self.latest_at):
             raise ValueError("the oldest reading cannot follow the latest")
