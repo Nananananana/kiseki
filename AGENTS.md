@@ -117,6 +117,21 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1232 passing, 13 llm-marked and deselected in CI.
+- Integration and absent evidence (proposals/0008): Sparse by
+  construction is the rule the rest depends on -- every derivation
+  declares the sources it can read, works with any subset, and names
+  what it read; a test matrix removes each source in turn. v0.10
+  lands it with the record boundary; v0.11 adds web pages, watched
+  videos and daily step counts (transit, purchases, messages,
+  calendar titles, sleep and heart rate are declined on record, with
+  reasons); v0.12 routes a question to the derivation that can
+  answer it and adds kiseki now; v0.13 builds the typical week and
+  month from whatever exists and names departures without judging
+  them. v1.0 still adds no new intelligence.
+- The release notes for v0.7, v0.8 and v0.9 were written twice: the
+  first attempt left the files empty, which the tag and the
+  changelog did not reveal. Check that a release note exists before
+  calling gh release create.
 - The current-state documents were audited again after v0.8: the
   architecture gained the outward boundary a provider speaks
   across, and the context map places it outside every context --

@@ -378,7 +378,9 @@ flowchart LR
     V8 --> V9["v0.9<br/>devices and<br/>years"]
     V9 --> S1["v0.10<br/>more than<br/>photographs"]
     S1 --> S2["v0.11<br/>the first<br/>new sources"]
-    S2 --> V10["v1.0<br/>personal context<br/>engine"]
+    S2 --> S3["v0.12<br/>one question,<br/>the right machine"]
+    S3 --> S4["v0.13<br/>your<br/>rhythm"]
+    S4 --> V10["v1.0<br/>personal context<br/>engine"]
 ```
 
 | Version | Value | State |
@@ -394,6 +396,8 @@ flowchart LR
 | v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
 | v0.10 | More than photographs, the boundary: records as siblings (PhotoRecord v1 frozen), the new-source checklist as a gate, provenance graphs, per-source privacy counts | Planned |
 | v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | Planned |
+| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, evidence from several kinds of witness at once | Planned |
+| v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, where trips, places and drift turn out to be one subject | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
 The versions climb a longer ladder: **Phase 0** measure the trail (done),
@@ -402,6 +406,11 @@ evidence (v0.8 onward), **Phase 3** an anonymous interest community,
 **Phase 4** an interest graph. Direction and decisions:
 [proposals/0007](docs/proposals/0007-the-road-to-v1-0.md).
 
+Every source may be absent. A derivation declares what it can read,
+works with any subset of it, and names the sources its answer came
+from; a test matrix removes each source in turn and fails the build if
+anything requires one. A library with photographs alone behaves exactly
+as it does today.
 Two things are deliberately *not* built, each waiting for a measurement
 rather than an opinion: the incremental build (a full build takes 0.3
 seconds at five thousand photographs) and a vector extension (retrieval is
