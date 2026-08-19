@@ -34,6 +34,7 @@ uv run kiseki report --json
 | `corrections` | The append-only correction log |
 | `compare` | What changed between two kept readings |
 | `privacy` | How the owner's data is treated, in counts |
+| `forget` | Remove photographs and everything said about them |
 | `export` | The interest export: a one-way abstraction |
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
@@ -340,3 +341,13 @@ separate days (ADR-0060). A trip is a run of outings that stayed at
 least fifty kilometres from every place you usually set out from, no
 more than thirty-six hours apart, spanning at least one night. Outings
 are untouched; a trip is derived on top of them.
+
+## Forget
+
+`kiseki forget <photo-id>...` counts what would go -- the photographs,
+their captions, their subjects, their screen readings, the indexed
+documents and the embeddings -- and shows it. Nothing is removed until
+`--apply` is given (ADR-0061). Journeys are not deleted: they are
+derived, so `kiseki build` afterwards produces a history without the
+photographs. Corrections are kept, because "that reading was wrong"
+stays true after the reading is gone.
