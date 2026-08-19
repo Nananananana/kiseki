@@ -69,6 +69,8 @@ from kiseki.domain.services.cross_timeline import (
     monthly_counts,
 )
 from kiseki.domain.services.day_trips import (
+    REGULAR_SPAN_DAYS,
+    REGULAR_VISITS,
     derive_day_trips,
     derive_reach,
     spread_out,
@@ -77,6 +79,7 @@ from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import derive_place_profiles
 from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
+from kiseki.domain.services.trips import derive_trips
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
@@ -1048,6 +1051,55 @@ def _command_drift(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_trips(args: argparse.Namespace) -> int:
+    """The nights away, as journeys rather than as separate days.
+
+    The places the owner sets out from come from their own history
+    (ADR-0055), and a trip is what stayed away from all of them across
+    a night (ADR-0060).
+    """
+    paths = _paths_for(args)
+    connection = connect(paths.db_path)
+    outings = SqliteOutingRepository(connection).all()
+    places = derive_place_profiles(outings)
+    origins = [
+        place.centroid
+        for place in places
+        if place.visits >= REGULAR_VISITS
+        and (place.last_seen - place.first_seen).days >= REGULAR_SPAN_DAYS
+    ]
+    if not origins and places:
+        origins = [max(places, key=lambda place: place.visits).centroid]
+    trips = derive_trips(outings, origins)
+    print(RULE)
+    if not trips:
+        print("  no trips yet: a trip is a night spent away from everywhere you")
+        print("  usually set out from")
+        return EXIT_OK
+    gazetteer = FileGazetteer(paths.gazetteer_path)
+    print(f"  trips         {len(trips)}, the most recent first")
+    print()
+    for trip in sorted(trips, key=lambda item: item.start, reverse=True)[:15]:
+        farthest = max(
+            (stop for outing in trip.outings for stop in outing.stops),
+            key=lambda stop: max(origin.distance_to(stop.centroid).meters for origin in origins),
+        )
+        named = gazetteer.nearest(farthest.centroid, Distance(25_000))
+        label = (
+            named.label
+            if named is not None
+            else f"{farthest.centroid.latitude:.2f},{farthest.centroid.longitude:.2f}"
+        )
+        print(
+            f"    {trip.start.date().isoformat()}"
+            f"  {trip.nights} nights"
+            f"  {label:<28}"
+            f"  {trip.farthest_km:.0f} km out"
+            f"  {trip.photograph_count} photographs"
+        )
+    return EXIT_OK
+
+
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -1507,6 +1559,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     places = commands.add_parser("places", help="what your journeys say about each place")
     places.set_defaults(run=_command_places)
+
+    trips = commands.add_parser("trips", help="the nights away, as journeys")
+    trips.set_defaults(run=_command_trips)
 
     drift = commands.add_parser("drift", help="what moved with what, and each against its own past")
     drift.set_defaults(run=_command_drift)
