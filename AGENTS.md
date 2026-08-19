@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1212 passing, 13 llm-marked and deselected in CI.
+- Tests: 1218 passing, 13 llm-marked and deselected in CI.
 - The current-state documents were audited again after v0.8: the
   architecture gained the outward boundary a provider speaks
   across, and the context map places it outside every context --
