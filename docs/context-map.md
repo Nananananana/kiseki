@@ -27,7 +27,7 @@ flowchart LR
 | Anchor estimation | Identify anchors and classify the rest as destinations | Anchor |
 | Reading | Turn images and screens into words: stay captions, single captions, screen readings, subject labels, themes | Caption, SingleCaption, ScreenshotReading, SubjectExtraction, ThemeSet |
 | Preference extraction | Derive interests and profiles from readings and journeys, through corrections | Interest, Profile |
-| Interpretation | Trends, lifecycles, insights, comparisons, discovery, places, suggestions, and answers with evidence | TrendReport, InsightReport, Comparison, DiscoveryFeed, Suggestion, Answer |
+| Interpretation | Trends, lifecycles, insights, comparisons, discovery, places and their reach, suggestions including day trips, timelines laid beside each other, and answers with evidence | TrendReport, InsightReport, Comparison, DiscoveryFeed, PlaceProfile, Reach, Suggestion, TimelineComparison, Drift, Answer |
 
 ## Relationships
 
@@ -69,7 +69,19 @@ Both passes call the same pure domain services with different inputs.
 
 ## What lives outside every context
 
-The input contract itself. `PhotoRecord v1` is not owned by photo
-ingestion; it is a published schema that producers and the library both
-conform to (ADR-0002). The interest export (ADR-0047) is its mirror at
-the other end: the most that ever leaves, versioned.
+Three things, and each is a boundary rather than a context.
+
+The input contract. `PhotoRecord v1` is not owned by photo ingestion;
+it is a published schema that producers and the library both conform
+to (ADR-0002).
+
+The interest export. Its mirror at the other end: the most that ever
+leaves, versioned (ADR-0047).
+
+The provider boundary. Something outside may annotate a suggestion and
+may not create one (ADR-0056). It is placed here, outside every
+context, deliberately: a provider is not a participant in the
+interpretation, it is a voice beside it, and nothing it says becomes
+evidence. Notes are shown next to a suggestion and never merged into
+it, so the suggestion keeps saying exactly what the owner's own
+history earned.

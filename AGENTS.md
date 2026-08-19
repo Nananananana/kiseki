@@ -117,6 +117,11 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 
 - Version: v0.3.0 released.
 - Tests: 1190 passing, 13 llm-marked and deselected in CI.
+- The current-state documents were audited again after v0.8: the
+  architecture gained the outward boundary a provider speaks
+  across, and the context map places it outside every context --
+  a provider is a voice beside the interpretation, never a
+  participant in it. docs/cli.md was already complete.
 - The current-state documents were audited against the code after
   v0.7 and now describe today: the context map gained the reading
   context and dropped the claim that preference extraction cannot

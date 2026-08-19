@@ -61,6 +61,35 @@ configuration change with no data migration.
 
 See [ADR-0002](adr/0002-photorecord-as-the-only-input-contract.md).
 
+## The outward boundary
+
+Records come in through one contract; the only thing that may speak
+from outside afterwards is a provider, and what it may say is narrow
+by construction.
+
+```mermaid
+flowchart LR
+    S["suggestions<br/>from the owner's evidence"] --> A["SuggestionAnnotator<br/>a port"]
+    A --> N["notes"]
+    N --> V["shown beside the suggestion"]
+    X["a weather service"] -.-> A
+    Y["opening hours"] -.-> A
+```
+
+An annotator receives suggestions and returns notes. There is no
+return path by which it could add, reorder or remove a suggestion, so
+"every suggestion comes from your own evidence" is enforced by a type
+signature rather than by review. A note about something never offered
+is dropped, a note claiming a source other than the provider's own is
+dropped, and a provider that fails leaves the suggestions standing.
+
+No adapter ships. The boundary exists first, tested against a fake
+that misbehaves in the three ways that matter, so the day a real
+provider arrives it has a shape to fit rather than a shape to
+negotiate.
+
+See [ADR-0056](adr/0056-a-provider-may-annotate-never-invent.md).
+
 ## Data flow
 
 ```mermaid
@@ -75,7 +104,7 @@ flowchart LR
     PH --> RD
     RD --> PR["interests<br/>and profile"]
     AN --> PR
-    PR --> IT["interpretation<br/>trend, lifecycle, insights,<br/>compare, discover, suggest"]
+    PR --> IT["interpretation<br/>trend, lifecycle, insights, compare,<br/>discover, places, suggest, drift"]
     RD --> IX["search index"]
     IX --> AS["ask"]
     PR --> AS
@@ -107,9 +136,17 @@ Two suites exist to catch what unit tests cannot. The golden retrieval
 dataset (`tests/golden/retrieval.json`) states, for fixed corpora, which
 documents a question must return; it needs no model and runs in CI, and
 it has already caught two ways a filtered question could be starved.
-The answer check (ADR-0054) validates a model's reply against the
-evidence it was given, so a prompt change that starts inventing
-citations is visible.
+The answer check (ADR-0054) and the narration check (ADR-0057)
+validate a model's prose against the evidence it was given, so a
+prompt change that starts inventing citations, or quietly doing
+arithmetic the facts do not contain, is visible.
+
+`kiseki demo` is the fourth: it builds a synthetic library and runs
+every deterministic derivation against it, calling no model and
+reading no configuration. It is how the whole engine can be seen at
+once -- by a new reader, and by CI. In its first week it found five
+faults that unit tests could not, because each was a question about
+what the numbers mean rather than about whether the code runs.
 
 ## Decision records
 
