@@ -431,7 +431,7 @@ and what might become true.
   [gazetteer](docs/gazetteer.md)
 - [PhotoRecord v1](docs/photo-record.md) and the
   [conformance kit](docs/conformance.md)
-- [Architecture decisions](docs/adr) -- 58 ADRs, including the ones later
+- [Architecture decisions](docs/adr) -- 64 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 
