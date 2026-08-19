@@ -46,6 +46,7 @@ from kiseki.application.answer_validation import validate_answer
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
 from kiseki.application.exporting import interest_export
+from kiseki.application.forgetting import forget, plan_forget
 from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
@@ -1131,6 +1132,38 @@ def _places_of(connection: sqlite3.Connection) -> tuple[PlaceProfile, ...]:
     return derive_place_profiles(outings, on_trips)
 
 
+def _command_forget(args: argparse.Namespace) -> int:
+    """Remove photographs and everything that spoke about them.
+
+    Counted and shown first; removed only on a second word. Journeys
+    are not deleted here because they are derived: a rebuild without
+    the photographs produces a history without them (ADR-0013,
+    ADR-0061).
+    """
+    connection = connect(_paths_for(args).db_path)
+    plan = plan_forget(connection, args.photo_ids)
+    if plan.is_empty:
+        print("no such photograph is stored", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    print(RULE)
+    verb = "forgotten" if args.apply else "would forget"
+    print(f"  {verb}")
+    print(f"    photographs       {len(plan.photo_ids):>5}")
+    print(f"    stay captions     {len(plan.caption_keys):>5}")
+    print(f"    single captions   {plan.single_captions:>5}")
+    print(f"    screen readings   {plan.screen_readings:>5}")
+    print(f"    subject readings  {plan.subjects:>5}")
+    print(f"    indexed documents {plan.documents:>5}")
+    print(f"    embeddings        {plan.embeddings:>5}")
+    if not args.apply:
+        print("\n  nothing was changed; add --apply to forget it")
+        return EXIT_OK
+    forget(connection, plan)
+    print("\n  run `kiseki build` to rebuild the journeys without them,")
+    print("  and `kiseki profile` to read what is left")
+    return EXIT_OK
+
+
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -1590,6 +1623,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     places = commands.add_parser("places", help="what your journeys say about each place")
     places.set_defaults(run=_command_places)
+
+    forgetting = commands.add_parser(
+        "forget", help="remove photographs and everything said about them"
+    )
+    forgetting.add_argument("photo_ids", nargs="+", help="the photograph identifiers to forget")
+    forgetting.add_argument("--apply", action="store_true", help="actually remove them")
+    forgetting.set_defaults(run=_command_forget)
 
     trips = commands.add_parser("trips", help="the nights away, as journeys")
     trips.set_defaults(run=_command_trips)
