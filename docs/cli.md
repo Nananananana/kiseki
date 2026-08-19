@@ -38,6 +38,7 @@ uv run kiseki report --json
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
 | `places` | What your journeys say about each place |
+| `trips` | The nights away, as journeys |
 | `drift` | What moved with what, and each against its own past |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
@@ -331,3 +332,11 @@ moved apart, and where each one stands against its own past
 (ADR-0058). Moving together is not causing, and the command says so
 every time it says anything -- there is no word for "because" in this
 vocabulary.
+
+## Trips
+
+`kiseki trips` shows the nights away as journeys rather than as
+separate days (ADR-0060). A trip is a run of outings that stayed at
+least fifty kilometres from every place you usually set out from, no
+more than thirty-six hours apart, spanning at least one night. Outings
+are untouched; a trip is derived on top of them.
