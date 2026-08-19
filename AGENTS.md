@@ -116,7 +116,7 @@ Read `docs/adr/` (0001-0033) before changing anything they cover.
 ## Current state
 
 - Version: v0.3.0 released.
-- Tests: 1232 passing, 13 llm-marked and deselected in CI.
+- Tests: 1250 passing, 13 llm-marked and deselected in CI.
 - Integration and absent evidence (proposals/0008): Sparse by
   construction is the rule the rest depends on -- every derivation
   declares the sources it can read, works with any subset, and names

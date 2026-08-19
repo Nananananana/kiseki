@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 
+from kiseki.domain.shared.moment import naive
+
 
 @unique
 class EvidenceKind(Enum):
@@ -74,7 +76,7 @@ class Interest:
             raise ValueError("confidence must lie within [0, 1]")
         if not self.evidence:
             raise ValueError("an interest without evidence is a guess; refuse to build it")
-        if self.first_seen > self.last_seen:
+        if naive(self.first_seen) > naive(self.last_seen):
             raise ValueError("first_seen must not follow last_seen")
 
 

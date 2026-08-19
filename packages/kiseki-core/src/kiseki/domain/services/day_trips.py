@@ -28,6 +28,7 @@ from kiseki.domain.outing.outing import Outing
 from kiseki.domain.services.place_reading import PlaceProfile
 from kiseki.domain.services.suggesting import Suggestion, SuggestionKind
 from kiseki.domain.shared.geo import GeoPoint
+from kiseki.domain.shared.moment import naive
 
 REACH_SHARE = 0.8
 """The share of outings the usual reach must cover. Not a rule about
@@ -109,7 +110,7 @@ def derive_reach(outings: Sequence[Outing]) -> Reach | None:
 
 
 def _naive(moment: datetime) -> datetime:
-    return moment.replace(tzinfo=None)
+    return naive(moment)
 
 
 def _regular(places: Sequence[PlaceProfile]) -> tuple[GeoPoint, ...]:

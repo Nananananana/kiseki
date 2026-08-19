@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 
+from kiseki.domain.shared.moment import naive
+
 
 @unique
 class TrendDirection(Enum):
@@ -62,5 +64,5 @@ class TrendReport:
     trends: tuple[TopicTrend, ...]
 
     def __post_init__(self) -> None:
-        if self.baseline_at >= self.latest_at:
+        if naive(self.baseline_at) >= naive(self.latest_at):
             raise ValueError("the baseline must precede the latest reading")

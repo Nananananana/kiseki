@@ -26,6 +26,7 @@ from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleStage, TopicLifecycle
 from kiseki.domain.services.lifecycle_derivation import derive_lifecycles
 from kiseki.domain.services.trend_derivation import derive_trend
+from kiseki.domain.shared.moment import naive
 from kiseki.domain.trends import TopicTrend
 
 NOVELTY = {
@@ -134,8 +135,8 @@ def _grounding(
         {evidence.reference for interest in matched for evidence in interest.evidence}
     )
     return (
-        min(interest.first_seen for interest in matched),
-        max(interest.last_seen for interest in matched),
+        min((interest.first_seen for interest in matched), key=naive),
+        max((interest.last_seen for interest in matched), key=naive),
         max(interest.confidence for interest in matched),
         tuple(references[:EVIDENCE_CAP]),
     )

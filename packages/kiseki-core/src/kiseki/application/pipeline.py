@@ -41,6 +41,7 @@ from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS, derive_trend
 from kiseki.domain.shared.geo import Distance
+from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
 from kiseki.ports.captions import CaptionRepository
@@ -111,7 +112,7 @@ class PrivacyReport:
 
 
 def _naive(moment: datetime) -> datetime:
-    return moment.replace(tzinfo=None)
+    return naive(moment)
 
 
 def _latest_at_or_before(history: Sequence[Profile], moment: datetime) -> Profile | None:

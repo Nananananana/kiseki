@@ -16,6 +16,7 @@ from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport, LifecycleStage, TopicLifecycle
 from kiseki.domain.services.trend_derivation import derive_trend
+from kiseki.domain.shared.moment import same_moment
 from kiseki.domain.trends import TrendDirection
 
 _STAGE_RANK = {
@@ -47,7 +48,9 @@ def derive_lifecycles(
     mapping = {member: theme.name for theme in themes for member in theme.members}
     presence = [_topics(profile, mapping) for profile in history]
     baseline_index = next(
-        index for index, profile in enumerate(history) if profile.generated_at == trend.baseline_at
+        index
+        for index, profile in enumerate(history)
+        if same_moment(profile.generated_at, trend.baseline_at)
     )
     seen_before_baseline: set[str] = set()
     for topics in presence[:baseline_index]:

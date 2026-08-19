@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 
+from kiseki.domain.shared.moment import naive
+
 
 @unique
 class InsightKind(Enum):
@@ -59,7 +61,7 @@ class Insight:
             raise ValueError("novelty must lie within (0, 1]")
         if not self.derived_from:
             raise ValueError("an insight must name what it was derived from")
-        if self.first_seen and self.last_seen and self.first_seen > self.last_seen:
+        if self.first_seen and self.last_seen and naive(self.first_seen) > naive(self.last_seen):
             raise ValueError("first_seen cannot follow last_seen")
 
 
@@ -72,5 +74,5 @@ class InsightReport:
     insights: tuple[Insight, ...]
 
     def __post_init__(self) -> None:
-        if self.oldest_at > self.latest_at:
+        if naive(self.oldest_at) > naive(self.latest_at):
             raise ValueError("the oldest reading cannot follow the latest")
