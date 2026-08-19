@@ -180,6 +180,9 @@ uv run kiseki suggest        # go back, pick up, day trip
 uv run kiseki correct ...    # your word against a reading
 uv run kiseki corrections    # the append-only log
 uv run kiseki privacy        # how your data is treated, in counts
+uv run kiseki trips          # the nights away, as journeys
+uv run kiseki forget ...     # remove photographs, and all that spoke
+uv run kiseki retention      # what a decade should look like
 uv run kiseki export         # the one-way interest export
 uv run kiseki reread         # what a newer prompt version left behind
 uv run kiseki retry          # refusals the environment caused
@@ -357,8 +360,8 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.8 -- recommendations with evidence.
-**Next:** v0.9 -- many devices, long years
+**Current:** v0.9 -- long years, and what to forget.
+**Next:** v0.10 -- more than photographs
 ([docs/proposals](docs/proposals)).
 
 ## Roadmap
@@ -388,7 +391,7 @@ flowchart LR
 | v0.6 | Understand change and suggest: discovery feed, mixed evidence, place intelligence, evidence-based `suggest`, retrieval provenance, a golden retrieval dataset in CI | Released |
 | v0.7 | Live with it: one `kiseki refresh`, prompt-version tracking with `reread`, recoverable refusals with `retry`, findings in the view, label and cadence calibration, answers checked past their schema | Released |
 | v0.8 | Recommend with evidence: `kiseki demo`, day trips measured against your own distances, the provider boundary, cross-timeline drift with no causal claim, the narration check | **Released** |
-| v0.9 | Devices and years: several devices merged, overnight trips, retention, deletion semantics, privacy regression tests | In progress |
+| v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
 | v0.10 | More than photographs, the boundary: records as siblings (PhotoRecord v1 frozen), the new-source checklist as a gate, provenance graphs, per-source privacy counts | Planned |
 | v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
