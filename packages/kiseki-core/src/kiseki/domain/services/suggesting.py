@@ -24,6 +24,10 @@ SUGGESTION_CAP = 5
 OVERDUE_FACTOR = 2
 MIN_VISITS = 3
 HABIT_SPAN_DAYS = 30
+"""Kept beside the trip rule rather than replaced by it: the span
+catches a burst the trips did not reach, and the trip rule catches
+what a span cannot -- an airport visited on the way to every holiday,
+spread over years, with a cadence as tidy as any habit (ADR-0060)."""
 """How far apart the first and last visit must sit before a cadence
 counts as a habit. Three days in a row on a holiday produce a
 two-day median gap and a year of absence; that is a trip, and
@@ -73,6 +77,8 @@ def derive_suggestions(
     revisits: list[tuple[float, Suggestion]] = []
     for place in places:
         if place.visits < MIN_VISITS:
+            continue
+        if place.only_on_trips:
             continue
         if place.median_gap_days is None or place.median_gap_days <= 0:
             continue
