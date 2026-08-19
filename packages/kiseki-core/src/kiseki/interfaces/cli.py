@@ -1286,9 +1286,6 @@ def _command_suggest(args: argparse.Namespace) -> int:
                 f"  seen in {item.seen_profiles} readings, was {item.baseline:.2f}"
                 f"  confidence {item.confidence:.2f}"
             )
-    said = read_from(item.reference for item in suggestions)
-    if said:
-        print(f"\n  {said}")
     reach = derive_reach(SqliteOutingRepository(connection).all())
     trips = derive_day_trips(places, reach, _datetime.now()) if reach else ()
     trips = spread_out(trips)
@@ -1310,6 +1307,9 @@ def _command_suggest(args: argparse.Namespace) -> int:
             f"\n  {int(reach.share * 10)} in 10 of your outings cover under"
             f" {reach.usual_km:.0f} km; a day trip is measured against that"
         )
+    said = read_from([item.reference for item in suggestions] + [trip.reference for trip in trips])
+    if said:
+        print(f"  {said}")
     return EXIT_OK
 
 
