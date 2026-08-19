@@ -52,6 +52,11 @@ from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
 from kiseki.application.narrative import narrative_facts, tell
 from kiseki.application.pipeline import Pipeline, Report
+from kiseki.application.retention import (
+    RetentionPolicy,
+    apply_retention,
+    plan_retention,
+)
 from kiseki.application.screen_reading import SCREEN_PROMPT_VERSION, run_screen_reading
 from kiseki.application.single_captioning import (
     SINGLE_CAPTION_PROMPT_VERSION,
@@ -1132,6 +1137,54 @@ def _places_of(connection: sqlite3.Connection) -> tuple[PlaceProfile, ...]:
     return derive_place_profiles(outings, on_trips)
 
 
+def _command_retention(args: argparse.Namespace) -> int:
+    """The rules, and what they would let go of (ADR-0062).
+
+    Every rule is off unless it is given. Nothing runs on a timer, and
+    nothing goes without --apply: a library that discarded the owner's
+    past because a default said so would break the promise the rest of
+    this code keeps.
+    """
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+
+    policy = RetentionPolicy(
+        keep_photographs_for=(
+            _timedelta(days=round(365.25 * args.keep_photographs_years))
+            if args.keep_photographs_years
+            else None
+        ),
+        keep_refusals_for=(
+            _timedelta(days=args.keep_refusals_days) if args.keep_refusals_days else None
+        ),
+        keep_profiles=args.keep_profiles,
+    )
+    connection = connect(_paths_for(args).db_path)
+    print(RULE)
+    if policy.is_empty:
+        print("  nothing is forgotten: no rule is set")
+        print("    --keep-photographs-years N   forget photographs older than N years")
+        print("    --keep-refusals-days N       forget recorded refusals older than N days")
+        print("    --keep-profiles N            keep the last N readings, then one a month")
+        return EXIT_OK
+    now = _datetime.now()
+    plan = plan_retention(connection, policy, now)
+    verb = "forgotten" if args.apply else "would forget"
+    print(f"  {verb}")
+    print(f"    photographs       {len(plan.photo_ids):>5}")
+    print(f"    recorded refusals {plan.refusals:>5}")
+    print(f"    kept readings     {plan.profiles:>5}")
+    if plan.is_empty:
+        print("\n  the rules reach nothing: everything stored is within them")
+        return EXIT_OK
+    if not args.apply:
+        print("\n  nothing was changed; add --apply to let them go")
+        return EXIT_OK
+    apply_retention(connection, policy, now)
+    print("\n  run `kiseki build` to rebuild the journeys without them")
+    return EXIT_OK
+
+
 def _command_forget(args: argparse.Namespace) -> int:
     """Remove photographs and everything that spoke about them.
 
@@ -1630,6 +1683,31 @@ def build_parser() -> argparse.ArgumentParser:
     forgetting.add_argument("photo_ids", nargs="+", help="the photograph identifiers to forget")
     forgetting.add_argument("--apply", action="store_true", help="actually remove them")
     forgetting.set_defaults(run=_command_forget)
+
+    retention = commands.add_parser("retention", help="what a decade should look like, as rules")
+    retention.add_argument(
+        "--keep-photographs-years",
+        dest="keep_photographs_years",
+        type=float,
+        default=None,
+        help="forget photographs older than this",
+    )
+    retention.add_argument(
+        "--keep-refusals-days",
+        dest="keep_refusals_days",
+        type=int,
+        default=None,
+        help="forget recorded refusals older than this",
+    )
+    retention.add_argument(
+        "--keep-profiles",
+        dest="keep_profiles",
+        type=int,
+        default=None,
+        help="keep the last N readings, then one a month before them",
+    )
+    retention.add_argument("--apply", action="store_true", help="let them go")
+    retention.set_defaults(run=_command_retention)
 
     trips = commands.add_parser("trips", help="the nights away, as journeys")
     trips.set_defaults(run=_command_trips)
