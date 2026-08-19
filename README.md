@@ -7,7 +7,7 @@ change over time.**
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**No account ﾂｷ No upload ﾂｷ No network required.**
+**No account. No upload. No network required.**
 
 *Kiseki* means "trail" in Japanese: the line your days draw on a map. This
 library reads that line -- on your machine, for you alone.
@@ -36,16 +36,8 @@ None of it answers the questions the photos could answer about *you*:
 
 Not a replacement for those tools -- a different layer above them.
 
----
-
-## What KISEKI does
-
-```text
-Photos -> Journeys -> Patterns -> Interests -> Personal context -> Insights
-```
-
-KISEKI does not simply classify your photos. It reconstructs patterns
-across time:
+One photograph tells you about its subject. A sequence tells you about the
+photographer. The second reading is what this library is for.
 
 ```mermaid
 flowchart LR
@@ -59,50 +51,46 @@ flowchart LR
     many -.->|"how they spend<br/>a day"| G["a person"]
 ```
 
-One photograph tells you about its subject. A sequence tells you about the
-photographer. The second reading is what this library is for.
-
 ---
 
-## What can KISEKI tell you?
+## What it says about a real library
 
-- Where do I keep going back?
-- What kinds of places do I explore, and how far do I usually go?
-- What interests appear to be growing? Which have faded -- or returned?
-- What did I keep photographing last year?
-- What changed compared with last year?
-- And for every answer: **why does KISEKI think that?**
-
-Every meaningful answer can point back to evidence: the photographs, stops
-and readings it was derived from, with their time range.
-
----
-
-## Example
-
-Given two years of an ordinary photo library:
+Two years of an ordinary phone, read on the machine that holds it:
 
 ```text
-distinct places      131        never returned to    85%
-distance covered     median 0.0 km   mean 16.7   range 0.0 to 817.1
-time out             median 1.0 h    mean  3.1
-weekend share        37%
+$ kiseki suggest
+  from your own evidence, the most overdue first
+
+    go back    Umeda (JP)          every ~25d, 627 days since   confidence 1.00
+    go back    Toyonaka (JP)       every ~4d, 77 days since     confidence 1.00
+    day trip   Kyoto (JP)          35 km out, last seen 766 days ago
+    day trip   Nara-shi (JP)       29 km out, last seen 745 days ago
+
+  8 in 10 of your outings cover under 49 km; a day trip is measured against that
 ```
 
 ```text
-$ kiseki ask "What did I keep eating last year?"
-Ramen, again and again -- eight bowls photographed across the year,
-most of them at counters [F1][F4].
+$ kiseki ask "what did you eat in Seoul?" --near "37.56,126.98"
+Fried chicken, dumplings, and a Korean BBQ spread of grilled meats and
+side dishes around a tabletop grill [F1][F5].
 
   confidence    0.79
-  window        2025-01-01 to 2025-12-31
+  time range    2026-03-19 to 2026-03-21
   evidence      8
 ```
 
-KISEKI does not decide what these numbers mean for you, and it assigns no
-categories -- the ones that fit one person's life fit the next person's
-badly ([ADR-0012](docs/adr/0012-anchors-are-observations-not-categories.md)).
-It gives you the patterns, and the evidence they rest on.
+```text
+$ kiseki drift
+  what moved with what
+    photographs    and outings      no shared movement   (+0.34)  over 26 months
+    outings        and screens      no shared movement   (-0.01)  over 26 months
+
+  moving together is not causing: nothing here says one made the other happen
+```
+
+Every number came from that library. Nothing was configured: the day-trip
+radius is the distance those outings actually cover, and the places are
+ones already visited.
 
 ---
 
@@ -112,6 +100,9 @@ It gives you the patterns, and the evidence they rest on.
 git clone https://github.com/Nananananana/kiseki
 cd kiseki
 uv sync --all-packages
+
+# see the whole engine on invented data, touching nothing of yours
+uv run kiseki demo
 
 # turn a folder of photographs into the input contract
 uv run kiseki-ingest ~/photos ~/kiseki-data \
@@ -123,139 +114,80 @@ uv run kiseki build
 uv run kiseki report
 ```
 
-What happens next:
+`kiseki demo` is the fastest way to see what the library does: it builds a
+synthetic library in a sandbox, runs every derivation against it, and
+sweeps up. It calls no model and reads no configuration.
 
-```text
-your photos -> PhotoRecord -> journeys -> measures -> profile
-            -> interests -> trends and lifecycle -> answers
+After that, one command keeps everything current:
+
+```bash
+uv run kiseki refresh    # build, read, index, profile, then the doctor
 ```
 
-The full tour -- captioning, interests, stories, questions -- is under
-[What you can do](#what-you-can-do) below.
-
----
-
-## Three pillars
-
-**Journey Intelligence** -- understand how you move through the world:
-where you go, how often you return, how far you travel, how long you stay,
-how densely you pack a day.
-
-**Interest Intelligence** -- understand what you care about: subjects,
-themes, the interests that recur, emerge and decline, and the places tied
-to them.
-
-**Memory Intelligence** -- understand how you change: kept profiles,
-temporal questions ("last year..."), returned interests, lifecycles, and
-comparisons across time.
-
-```text
-Journey + Interest + Memory
-        -> Personal context
-        -> Insights
-        -> Ask / Compare / Discover
-        -> Suggest
-```
-
-That ladder is the roadmap: KISEKI is not a photo analysis library but a
-personal context engine in the making.
-
----
-
-## Evidence-first
-
-KISEKI does not want to tell you what kind of person you are. It shows the
-patterns in your data and lets you inspect the evidence behind them. Every
-interest carries its evidence and a confidence; every narrated or answered
-claim cites a numbered fact.
-
-### AI's role
-
-```text
-Evidence -> deterministic measures -> derived profile and insights
-         -> LLM narration
-```
-
-Local models (via Ollama) describe photographs and phrase answers. They
-work over a closed, numbered fact list and must cite it. **The model
-explains the evidence; it does not create facts outside it.** Confidence,
-time ranges, trends and lifecycles are arithmetic, never model opinions --
-and with no evidence there is no model call: "I don't know" is a correct
-answer.
-
----
-
-## Private by design
-
-Your photo history can reveal where you live, where you work, where you
-travel, and what you care about. KISEKI treats that as an architectural
-constraint, not a feature added later:
-
-- **No coordinate is ever configured.** Home is not a setting; it is
-  inferred, or not inferred, from evidence
-- **Nothing leaves the machine.** No network call is needed to ingest,
-  build, index, ask or report; even place names come from a file you
-  download yourself
-- **No personal data in this repository.** Tests build synthetic
-  photographs at run time; a pre-commit hook refuses images and databases
-- **Coordinate blurring is the default** on everything served or written:
-  the local API and the HTML view round to about a kilometre unless raw
-  output is asked for explicitly
-- **Screenshot words are never stored**: a screen reading is a category and
-  short labels, with no text field; chat, auth and finance screens are
-  never labelled, and consent flags are enforced in code (ADR-0030,
-  ADR-0032)
-- **Anchors are never named, and names are never stored**: the gazetteer
-  resolves place names at display time only, and the served story keeps
-  places silent (ADR-0040, ADR-0041)
+Place names need a one-time download
+([docs/gazetteer.md](docs/gazetteer.md)); the weekly routine is in
+[docs/runbook.md](docs/runbook.md).
 
 ---
 
 ## What you can do
 
-**Core workflow**
+**Take it in, and keep it current**
 
 ```bash
 uv run kiseki ingest ...     # read PhotoRecord files
 uv run kiseki build          # stops, outings, anchors
-uv run kiseki report         # the measures
+uv run kiseki refresh        # the whole routine, idempotent
+uv run kiseki doctor         # categorised health checks
 ```
 
-**Understand interests** (local models, all resumable)
+**Read the photographs** (local models, all resumable)
 
 ```bash
 uv run kiseki caption        # describe each stay
-uv run kiseki singles        # caption the photographs outside every stay
+uv run kiseki singles        # the photographs outside every stay
 uv run kiseki screens        # screenshots: category and labels only
 uv run kiseki subjects       # name what the captions were about
 uv run kiseki themes         # gather the labels into themes
 uv run kiseki profile        # read it all as interests (keep weekly)
 ```
 
-**Question and explore**
+**Ask, and be answered with evidence**
 
 ```bash
-uv run kiseki tell           # a cited story of the profile
-uv run kiseki index          # index the readings for search
-uv run kiseki ask "..."      # answers with evidence and confidence
+uv run kiseki ask "..."              # answers that cite their facts
+uv run kiseki ask "..." --near "lat,lon" --within-km 20
+uv run kiseki tell                   # a cited story, with its doubts named
+uv run kiseki index                  # index the readings for search
+```
+
+**See what changed, and what is worth a look**
+
+```bash
 uv run kiseki trend          # drift between kept profiles
 uv run kiseki lifecycle      # new, returned, growing, dormant...
 uv run kiseki insights       # the current findings, with evidence
 uv run kiseki compare        # what changed between two readings
+uv run kiseki discover       # what is worth a look, ranked
+uv run kiseki drift          # what moved with what, over months
+uv run kiseki places         # what your journeys say per place
+uv run kiseki suggest        # go back, pick up, day trip
+```
+
+**Correct it, and see what it holds**
+
+```bash
 uv run kiseki correct ...    # your word against a reading
+uv run kiseki corrections    # the append-only log
 uv run kiseki privacy        # how your data is treated, in counts
 uv run kiseki export         # the one-way interest export
-uv run kiseki doctor         # categorised health checks
-uv run kiseki discover       # what is worth a look, ranked
-uv run kiseki places         # what your journeys say per place
-uv run kiseki suggest        # from your own evidence, forward
+uv run kiseki reread         # what a newer prompt version left behind
+uv run kiseki retry          # refusals the environment caused
 uv run kiseki view           # one self-contained HTML page
 uv run kiseki serve          # the same answers over local HTTP
 ```
 
-Full reference: [docs/cli.md](docs/cli.md). Place names need a one-time
-download ([docs/gazetteer.md](docs/gazetteer.md)); the weekly refresh
-routine lives in [docs/runbook.md](docs/runbook.md).
+Full reference: [docs/cli.md](docs/cli.md).
 
 ---
 
@@ -284,7 +216,7 @@ flowchart LR
     SU --> PR
     SC --> PR
     PR --> TL["tell -- a cited story"]
-    PR --> LC["trend, lifecycle"]
+    PR --> IT["trend, lifecycle, insights,<br/>compare, discover, suggest"]
     CA --> IX["Search index"]
     SI --> IX
     SC --> IX
@@ -293,7 +225,72 @@ flowchart LR
 
 ---
 
-## Architecture
+## Why it is built this way
+
+### Evidence first, and the model last
+
+```text
+Evidence -> deterministic measures -> derived profile and insights
+         -> LLM narration
+```
+
+Local models (via Ollama) describe photographs and phrase answers. They
+work over a closed, numbered fact list and must cite it. **The model
+explains the evidence; it does not create facts outside it.** Confidence,
+time ranges, trends and lifecycles are arithmetic, never model opinions --
+and with no evidence there is no model call: "I don't know" is a correct
+answer.
+
+The prose is checked afterwards, too. An answer that cites nothing, cites
+a fact that does not exist, or names a year the evidence never saw is
+reported beside it -- and never rewritten, because the model said what it
+said ([ADR-0054](docs/adr/0054-an-answer-is-checked-past-its-schema.md),
+[ADR-0057](docs/adr/0057-a-narration-is-checked-against-its-facts.md)).
+
+### You can disagree with it
+
+A reading you reject is appended to a correction log, and every derivation
+reads through it: the profile, the trends, the insights, the story, even
+the evidence behind an answer. Nothing is rewritten and nothing is lost --
+reinstate, and it all comes back
+([ADR-0044](docs/adr/0044-corrections-are-appended-applied-at-read.md)).
+
+### Private by design
+
+Your photo history can reveal where you live, where you work, where you
+travel, and what you care about. KISEKI treats that as an architectural
+constraint, not a feature added later:
+
+- **No coordinate is ever configured.** Home is not a setting; it is
+  inferred, or not inferred, from evidence
+- **Nothing leaves the machine.** No network call is needed to ingest,
+  build, index, ask or report; even place names come from a file you
+  download yourself
+- **No personal data in this repository.** Tests build synthetic
+  photographs at run time; a pre-commit hook refuses images and databases
+- **Coordinate blurring is the default** on everything served or written:
+  the local API and the HTML view round to about a kilometre unless raw
+  output is asked for explicitly
+- **Screenshot words are never stored**: a screen reading is a category and
+  short labels, with no text field; chat, auth and finance screens are
+  never labelled, and consent flags are enforced in code (ADR-0030,
+  ADR-0032)
+- **Anchors are never named, and names are never stored**: the gazetteer
+  resolves place names at display time only, and the served story keeps
+  places silent (ADR-0040, ADR-0041)
+
+`kiseki privacy` reports all of it in counts, from your own database.
+
+### Nothing outside can invent a suggestion
+
+A provider -- a weather service, opening hours -- may annotate a
+suggestion and may not create one. The port takes suggestions and returns
+notes, and there is no return path by which anything could add a
+candidate, so "every suggestion comes from your own evidence" is enforced
+by a type signature rather than by review
+([ADR-0056](docs/adr/0056-a-provider-may-annotate-never-invent.md)).
+
+### Three commitments in the code
 
 ```mermaid
 flowchart TB
@@ -326,8 +323,6 @@ flowchart TB
     PO -.- GZ
 ```
 
-Three commitments, each enforced rather than promised:
-
 **The domain layer depends on nothing.** Not Pillow, not a database, not
 even `pathlib`. `kiseki-core` declares no runtime dependencies at all, and
 import-linter fails the build if anything creeps in.
@@ -353,6 +348,8 @@ real implementation, so the fake cannot drift
 - an autonomous personal agent
 - a general-purpose computer vision framework
 
+---
+
 ## Status
 
 KISEKI is an actively developed early-stage project. The journey
@@ -363,8 +360,6 @@ before v1.0.
 **Current:** v0.8 -- recommendations with evidence.
 **Next:** v0.9 -- many devices, long years
 ([docs/proposals](docs/proposals)).
-
----
 
 ## Roadmap
 
@@ -389,31 +384,43 @@ flowchart LR
 | v0.2.x | Understand interests: captions, profiles, themes, trend, API, view | Released |
 | v0.3 | Expand the evidence: screenshots without their words, mechanical consent | Released |
 | v0.4 | Search personal context: `ask` with evidence, temporal questions, named places, lifecycles | Released |
-| v0.5 | Discover insights: deterministic findings with evidence, user corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | Released |
-| v0.6 | Understand change and suggest: discovery feed, mixed-evidence surfacing, personal place intelligence, evidence-based `suggest`, retrieval provenance and a spatial filter, a golden retrieval dataset in CI | Released |
-| v0.7 | Live with it: incremental builds, one `kiseki refresh`, insights and discovery in the view, structured model output with evidence-contract validation, prompt regression on the model-upgrade path, label calibration | Planned |
-| v0.8 | Recommend with evidence: `suggest` learns places from your own reach; cross-timeline analysis and drift detection (never a causal claim); the optional external-provider boundary, core never depending on it | Planned |
-| v0.9 | Devices and years: several devices merged, overnight trips, retention, deletion semantics, privacy regression tests | Planned |
+| v0.5 | Discover insights: findings with evidence, corrections that reach every derivation, comparisons with reasons, privacy dashboard, interest export | Released |
+| v0.6 | Understand change and suggest: discovery feed, mixed evidence, place intelligence, evidence-based `suggest`, retrieval provenance, a golden retrieval dataset in CI | Released |
+| v0.7 | Live with it: one `kiseki refresh`, prompt-version tracking with `reread`, recoverable refusals with `retry`, findings in the view, label and cadence calibration, answers checked past their schema | Released |
+| v0.8 | Recommend with evidence: `kiseki demo`, day trips measured against your own distances, the provider boundary, cross-timeline drift with no causal claim, the narration check | **Released** |
+| v0.9 | Devices and years: several devices merged, overnight trips, retention, deletion semantics, privacy regression tests | In progress |
 | v0.10 | More than photographs, the boundary: records as siblings (PhotoRecord v1 frozen), the new-source checklist as a gate, provenance graphs, per-source privacy counts | Planned |
 | v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
 The versions climb a longer ladder: **Phase 0** measure the trail (done),
-**Phase 1** understand yourself (v0.4-v0.6), **Phase 2** recommendations
-with evidence, **Phase 3** an anonymous interest community, **Phase 4** an
-interest graph. Direction and decisions:
-[proposals/0004](docs/proposals/0004-the-road-to-a-personal-context-engine.md).
+**Phase 1** understand yourself (done), **Phase 2** recommendations with
+evidence (v0.8 onward), **Phase 3** an anonymous interest community,
+**Phase 4** an interest graph. Direction and decisions:
+[proposals/0007](docs/proposals/0007-the-road-to-v1-0.md).
+
+Two things are deliberately *not* built, each waiting for a measurement
+rather than an opinion: the incremental build (a full build takes 0.3
+seconds at five thousand photographs) and a vector extension (retrieval is
+measured by a golden dataset in CI). Both have a written trigger.
 
 ---
 
 ## Documentation
 
-- [Architecture decisions](docs/adr) -- 42 ADRs and counting; the reasoning
-  lives here
+Start with [docs/README.md](docs/README.md): it says what each document is
+for, and keeps three things apart -- what is true now, why it became true,
+and what might become true.
+
+- [Architecture](docs/architecture.md), [concept](docs/concept.md),
+  [context map](docs/context-map.md),
+  [ubiquitous language](docs/ubiquitous-language.md)
 - [CLI reference](docs/cli.md), [runbook](docs/runbook.md),
   [gazetteer](docs/gazetteer.md)
 - [PhotoRecord v1](docs/photo-record.md) and the
   [conformance kit](docs/conformance.md)
+- [Architecture decisions](docs/adr) -- 58 ADRs, including the ones later
+  reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 
 ## License
