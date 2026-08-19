@@ -7,6 +7,7 @@ what it needs.
 
 import argparse
 import json
+import sqlite3
 import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
@@ -76,7 +77,10 @@ from kiseki.domain.services.day_trips import (
     spread_out,
 )
 from kiseki.domain.services.mixing import derive_mixed
-from kiseki.domain.services.place_reading import derive_place_profiles
+from kiseki.domain.services.place_reading import (
+    PlaceProfile,
+    derive_place_profiles,
+)
 from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.services.trips import derive_trips
@@ -1092,7 +1096,7 @@ def _command_trips(args: argparse.Namespace) -> int:
         )
         print(
             f"    {trip.start.date().isoformat()}"
-            f"  {trip.nights} nights"
+            f"  {trip.nights} night{'s' if trip.nights != 1 else ''}"
             f"  {label:<28}"
             f"  {trip.farthest_km:.0f} km out"
             f"  {trip.photograph_count} photographs"
@@ -1100,10 +1104,37 @@ def _command_trips(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _origins_of(places: Sequence[PlaceProfile]) -> list[GeoPoint]:
+    """The places the owner sets out from (ADR-0055)."""
+    regular = [
+        place.centroid
+        for place in places
+        if place.visits >= REGULAR_VISITS
+        and (place.last_seen - place.first_seen).days >= REGULAR_SPAN_DAYS
+    ]
+    if regular:
+        return regular
+    return [max(places, key=lambda place: place.visits).centroid] if places else []
+
+
+def _places_of(connection: sqlite3.Connection) -> tuple[PlaceProfile, ...]:
+    """Places, knowing which of their visits happened on a trip.
+
+    Read twice on purpose: the first reading finds the places the
+    owner sets out from, the trips are derived against those, and the
+    second reading knows which visits belong to one (ADR-0060).
+    """
+    outings = SqliteOutingRepository(connection).all()
+    plain = derive_place_profiles(outings)
+    trips = derive_trips(outings, _origins_of(plain))
+    on_trips = {outing.id.value for trip in trips for outing in trip.outings}
+    return derive_place_profiles(outings, on_trips)
+
+
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
-    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    places = _places_of(connection)
     print(RULE)
     if not places:
         print("  no places yet: run `kiseki build` once the photographs are in")
@@ -1135,7 +1166,7 @@ def _command_suggest(args: argparse.Namespace) -> int:
 
     paths = _paths_for(args)
     connection = connect(paths.db_path)
-    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    places = _places_of(connection)
     lifecycle = _pipeline_from(paths.db_path).lifecycle()
     suggestions = derive_suggestions(places, lifecycle, _datetime.now())
     suggestions = spread_out(suggestions)
@@ -1289,7 +1320,7 @@ def _command_demo(args: argparse.Namespace) -> int:
     pipeline.rebuild()
     profile = pipeline.profile(keep=False)
     connection = connect(db_path)
-    places = derive_place_profiles(SqliteOutingRepository(connection).all())
+    places = _places_of(connection)
     lifecycle = pipeline.lifecycle()
     insights = pipeline.insights()
     feed = pipeline.discover()
