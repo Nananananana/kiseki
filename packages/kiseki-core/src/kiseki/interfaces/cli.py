@@ -62,6 +62,7 @@ from kiseki.application.single_captioning import (
     SINGLE_CAPTION_PROMPT_VERSION,
     run_single_captioning,
 )
+from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
@@ -703,6 +704,9 @@ def _command_insights(args: argparse.Namespace) -> int:
             f"  confidence {item.confidence:.2f}"
             f"  evidence {len(item.evidence)}"
         )
+    said = read_from(reference for item in report.insights for reference in item.evidence)
+    if said:
+        print(f"\n  {said}")
     mixed = derive_mixed(report)
     if mixed:
         print("\n  held together -- both are you")
@@ -946,6 +950,9 @@ def _command_discover(args: argparse.Namespace) -> int:
     if not feed.entries:
         print("\n  nothing worth a look yet: nothing new or moving in the history")
         return EXIT_OK
+    said = read_from(reference for entry in feed.entries for reference in entry.evidence)
+    if said:
+        print(f"  {said}")
     print("\n  worth a look, the most discovery-like first")
     for entry in feed.entries:
         print(
@@ -1279,6 +1286,9 @@ def _command_suggest(args: argparse.Namespace) -> int:
                 f"  seen in {item.seen_profiles} readings, was {item.baseline:.2f}"
                 f"  confidence {item.confidence:.2f}"
             )
+    said = read_from(item.reference for item in suggestions)
+    if said:
+        print(f"\n  {said}")
     reach = derive_reach(SqliteOutingRepository(connection).all())
     trips = derive_day_trips(places, reach, _datetime.now()) if reach else ()
     trips = spread_out(trips)
