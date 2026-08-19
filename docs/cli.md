@@ -35,6 +35,7 @@ uv run kiseki report --json
 | `compare` | What changed between two kept readings |
 | `privacy` | How the owner's data is treated, in counts |
 | `forget` | Remove photographs and everything said about them |
+| `retention` | What a decade should look like, as rules |
 | `export` | The interest export: a one-way abstraction |
 | `doctor` | Categorised, deterministic health checks |
 | `discover` | What is worth a look, ranked by novelty and importance |
@@ -351,3 +352,13 @@ documents and the embeddings -- and shows it. Nothing is removed until
 derived, so `kiseki build` afterwards produces a history without the
 photographs. Corrections are kept, because "that reading was wrong"
 stays true after the reading is gone.
+
+## Retention
+
+`kiseki retention` says what a decade should look like, as rules
+(ADR-0062): photographs older than a span, refusals older than a
+span, and kept readings thinned to the last few plus one a month
+before them. Every rule is off unless given, nothing runs on a timer,
+and nothing goes without `--apply`. Photographs leave through the
+same path a deliberate deletion takes, so retention cannot leave
+orphans where `kiseki forget` could not.
