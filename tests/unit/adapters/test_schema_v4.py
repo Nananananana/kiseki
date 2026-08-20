@@ -48,7 +48,7 @@ class TestSchemaV4:
         try:
             assert "use_for_preference" in _columns(connection)
             stored: int = connection.execute("SELECT version FROM schema_version").fetchone()[0]
-            assert stored == 5
+            assert stored == 6
         finally:
             connection.close()
 

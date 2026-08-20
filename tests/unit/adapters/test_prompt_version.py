@@ -32,7 +32,7 @@ KEY = CaptionKey.of([PhotoId("sha256:aa")])
 def test_the_schema_is_at_five(tmp_path: Path) -> None:
     connection = connect(tmp_path / "kiseki.sqlite3")
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
-    assert stored[0] == SCHEMA_VERSION == 5
+    assert stored[0] == SCHEMA_VERSION == 6
 
 
 def test_a_caption_keeps_its_prompt_version(tmp_path: Path) -> None:
@@ -148,7 +148,7 @@ def test_a_version_four_database_reads_as_unrecorded(tmp_path: Path) -> None:
 
     connection = connect(path)
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
-    assert stored[0] == 5
+    assert stored[0] == 6
     kept = SqliteCaptionRepository(connection).get(KEY)
     assert kept is not None
     assert kept.prompt_version is None
