@@ -362,3 +362,13 @@ before them. Every rule is off unless given, nothing runs on a timer,
 and nothing goes without `--apply`. Photographs leave through the
 same path a deliberate deletion takes, so retention cannot leave
 orphans where `kiseki forget` could not.
+
+## The full tour
+
+`kiseki demo --full` walks every command in the order a reader would
+meet them, each with a line saying what it answers, against the same
+synthetic library. Commands that need a model are described rather
+than run: a tour that took twenty minutes and needed Ollama would not
+be run, and one that is not run checks nothing. `--write <path>` keeps
+it as a document, which is the shortest honest answer to "what does
+this library do".
