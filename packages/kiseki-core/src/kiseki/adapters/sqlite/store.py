@@ -12,10 +12,12 @@ with less machinery than a normalised shape would.
 import json
 import sqlite3
 from collections.abc import Sequence
+from datetime import date as _date
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.single import SingleCaption
@@ -36,7 +38,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -146,6 +148,13 @@ CREATE TABLE IF NOT EXISTS corrections (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS daily_activity (
+    day        TEXT PRIMARY KEY,
+    steps      INTEGER NOT NULL,
+    distance_m REAL,
+    floors     INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS single_captions (
     photo_id   TEXT PRIMARY KEY,
     text       TEXT NOT NULL,
@@ -185,6 +194,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 4:
             _migrate_v4_to_v5(connection)
             version = 5
+        if version == 5:
+            _migrate_v5_to_v6(connection)
+            version = 6
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -223,6 +235,57 @@ def _migrate_v3_to_v4(connection: sqlite3.Connection) -> None:
     """
     connection.execute("ALTER TABLE photos ADD COLUMN use_for_preference INTEGER")
     connection.execute("UPDATE schema_version SET version = ?", (4,))
+
+
+def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
+    """The one change from 5 to 6: a table for daily activity.
+
+    A new kind of witness arrives as its own table rather than as a
+    column on somebody else''s. Photographs are untouched, and a library
+    that never records a step is a library with an empty table -- which
+    every derivation is required to survive (ADR-0063, ADR-0065).
+    """
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS daily_activity ("
+        " day TEXT PRIMARY KEY, steps INTEGER NOT NULL,"
+        " distance_m REAL, floors INTEGER)"
+    )
+    connection.execute("UPDATE schema_version SET version = ?", (6,))
+
+
+class SqliteDailyActivityRepository:
+    """Days of movement, one row per calendar day."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save_all(self, days: Sequence[DailyActivity]) -> None:
+        """Store these days, replacing any already held for them."""
+        with self._connection:
+            self._connection.executemany(
+                "INSERT OR REPLACE INTO daily_activity"
+                " (day, steps, distance_m, floors) VALUES (?, ?, ?, ?)",
+                [(day.day.isoformat(), day.steps, day.distance_m, day.floors) for day in days],
+            )
+
+    def all(self) -> tuple[DailyActivity, ...]:
+        rows = self._connection.execute(
+            "SELECT day, steps, distance_m, floors FROM daily_activity ORDER BY day"
+        )
+        return tuple(
+            DailyActivity(
+                day=_date.fromisoformat(day),
+                steps=steps,
+                distance_m=distance,
+                floors=floors,
+            )
+            for day, steps, distance, floors in rows
+        )
+
+    def count(self) -> int:
+        row = self._connection.execute("SELECT COUNT(*) FROM daily_activity").fetchone()
+        total: int = row[0]
+        return total
 
 
 def _to_observation(row: tuple[Any, ...]) -> PhotoObservation:

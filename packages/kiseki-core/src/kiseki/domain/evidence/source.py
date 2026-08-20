@@ -24,10 +24,10 @@ from enum import Enum, unique
 
 WEB = "web"
 VIDEO = "video"
-ACTIVITY = "activity"
-"""Reserved names for proposals/0008, v0.11. They are written here so
-that adding a source is one line in an enum rather than a search
-through the codebase for the places that assumed there was only one."""
+"""Reserved names for proposals/0008, v0.11. Daily activity has since
+stopped being reserved and become a member below -- which took one
+line here and one table of its own, which is the whole point of
+writing them down in advance."""
 
 
 @unique
@@ -40,6 +40,7 @@ class EvidenceSource(Enum):
     SINGLE_CAPTION = "single caption"
     SCREEN = "screen reading"
     KEPT_READING = "kept reading"
+    ACTIVITY = "daily activity"
 
     @property
     def label(self) -> str:

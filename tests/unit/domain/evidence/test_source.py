@@ -15,7 +15,7 @@ def test_every_source_has_a_label() -> None:
 
 def test_everything_is_every_source() -> None:
     assert frozenset(EvidenceSource) == EVERYTHING
-    assert len(EVERYTHING) == 6
+    assert len(EVERYTHING) == 7
 
 
 def test_nothing_reads_as_nothing() -> None:
