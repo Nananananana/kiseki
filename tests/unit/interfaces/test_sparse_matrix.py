@@ -7,6 +7,7 @@ not need is missing, fails here rather than in front of a reader whose
 library happens to lack it. See ADR-0063.
 """
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -228,3 +229,85 @@ def test_the_library_answers_without(tmp_path: Path, omission: str) -> None:
         if code != EXIT_OK:
             failures.append(f"{command[0]} exited {code}")
     assert failures == [], f"without {omission}: " + "; ".join(failures)
+
+
+def _derived(tmp_path: Path):
+    """Everything the surfaces are built from, or None where there is none."""
+    from kiseki.application.pipeline import Pipeline
+    from kiseki.interfaces.cli import _pipeline_from
+
+    paths = resolve_paths({"data_root": str(tmp_path)}, dotenv=Path(".env"))
+    pipeline: Pipeline = _pipeline_from(paths.db_path)
+    return pipeline
+
+
+@pytest.mark.parametrize("omission", OMISSIONS)
+def test_the_payloads_survive_without(tmp_path: Path, omission: str) -> None:
+    """The API's shapes are built by pure functions; they are checked here.
+
+    Serving them over HTTP would test the socket, which is not what can
+    break. What can break is a payload calling .date() on a moment that
+    is not there, or an offset meeting a naive one on the way out
+    (ADR-0063, ADR-0064).
+    """
+    from kiseki.interfaces.payloads import (
+        comparison_payload,
+        discovery_payload,
+        insights_payload,
+        lifecycle_payload,
+        privacy_payload,
+        profile_payload,
+        report_payload,
+        trend_payload,
+    )
+
+    _seed(tmp_path)
+    _remove(tmp_path, omission)
+    pipeline = _derived(tmp_path)
+
+    failures: list[str] = []
+    checks: tuple[tuple[str, object, object], ...] = (
+        ("report", report_payload, pipeline.report()),
+        ("profile", profile_payload, pipeline.profile(keep=False)),
+        ("trend", trend_payload, pipeline.trend()),
+        ("lifecycle", lifecycle_payload, pipeline.lifecycle()),
+        ("insights", insights_payload, pipeline.insights()),
+        ("discover", discovery_payload, pipeline.discover()),
+        ("compare", comparison_payload, pipeline.compare()),
+        ("privacy", privacy_payload, pipeline.privacy()),
+    )
+    for name, shape, value in checks:
+        if value is None:
+            continue
+        for blur in (True, False):
+            try:
+                document = (
+                    shape(value)  # type: ignore[operator]
+                    if name == "privacy"
+                    else shape(value, blur=blur)  # type: ignore[operator]
+                )
+                json.dumps(document)
+            except Exception as error:
+                failures.append(f"{name} (blur={blur}) raised {type(error).__name__}: {error}")
+    assert failures == [], f"without {omission}: " + "; ".join(failures)
+
+
+@pytest.mark.parametrize("omission", OMISSIONS)
+def test_the_view_is_written_without(tmp_path: Path, omission: str) -> None:
+    """The page is a file, so the check is that a file appears and reads.
+
+    Its sections are allowed to say there is not enough history; they
+    are not allowed to be absent, and the command is not allowed to
+    fail because a source it does not need is missing.
+    """
+    _seed(tmp_path)
+    _remove(tmp_path, omission)
+    assert main(["--data-root", str(tmp_path), "view"]) == EXIT_OK
+    paths = resolve_paths({"data_root": str(tmp_path)}, dotenv=Path(".env"))
+    pages = list(paths.cache_dir.glob("*.html"))
+    assert pages, f"without {omission}: no page was written"
+    page = pages[0].read_text(encoding="utf-8")
+    assert "<html" in page.lower()
+    for heading in ("Read as interests", "Worth a look", "What changed"):
+        assert heading in page, f"without {omission}: {heading} is missing"
+    assert "http://" not in page.replace("http://www.w3.org", "")
