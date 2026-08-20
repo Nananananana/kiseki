@@ -4,6 +4,17 @@ The only input KISEKI accepts. The schema lives at
 `schemas/photo-record-v1.json` and is the normative definition; this page
 explains the reasoning behind it.
 
+## What it deliberately does not carry
+
+- **No image bytes.** A record points at a reduced copy the producer
+  wrote; the core never opens an original.
+- **No text read from an image.** A screenshot becomes a category and
+  labels elsewhere in the pipeline, and there is no field here for its
+  words (ADR-0030).
+- **No identity beyond the owner.** No faces, no names, no albums, no
+  device identifiers past the platform.
+- **No network location.** Coordinates are the ones the camera
+  recorded, or nothing.
 ## Example
 
 ```json

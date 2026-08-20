@@ -23,7 +23,9 @@ top which of the three it is.
 | `docs/concept.md` | The conceptual model and the whole picture |
 | `docs/context-map.md` | The current boundaries of responsibility |
 | `docs/ubiquitous-language.md` | The domain words in current use, defined |
+| `docs/records.md` | What every input contract shares, and the gate a new one passes |
 | `docs/photo-record.md` | PhotoRecord and the producer contract |
+| `docs/activity-record.md` | ActivityRecord and the producer contract |
 | `docs/conformance.md` | The producer conformance specification |
 | `docs/cli.md` | The commands as they behave today |
 | `docs/adr/` | Decisions as they were made, with their reasons -- history |

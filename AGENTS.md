@@ -147,7 +147,7 @@ Read the ADRs that cover what you are changing. There are 64.
 ## Current state
 
 - Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1267 passing, 13 llm-marked and deselected in CI.
+- Tests: 1282 passing, 13 llm-marked and deselected in CI.
 - Schema: version 6.
 - Commands: `paths`, `ingest`, `build`, `report`, `profile`,
   `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
@@ -172,5 +172,13 @@ Read the ADRs that cover what you are changing. There are 64.
   routes a question to the derivation that can answer it and adds
   `kiseki now`; v0.13 builds the typical week and month from whatever
   exists. v1.0 goes public and adds no new intelligence.
-- Every version reserves its last issue for what the previous
+- Input contracts are siblings, and `docs/records.md` holds what they
+  share: name the owner and the producer, ignore unknown fields, speak
+  the owner's local time, survive a byte order mark, land in a table of
+  your own, be optional, and say what you will not carry. A new source
+  answers the ten questions in that file before it lands -- question
+  three, what this could reveal, is the one that decides.
+- The Apple Health converter waits for an export to exist. The
+  receiving half -- ActivityRecord v1, the table, `kiseki activity` --
+  is done.- Every version reserves its last issue for what the previous
   version's data says.
