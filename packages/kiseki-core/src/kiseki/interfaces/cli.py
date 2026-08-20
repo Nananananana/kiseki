@@ -1435,7 +1435,11 @@ def _demo_library(root: Path) -> Path:
     )
     from kiseki.application.demo import demo_photographs, demo_profiles, demo_readings
 
-    db_path = root / "kiseki-demo.sqlite3"
+    # The commands the tour runs resolve their own path from --data-root,
+    # so the library is seeded where they will look for it rather than
+    # beside it. Seeded elsewhere, every command answered honestly about
+    # an empty library.
+    db_path = root / "db" / "kiseki.sqlite3"
     connection = connect(db_path)
     _DemoPhotos(connection).save_all(demo_photographs())
     captions = _DemoCaptions(connection)
@@ -1488,7 +1492,7 @@ def _command_demo(args: argparse.Namespace) -> int:
         if args.keep:
             print(f"\n  kept at {root}")
         else:
-            shutil.rmtree(root, ignore_errors=True)
+            _sweep_up(root)
             print("\n  the sandbox was swept up; --keep leaves it in place")
         return EXIT_OK
 
@@ -1572,14 +1576,51 @@ def _command_demo(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _sweep_up(root: Path) -> None:
+    """Remove the sandbox, giving Windows time to let go of it.
+
+    Every command the tour ran opened its own connection, and Windows
+    will not delete a file another handle still holds. Collecting first
+    closes them; a couple of retries cover the rest.
+    """
+    import gc
+    import os
+    import shutil
+    import time
+
+    if Path.cwd() == root or root in Path.cwd().parents:
+        # Windows will not delete a directory a process is standing in,
+        # and the tour ran every command from inside the sandbox.
+        os.chdir(root.parent)
+    for attempt in range(4):
+        gc.collect()
+        try:
+            shutil.rmtree(root)
+            return
+        except OSError:
+            time.sleep(0.2 * (attempt + 1))
+    shutil.rmtree(root, ignore_errors=True)
+
+
 def _run_quietly(command: str, root: Path) -> str:
     """Run one command against the sandbox and capture what it said."""
     import contextlib
     import io as _io
+    import os as _os
 
     buffer = _io.StringIO()
     parser = build_parser()
+    Path.cwd()
+    kept = {name: value for name, value in _os.environ.items() if name.startswith("KISEKI_")}
     try:
+        # The sandbox becomes the working directory and KISEKI_* is set
+        # aside, because an .env in the repository outranks --data-root
+        # and the tour would quietly read the owner's real library. This
+        # is the fault kiseki demo exists to prevent, and the tour walked
+        # straight into it once.
+        for name in kept:
+            del _os.environ[name]
+        _os.chdir(root)
         parsed = parser.parse_args(["--data-root", str(root), command])
         with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
             code = parsed.run(parsed)
