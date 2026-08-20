@@ -119,7 +119,7 @@ DOTENV = Path(".env")
 
 
 def _read_records(path: Path) -> list[dict[str, Any]]:
-    document = json.loads(path.read_text(encoding="utf-8"))
+    document = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(document, dict) or "records" not in document:
         raise ValueError("not a PhotoRecord document: no 'records' key")
     records = document["records"]
@@ -225,7 +225,7 @@ def _command_activity(args: argparse.Namespace) -> int:
     from kiseki.adapters.sqlite.store import SqliteDailyActivityRepository
 
     try:
-        document = json.loads(Path(args.records).read_text(encoding="utf-8"))
+        document = json.loads(Path(args.records).read_text(encoding="utf-8-sig"))
         if not isinstance(document, list):
             raise ValueError("an ActivityRecord document is a list of days")
         days = _to_days(document)
