@@ -1419,16 +1419,8 @@ def _command_refresh(args: argparse.Namespace) -> int:
     return _command_doctor(args)
 
 
-def _command_demo(args: argparse.Namespace) -> int:
-    """Build a synthetic library, show every derivation, sweep up.
-
-    Reads no configuration on purpose: the sandbox path is the one
-    given, and nothing else can redirect it.
-    """
-    import gc
-    import shutil
-    from datetime import datetime as _datetime
-
+def _demo_library(root: Path) -> Path:
+    """Build the synthetic library both demos read, and return its path."""
     from kiseki.adapters.sqlite.store import (
         SqliteCaptionRepository as _DemoCaptions,
     )
@@ -1442,27 +1434,64 @@ def _command_demo(args: argparse.Namespace) -> int:
         SqliteSubjectRepository as _DemoSubjects,
     )
     from kiseki.application.demo import demo_photographs, demo_profiles, demo_readings
+
+    db_path = root / "kiseki-demo.sqlite3"
+    connection = connect(db_path)
+    _DemoPhotos(connection).save_all(demo_photographs())
+    captions = _DemoCaptions(connection)
+    subjects = _DemoSubjects(connection)
+    for caption, reading in demo_readings():
+        captions.save(caption)
+        subjects.save(reading)
+    profiles = _DemoProfiles(connection)
+    for snapshot in demo_profiles():
+        profiles.save(snapshot)
+    connection.close()
+    return db_path
+
+
+def _command_demo(args: argparse.Namespace) -> int:
+    """Build a synthetic library, show what the engine makes of it, sweep up.
+
+    Reads no configuration on purpose: the sandbox path is the one given,
+    and nothing else can redirect it. With --full it walks every command
+    instead of the derivations alone, which is at once a tour of the
+    library and a check that the whole surface still works together.
+    """
+    import gc
+    import shutil
+    from datetime import datetime as _datetime
+
+    from kiseki.application.tour import TOUR
     from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 
     root = Path(args.out) if args.out else Path.cwd() / "kiseki-demo"
     if root.exists():
         shutil.rmtree(root)
     root.mkdir(parents=True)
-    db_path = root / "kiseki-demo.sqlite3"
-    connection = connect(db_path)
-    _DemoPhotos(connection).save_all(demo_photographs())
-    demo_captions = _DemoCaptions(connection)
-    demo_subjects = _DemoSubjects(connection)
-    for caption, reading in demo_readings():
-        demo_captions.save(caption)
-        demo_subjects.save(reading)
-    demo_profiles_store = _DemoProfiles(connection)
-    for snapshot in demo_profiles():
-        demo_profiles_store.save(snapshot)
-    connection.close()
+    db_path = _demo_library(root)
 
     pipeline = _pipeline_from(db_path)
     pipeline.rebuild()
+
+    if args.full:
+        lines = _walk_the_tour(TOUR, root, db_path)
+        for line in lines:
+            print(line)
+        if args.write:
+            document = Path(args.write)
+            document.parent.mkdir(parents=True, exist_ok=True)
+            document.write_text(_as_markdown(TOUR, root, db_path), encoding="utf-8")
+            print(f"\n  written to {document}")
+        del pipeline
+        gc.collect()
+        if args.keep:
+            print(f"\n  kept at {root}")
+        else:
+            shutil.rmtree(root, ignore_errors=True)
+            print("\n  the sandbox was swept up; --keep leaves it in place")
+        return EXIT_OK
+
     profile = pipeline.profile(keep=False)
     connection = connect(db_path)
     places = _places_of(connection)
@@ -1470,8 +1499,7 @@ def _command_demo(args: argparse.Namespace) -> int:
     insights = pipeline.insights()
     feed = pipeline.discover()
     comparison = pipeline.compare()
-    suggestions = derive_suggestions(places, lifecycle, _datetime.now())
-    suggestions = spread_out(suggestions)
+    suggestions = spread_out(derive_suggestions(places, lifecycle, _datetime.now()))
 
     print(RULE)
     print("  a synthetic library, so the engine can be seen")
@@ -1539,9 +1567,74 @@ def _command_demo(args: argparse.Namespace) -> int:
     if args.keep:
         print(f"\n  kept at {root}")
     else:
-        shutil.rmtree(root)
+        shutil.rmtree(root, ignore_errors=True)
         print("\n  the sandbox was swept up; --keep leaves it in place")
     return EXIT_OK
+
+
+def _run_quietly(command: str, root: Path) -> str:
+    """Run one command against the sandbox and capture what it said."""
+    import contextlib
+    import io as _io
+
+    buffer = _io.StringIO()
+    parser = build_parser()
+    try:
+        parsed = parser.parse_args(["--data-root", str(root), command])
+        with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+            code = parsed.run(parsed)
+    except SystemExit as stop:
+        return f"(the command refused its arguments: {stop})"
+    except Exception as error:
+        return f"({type(error).__name__}: {error})"
+    said = buffer.getvalue().strip()
+    if code != EXIT_OK:
+        said = f"{said}\n(exit {code})".strip()
+    return said or "(said nothing)"
+
+
+def _walk_the_tour(tour: tuple[Any, ...], root: Path, db_path: Path) -> list[str]:
+    """Every stop, in order, as lines for a terminal."""
+    lines = [RULE, "  a guided run through everything the library can say", ""]
+    for stop in tour:
+        if not stop.runs:
+            lines.append(f"  {stop.name:<12}  {stop.says} -- needs a model or an")
+            lines.append(f"  {'':<12}  argument, so it is described and not run here")
+            lines.append("")
+            continue
+        lines.append(f"  {stop.name:<12}  {stop.says}")
+        for said in _run_quietly(stop.name, root).splitlines():
+            lines.append(f"      {said}")
+        lines.append("")
+    walked = sum(1 for stop in tour if stop.runs)
+    lines.append(f"  {walked} of {len(tour)} commands ran; the rest need a model")
+    return lines
+
+
+def _as_markdown(tour: tuple[Any, ...], root: Path, db_path: Path) -> str:
+    """The same tour, as a document somebody could read first."""
+    parts = [
+        "# A tour of KISEKI",
+        "",
+        "Everything the library can say, on a synthetic library built for",
+        "the purpose. Nothing here is anybody's real history, and no model",
+        "was called: the commands that need one are described instead.",
+        "",
+    ]
+    for stop in tour:
+        parts.append(f"## {stop.name}")
+        parts.append("")
+        parts.append(stop.says.capitalize() + ".")
+        parts.append("")
+        if not stop.runs:
+            parts.append("Needs a model or an argument; not run here.")
+            parts.append("")
+            continue
+        parts.append("```text")
+        parts.append(_run_quietly(stop.name, root))
+        parts.append("```")
+        parts.append("")
+    return "\n".join(parts) + "\n"
 
 
 def _command_retry(args: argparse.Namespace) -> int:
@@ -1802,6 +1895,12 @@ def build_parser() -> argparse.ArgumentParser:
     demo = commands.add_parser("demo", help="a synthetic library, so the engine can be seen")
     demo.add_argument("--out", default=None, help="where to build the sandbox")
     demo.add_argument("--keep", action="store_true", help="leave the sandbox in place")
+    demo.add_argument(
+        "--full",
+        action="store_true",
+        help="walk every command, not the derivations alone",
+    )
+    demo.add_argument("--write", default=None, help="also write the tour as a document")
     demo.set_defaults(run=_command_demo)
 
     refresh = commands.add_parser("refresh", help="the weekly routine, in one idempotent command")
