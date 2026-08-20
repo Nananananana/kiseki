@@ -66,6 +66,7 @@ from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
 from kiseki.config.paths import StoragePaths, resolve_paths
+from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
@@ -189,6 +190,54 @@ def _command_ingest(args: argparse.Namespace) -> int:
 
     stored = _pipeline_for(args).ingest(_to_observations(records))
     print(f"{stored} photograph(s) taken in")
+    return EXIT_OK
+
+
+def _to_days(records: list[dict[str, Any]]) -> list[DailyActivity]:
+    """Turn ActivityRecord v1 documents into days.
+
+    Unknown fields are ignored rather than refused: a producer may carry
+    its own notes, and the contract does not argue with them
+    (docs/activity-record.md).
+    """
+    from datetime import date as _date
+
+    return [
+        DailyActivity(
+            day=_date.fromisoformat(str(record["day"])),
+            steps=int(record["steps"]),
+            distance_m=(
+                float(record["distance_m"]) if record.get("distance_m") is not None else None
+            ),
+            floors=(int(record["floors"]) if record.get("floors") is not None else None),
+        )
+        for record in records
+    ]
+
+
+def _command_activity(args: argparse.Namespace) -> int:
+    """Read days of movement from an ActivityRecord v1 document.
+
+    A second contract beside PhotoRecord v1, independent of it: a library
+    with no photographs can hold activity, and a library with no activity
+    behaves exactly as it did before (ADR-0065).
+    """
+    from kiseki.adapters.sqlite.store import SqliteDailyActivityRepository
+
+    try:
+        document = json.loads(Path(args.records).read_text(encoding="utf-8"))
+        if not isinstance(document, list):
+            raise ValueError("an ActivityRecord document is a list of days")
+        days = _to_days(document)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"the records could not be read: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    repository = SqliteDailyActivityRepository(connection)
+    repository.save_all(days)
+    print(RULE)
+    print(f"  days read     {len(days)}")
+    print(f"  days held     {repository.count()}")
     return EXIT_OK
 
 
@@ -1554,6 +1603,10 @@ def build_parser() -> argparse.ArgumentParser:
     ingest = commands.add_parser("ingest", help="take in a PhotoRecord document")
     ingest.add_argument("records", type=Path)
     ingest.set_defaults(run=_command_ingest)
+
+    activity = commands.add_parser("activity", help="read days of movement (ActivityRecord v1)")
+    activity.add_argument("records", help="the ActivityRecord v1 document")
+    activity.set_defaults(run=_command_activity)
 
     commands.add_parser("build", help="recompute stops, outings and anchors").set_defaults(
         run=_command_build
