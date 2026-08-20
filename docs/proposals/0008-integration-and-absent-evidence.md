@@ -84,8 +84,21 @@ at ingest -- plus:
   for it already exists (ADR-0056): it may annotate a suggestion and
   may not create evidence.
 
-## v0.12 -- One question, the right machine
+### What landed early, and what waits for data
 
+The receiving half of daily activity landed in v0.10 rather than
+v0.11: `DailyActivity`, the `daily_activity` table, ActivityRecord v1
+and `kiseki activity` all exist and were exercised on a hand-written
+document. Building the contract before designing the shared rules was
+the point -- `docs/records.md` is drawn from two real contracts rather
+than from one and an imagination.
+
+The producer that converts an Apple Health export into that document
+waits for v0.12 or later, for the plainest of reasons: the owner has
+not exported one yet, and a converter written against an imagined XML
+would be a guess. Nothing else waits on it.
+
+## v0.12 -- One question, the right machine
 The integration begins where the reader is: with a question.
 
 1. **Route the question.** "What did I eat in Seoul?" is a retrieval
@@ -102,6 +115,16 @@ The integration begins where the reader is: with a question.
    photograph and a step count in the same breath, each labelled with
    what it is.
 
+4. **Documents on the way out.** The answers are contracts too. Today
+   `--json` returns whatever `payloads.py` happens to build; the
+   interest export (ADR-0047) is the only shape with a name and a
+   version. `AnswerDocument v1`, `ProfileDocument v1` and
+   `SuggestionDocument v1` give the same treatment to what a caller
+   actually reads: a document in `docs/`, a version, and a conformance
+   test, so that a phone app, another visualisation or another AI can
+   use KISEKI through a contract rather than through a prompt. The
+   place to do it is here, because `kiseki now` is the first surface
+   whose whole purpose is to be consumed by something else.
 ## v0.13 -- Your rhythm
 
 The integration completed: not another derivation, but the one that
