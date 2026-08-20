@@ -1469,6 +1469,11 @@ def _command_demo(args: argparse.Namespace) -> int:
     from kiseki.application.tour import TOUR
     from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 
+    # Resolved before anything moves: the tour runs each command from
+    # inside the sandbox, so a relative path written afterwards would
+    # land somewhere the caller never named -- it landed in the
+    # repository the first time.
+    destination = Path(args.write).resolve() if getattr(args, "write", None) else None
     root = Path(args.out) if args.out else Path.cwd() / "kiseki-demo"
     if root.exists():
         shutil.rmtree(root)
@@ -1482,8 +1487,8 @@ def _command_demo(args: argparse.Namespace) -> int:
         lines = _walk_the_tour(TOUR, root, db_path)
         for line in lines:
             print(line)
-        if args.write:
-            document = Path(args.write)
+        if destination is not None:
+            document = destination
             document.parent.mkdir(parents=True, exist_ok=True)
             document.write_text(_as_markdown(TOUR, root, db_path), encoding="utf-8")
             print(f"\n  written to {document}")
