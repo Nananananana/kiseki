@@ -110,6 +110,7 @@ uv run kiseki-ingest ~/photos ~/kiseki-data \
 
 # read them, build, and see what they say
 uv run kiseki ingest ~/kiseki-data/photo-records.json
+uv run kiseki activity ~/kiseki-data/activity-records.json
 uv run kiseki build
 uv run kiseki report
 ```
@@ -360,8 +361,8 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.9 -- long years, and what to forget.
-**Next:** v0.10 -- more than photographs
+**Current:** v0.10 -- more than photographs: the boundary.
+**Next:** v0.11 -- the first new sources
 ([docs/proposals](docs/proposals)).
 
 ## Roadmap
@@ -394,8 +395,8 @@ flowchart LR
 | v0.7 | Live with it: one `kiseki refresh`, prompt-version tracking with `reread`, recoverable refusals with `retry`, findings in the view, label and cadence calibration, answers checked past their schema | Released |
 | v0.8 | Recommend with evidence: `kiseki demo`, day trips measured against your own distances, the provider boundary, cross-timeline drift with no causal claim, the narration check | **Released** |
 | v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
-| v0.10 | More than photographs, the boundary: records as siblings (PhotoRecord v1 frozen), the new-source checklist as a gate, provenance graphs, per-source privacy counts | Planned |
-| v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | Planned |
+| v0.10 | More than photographs, the boundary: every source may be absent and a matrix proves it, records as siblings with PhotoRecord v1 frozen, a second contract for daily movement, the rules a new source passes | **Released** |
+| v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | In progress |
 | v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, evidence from several kinds of witness at once | Planned |
 | v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, where trips, places and drift turn out to be one subject | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
