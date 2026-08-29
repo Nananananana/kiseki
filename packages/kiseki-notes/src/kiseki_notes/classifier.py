@@ -44,7 +44,11 @@ SENSITIVE = frozenset({"journal", "health", "money", "people", "credential"})
 
 MAX_LABELS = 8
 
-PROMPT_VERSION = "note/1"
+PROMPT_VERSION = "note/2"
+"""Bumped when the guidance changes, so readings made under an older
+prompt can be told apart and made again (ADR-0051). note/2 rewrote
+what `people` and `journal` mean, after the corpus showed both being
+missed."""
 
 MAX_ANSWER_TOKENS = 200
 """How long an answer may be before it is stopped.
@@ -67,12 +71,22 @@ Categories, and nothing else:
   note reading study work project recipe travel
   journal health money people credential other
 
-Choose the sensitive ones when they fit, and be generous about it:
-  journal      a diary, feelings, a record of a day lived
-  health       symptoms, appointments, a body
-  money        balances, salary, debts, what things cost
-  people       mostly about a named person who is not the writer
-  credential   passwords, keys, tokens, anything secret
+Choose the sensitive ones when they fit. When a note could be two
+things and one of them is sensitive, choose the sensitive one.
+
+  journal      a page about a day the writer lived. A date for a
+               title, what happened, what they did. It is a diary
+               whether or not it says how anything felt.
+  health       symptoms, appointments, medication, a body, a check-up
+               result, an intention to look after oneself.
+  money        balances, salary, debts, rent, what things cost, a
+               household budget, a review of spending.
+  people       a named person other than the writer appears, and the
+               note says something about their situation, their
+               wishes, their family or their difficulties. A meeting
+               note about a colleague is this, not work.
+  credential   passwords, keys, tokens, network names, anything the
+               writer would not want read aloud.
 
 Labels are subjects, two or three words at most, in English, and never
 sentences. Give at most eight, and none at all for a sensitive
