@@ -98,10 +98,13 @@ from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
-from kiseki.interfaces.naming import fold_by_name, place_names
-from kiseki.interfaces.payloads import (
+from kiseki.interfaces.claims import (
     BLURRED_BY_DEFAULT,
     NEVER_STORED,
+    outbound_lines,
+)
+from kiseki.interfaces.naming import fold_by_name, place_names
+from kiseki.interfaces.payloads import (
     answer_payload,
     comparison_payload,
     discovery_payload,
@@ -1069,6 +1072,45 @@ def _command_compare(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_llm(args: argparse.Namespace) -> int:
+    """Where the model is, whether it is allowed, and whether it answers.
+
+    The only command that reaches for the model to find out. Without
+    --check it says what is configured and judges it, which needs no
+    network at all (ADR-0073).
+    """
+    settings = resolve_model_settings(
+        {"host": args.model_host} if getattr(args, "model_host", None) else {},
+        dotenv=Path(".env"),
+    )
+    verdict = settings.verdict
+    print(RULE)
+    print(f"  host            {settings.host}")
+    print(f"  which is        {verdict.locality.value}")
+    print(f"  boundary        {settings.boundary.value}")
+    if settings.trusted_hosts:
+        print(f"  hosts you named {', '.join(settings.trusted_hosts)}")
+    print(f"  admitted        {'yes' if verdict.admitted else 'no'}")
+    print(f"  because         {verdict.reason}")
+    print(f"\n  captioning      {settings.captioning_model}")
+    print(f"  language        {settings.language_model}")
+    print(f"  embedding       {settings.embedding_model}")
+    if not verdict.admitted:
+        return EXIT_BAD_INPUT
+    if not args.check:
+        print("\n  --check asks the model whether it is there")
+        return EXIT_OK
+    try:
+        OllamaLanguageModel(model=settings.language_model, host=settings.host).complete(
+            "Answer with the word yes.", ["Are you there?"]
+        )
+    except (ModelRefusedError, ModelUnavailableError) as error:
+        print(f"\n  reachable       no: {error}")
+        return EXIT_BAD_INPUT
+    print("\n  reachable       yes")
+    return EXIT_OK
+
+
 def _command_privacy(args: argparse.Namespace) -> int:
     report = _pipeline_from(_paths_for(args).db_path).privacy()
     if args.json:
@@ -1090,9 +1132,13 @@ def _command_privacy(args: argparse.Namespace) -> int:
     )
     print("\n  what the owner has withheld")
     print(f"    from the preferences  {report.withheld_from_preference} photographs")
+    print("\n  where the models are, and what therefore leaves")
+    for name, value in outbound_lines(_models_for(args)):
+        print(f"    {name:<24}  {value}")
     print("\n  what is never stored, by construction")
-    for name, reason in NEVER_STORED:
+    for name, reason, test in NEVER_STORED:
         print(f"    {name:<24}  {reason}")
+        print(f"    {'':<24}  checked by {test}")
     print(f"\n  {BLURRED_BY_DEFAULT}")
     return EXIT_OK
 
@@ -1958,6 +2004,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Reconstruct journeys from photo timelines and measure them.",
     )
     parser.add_argument("--data-root", default=None, help="override where everything is stored")
+    parser.add_argument(
+        "--model-host",
+        dest="model_host",
+        default=None,
+        help="where the model is, this once",
+    )
     commands = parser.add_subparsers(dest="command")
 
     commands.add_parser("paths", help="show where things will be stored").set_defaults(
@@ -2171,6 +2223,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.set_defaults(run=_command_compare)
 
+    llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
+    llm.add_argument("--check", action="store_true", help="ask the model whether it is there")
+    llm.set_defaults(run=_command_llm)
     privacy = commands.add_parser("privacy", help="how the owner's data is treated, in counts")
     privacy.add_argument("--json", action="store_true", help="machine readable output")
     privacy.set_defaults(run=_command_privacy)
