@@ -1361,6 +1361,7 @@ def _command_retention(args: argparse.Namespace) -> int:
             _timedelta(days=args.keep_refusals_days) if args.keep_refusals_days else None
         ),
         keep_profiles=args.keep_profiles,
+        one_a_day=getattr(args, "one_a_day", False),
     )
     connection = connect(_paths_for(args).db_path)
     print(RULE)
@@ -1369,6 +1370,7 @@ def _command_retention(args: argparse.Namespace) -> int:
         print("    --keep-photographs-years N   forget photographs older than N years")
         print("    --keep-refusals-days N       forget recorded refusals older than N days")
         print("    --keep-profiles N            keep the last N readings, then one a month")
+        print("    --one-a-day                  keep the first reading of each day")
         return EXIT_OK
     now = _datetime.now()
     plan = plan_retention(connection, policy, now)
@@ -2142,6 +2144,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="keep the last N readings, then one a month before them",
+    )
+    retention.add_argument(
+        "--one-a-day",
+        dest="one_a_day",
+        action="store_true",
+        help="keep the first reading of each day, and forget the rest",
     )
     retention.add_argument("--apply", action="store_true", help="let them go")
     retention.set_defaults(run=_command_retention)
