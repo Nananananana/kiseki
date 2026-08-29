@@ -3,6 +3,7 @@ include_external_packages = True
 root_packages =
     kiseki
     kiseki_ingest
+    kiseki_notes
 
 [importlinter:contract:layers]
 name = Layer dependency direction
@@ -37,6 +38,18 @@ forbidden_modules =
     os
     tomllib
     kiseki.config
+
+[importlinter:contract:notes-independence]
+name = Notes producer must not depend on core domain or application
+type = forbidden
+source_modules =
+    kiseki_notes
+forbidden_modules =
+    kiseki.domain.interests
+    kiseki.domain.photo
+    kiseki.domain.note
+    kiseki.application
+    kiseki.adapters
 
 [importlinter:contract:ingest-independence]
 name = Ingest implementation must not depend on core domain
