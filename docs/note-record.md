@@ -1,0 +1,89 @@
+# NoteRecord v1
+
+> This describes a producer contract as it stands today. Decisions are
+> recorded in `docs/adr/`; proposed changes in `docs/proposals/`.
+
+A third input contract, beside [PhotoRecord v1](photo-record.md) and
+[ActivityRecord v1](activity-record.md), and independent of both. See
+[the rules every contract shares](records.md).
+
+A note is something the owner wrote, which makes it the most eloquent
+thing this library reads and the most dangerous. The contract is
+shaped so the dangerous part never arrives.
+
+## The document
+
+A JSON array of readings. One record is one note, read once.
+
+```json
+[
+  { "owner": "me", "platform": "obsidian", "day": "2026-08-29",
+    "reference": "note:9f7630c78bfc", "category": "reading",
+    "labels": ["distributed systems", "raft"] },
+  { "owner": "me", "platform": "obsidian", "day": "2026-08-28",
+    "reference": "note:1a2b3c4d5e6f", "category": "journal",
+    "labels": [] }
+]
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `owner` | yes | Whose note this is. |
+| `platform` | yes | What produced it, for the owner's own reckoning. |
+| `day` | yes | The day the note was last written, `YYYY-MM-DD`, local. |
+| `reference` | yes | A stable, opaque handle for the note. A hash of its path. |
+| `category` | yes | One of the categories below. |
+| `labels` | yes | Up to eight short labels, and empty for a sensitive category. |
+
+Anything else in a record is ignored rather than refused.
+
+## The categories
+
+`note`, `reading`, `study`, `work`, `project`, `recipe`, `travel`,
+`other` carry labels.
+
+`journal`, `health`, `money`, `people`, `credential` are **recorded
+and never labelled**. The count is evidence that the owner writes
+diaries; the labels would be the diary. `people` is on that list
+because a note about somebody is mostly about them, and they did not
+choose to be in this library.
+
+## What it deliberately does not carry
+
+- **No text.** Not a summary, not a first line, not an excerpt. The
+  producer reads and discards; the core has no field to put it in.
+- **No file name.** `2026-resignation.md` says as much as its
+  contents.
+- **No path.** The reference is a hash of it, made by the producer,
+  so the core can tell two readings apart without knowing what they
+  are. The owner asks the producer, which holds that mapping.
+- **No time of day.** A day is the unit, as it is for activity.
+- **No folder structure.** Which folder a note sits in is a
+  categorisation the owner made, and it names things: clients,
+  people, projects.
+
+## Producing one
+
+The producer reads a folder the owner named -- never the home
+directory, never "every text file on this machine". A source that
+finds documents somebody forgot they had is a search tool, and this
+is not one.
+
+It classifies with a model, and where that model runs is the whole
+privacy argument: the note's text reaches the classifier before
+anything is discarded. The trust boundary (ADR-0073) applies to the
+producer exactly as it applies to captioning.
+
+**A dry run comes first.** A misclassified photograph can be looked at
+again; a misclassified note cannot, because the text is gone. The
+producer shows what it would record, and records only when told a
+second time.
+
+## Reading one
+
+```bash
+uv run kiseki notes ~/kiseki-data/note-records.json
+```
+
+The same reference given twice replaces rather than doubles, so
+re-reading a folder is safe.

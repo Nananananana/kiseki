@@ -41,6 +41,7 @@ class EvidenceSource(Enum):
     SCREEN = "screen reading"
     KEPT_READING = "kept reading"
     ACTIVITY = "daily activity"
+    NOTE = "note"
 
     @property
     def label(self) -> str:
