@@ -90,17 +90,57 @@ def _from_toml(path: Path) -> dict[str, str]:
     return {key: str(value) for key, value in document.get("paths", {}).items()}
 
 
+RANK = {"default": 0, "toml": 1, "dotenv": 2, "environment": 3, "command line": 4}
+"""How much each source is worth when two of them disagree."""
+
+
+def _layered(overrides: dict[str, str] | None, dotenv: Path | None) -> dict[str, tuple[str, str]]:
+    """Every setting, with the name of the layer that last set it."""
+    layers: dict[str, tuple[str, str]] = {}
+    if dotenv is not None:
+        for key, value in _from_toml(dotenv.parent / "kiseki.toml").items():
+            layers[key] = (value, "toml")
+        for key, value in _from_dotenv(dotenv).items():
+            layers[key] = (value, "dotenv")
+    for key, value in _from_environment().items():
+        layers[key] = (value, "environment")
+    for key, value in (overrides or {}).items():
+        if value:
+            layers[key] = (value, "command line")
+    return layers
+
+
+def set_aside(
+    overrides: dict[str, str] | None = None, dotenv: Path | None = None
+) -> tuple[str, ...]:
+    """Paths a stronger root displaced, so the caller can say so.
+
+    An explicit path beats a derived one, which is right inside a
+    layer and wrong across them: `--data-root` moving the root while
+    an .env still named `db_path` meant the flag appeared to work and
+    did nothing, and a synthetic corpus went into a real library
+    twice before anybody noticed.
+    """
+    layers = _layered(overrides, dotenv)
+    root_rank = RANK[layers.get("data_root", ("", "default"))[1]]
+    return tuple(key for key in OVERRIDABLE if key in layers and RANK[layers[key][1]] < root_rank)
+
+
 def resolve_paths(
     overrides: dict[str, str] | None = None, dotenv: Path | None = None
 ) -> StoragePaths:
-    """Work out where everything goes, applying each source in turn."""
-    layers: dict[str, str] = {}
-    if dotenv is not None:
-        layers.update(_from_toml(dotenv.parent / "kiseki.toml"))
-        layers.update(_from_dotenv(dotenv))
-    layers.update(_from_environment())
-    layers.update({key: value for key, value in (overrides or {}).items() if value})
+    """Work out where everything goes, applying each source in turn.
 
-    root = Path(layers.get("data_root", str(default_root()))).expanduser()
-    named = {key: Path(layers[key]).expanduser() for key in OVERRIDABLE if key in layers}
+    A path named in a layer weaker than the one that named the root is
+    set aside: somebody who says where the root is on the command line
+    has said where everything goes, and a file cannot answer back.
+    """
+    layers = _layered(overrides, dotenv)
+    root_rank = RANK[layers.get("data_root", ("", "default"))[1]]
+    root = Path(layers.get("data_root", (str(default_root()), "default"))[0]).expanduser()
+    named = {
+        key: Path(layers[key][0]).expanduser()
+        for key in OVERRIDABLE
+        if key in layers and RANK[layers[key][1]] >= root_rank
+    }
     return StoragePaths.derive(root, named)

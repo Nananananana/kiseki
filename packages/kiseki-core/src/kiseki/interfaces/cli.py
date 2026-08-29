@@ -66,7 +66,7 @@ from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
 from kiseki.config.model import ModelSettings, resolve_model_settings
-from kiseki.config.paths import StoragePaths, resolve_paths
+from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
@@ -198,7 +198,17 @@ def _screen_reader(args: argparse.Namespace) -> OllamaScreenshotReader:
 
 
 def _paths_for(args: argparse.Namespace) -> StoragePaths:
-    return resolve_paths({"data_root": args.data_root or ""}, dotenv=DOTENV)
+    """Where everything is, and a word about anything overruled."""
+    overrides = {"data_root": args.data_root or ""}
+    displaced = set_aside(overrides, dotenv=DOTENV)
+    if displaced:
+        # A setting silently ignored is the same failure as a setting
+        # silently applied (ADR-0079).
+        print(
+            f"  --data-root sets aside {', '.join(displaced)} from your configuration",
+            file=sys.stderr,
+        )
+    return resolve_paths(overrides, dotenv=DOTENV)
 
 
 def _pipeline_from(db_path: Path) -> Pipeline:
