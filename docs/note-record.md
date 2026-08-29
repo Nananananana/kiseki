@@ -13,7 +13,11 @@ shaped so the dangerous part never arrives.
 
 ## The document
 
-A JSON array of readings. One record is one note, read once.
+A JSON array of readings. **One record is one note on one day**, not
+one note. A note the owner returns to across six months produces six
+records, and the returning is the point: a thought had once and a
+thought lived with look identical in a single record and nothing alike
+in a trail of them (ADR-0076).
 
 ```json
 [
@@ -85,5 +89,9 @@ second time.
 uv run kiseki notes ~/kiseki-data/note-records.json
 ```
 
-The same reference given twice replaces rather than doubles, so
-re-reading a folder is safe.
+Re-reading a folder is safe: a note whose day has not changed replaces
+its reading, and a note written again on a later day adds one.
+
+What the core makes of a trail of them -- which notes were returned
+to, which were written in one sitting, which subjects arrive together
+-- is derivation, and lives above this contract.
