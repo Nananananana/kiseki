@@ -65,6 +65,7 @@ from kiseki.application.single_captioning import (
 from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
+from kiseki.config.model import ModelSettings, resolve_model_settings
 from kiseki.config.paths import StoragePaths, resolve_paths
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
@@ -148,6 +149,48 @@ def _to_observations(records: list[dict[str, Any]]) -> list[PhotoObservation]:
             )
         )
     return observations
+
+
+class ModelRefusedByBoundaryError(RuntimeError):
+    """The model is further away than the owner allowed."""
+
+
+def _models_for(args: argparse.Namespace) -> ModelSettings:
+    """Where the models are, having checked that they may be there.
+
+    Checked here rather than in the adapters: an adapter that refused
+    would refuse once per request, and the answer is the same every
+    time. Photographs are sent by captioning, so the question is asked
+    before the first one (ADR-0073).
+    """
+    given = getattr(args, "model_host", None)
+    settings = resolve_model_settings({"host": given} if given else {}, dotenv=Path(".env"))
+    verdict = settings.verdict
+    if not verdict.admitted:
+        raise ModelRefusedByBoundaryError(
+            f"REFUSED. This model will not be used:\n  {verdict.reason}."
+        )
+    return settings
+
+
+def _captioner(args: argparse.Namespace) -> OllamaImageCaptioner:
+    settings = _models_for(args)
+    return OllamaImageCaptioner(model=settings.captioning_model, host=settings.host)
+
+
+def _language_model(args: argparse.Namespace) -> OllamaLanguageModel:
+    settings = _models_for(args)
+    return OllamaLanguageModel(model=settings.language_model, host=settings.host)
+
+
+def _embedder(args: argparse.Namespace) -> OllamaTextEmbedder:
+    settings = _models_for(args)
+    return OllamaTextEmbedder(model=settings.embedding_model, host=settings.host)
+
+
+def _screen_reader(args: argparse.Namespace) -> OllamaScreenshotReader:
+    settings = _models_for(args)
+    return OllamaScreenshotReader(model=settings.captioning_model, host=settings.host)
 
 
 def _paths_for(args: argparse.Namespace) -> StoragePaths:
@@ -423,7 +466,7 @@ def _command_caption(args: argparse.Namespace) -> int:
         photos=SqlitePhotoRepository(connection),
         captions=SqliteCaptionRepository(connection),
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
-        captioner=OllamaImageCaptioner(),
+        captioner=_captioner(args),
         limit=args.limit,
     )
     print(RULE)
@@ -442,7 +485,7 @@ def _command_subjects(args: argparse.Namespace) -> int:
     report = run_subject_extraction(
         captions=SqliteCaptionRepository(connection),
         subjects=SqliteSubjectRepository(connection),
-        language_model=OllamaLanguageModel(),
+        language_model=_language_model(args),
         singles=SqliteSingleCaptionRepository(connection),
         limit=args.limit,
     )
@@ -479,7 +522,7 @@ def _command_tell(args: argparse.Namespace) -> int:
         story = tell(
             profile,
             report,
-            OllamaLanguageModel(),
+            _language_model(args),
             language=args.lang,
             names=names,
             singles=singles.all(),
@@ -508,8 +551,8 @@ def _command_themes(args: argparse.Namespace) -> int:
         report = run_theming(
             subjects=SqliteSubjectRepository(connection),
             themes=SqliteThemeSetRepository(connection),
-            embedder=OllamaTextEmbedder(),
-            language_model=OllamaLanguageModel(),
+            embedder=_embedder(args),
+            language_model=_language_model(args),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -637,7 +680,7 @@ def _command_screens(args: argparse.Namespace) -> int:
         photos=SqlitePhotoRepository(connection),
         readings=SqliteScreenshotReadingRepository(connection),
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
-        reader=OllamaScreenshotReader(),
+        reader=_screen_reader(args),
         limit=args.limit,
     )
     print(RULE)
@@ -658,7 +701,7 @@ def _command_singles(args: argparse.Namespace) -> int:
         outings=SqliteOutingRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
-        captioner=OllamaImageCaptioner(),
+        captioner=_captioner(args),
         limit=args.limit,
     )
     print(RULE)
@@ -680,7 +723,7 @@ def _command_index(args: argparse.Namespace) -> int:
             singles=SqliteSingleCaptionRepository(connection),
             screens=SqliteScreenshotReadingRepository(connection),
             index=SqliteSearchIndex(connection),
-            embedder=OllamaTextEmbedder(),
+            embedder=_embedder(args),
             embedding_model=DEFAULT_EMBEDDING_MODEL,
             limit=args.limit,
         )
@@ -716,9 +759,9 @@ def _command_ask(args: argparse.Namespace) -> int:
     try:
         answer = ask(
             index=SqliteSearchIndex(connection),
-            embedder=OllamaTextEmbedder(),
+            embedder=_embedder(args),
             embedding_model=DEFAULT_EMBEDDING_MODEL,
-            language_model=OllamaLanguageModel(),
+            language_model=_language_model(args),
             question=args.question,
             language=args.lang,
             since=since,
@@ -764,8 +807,15 @@ def _command_ask(args: argparse.Namespace) -> int:
 
 def _ask_factory(
     db_path: Path,
+    settings: ModelSettings | None = None,
 ) -> Callable[[str, str, datetime | None, datetime | None], Answer]:
-    """Fresh connection per question: SQLite belongs to its thread."""
+    """Fresh connection per question: SQLite belongs to its thread.
+
+    The models are settled once, by the caller, because this factory
+    outlives any one request and the boundary was already judged when
+    the command started (ADR-0073).
+    """
+    models = settings if settings is not None else ModelSettings()
 
     def _answer(
         question: str,
@@ -777,9 +827,9 @@ def _ask_factory(
         try:
             return ask(
                 index=SqliteSearchIndex(connection),
-                embedder=OllamaTextEmbedder(),
-                embedding_model=DEFAULT_EMBEDDING_MODEL,
-                language_model=OllamaLanguageModel(),
+                embedder=OllamaTextEmbedder(model=models.embedding_model, host=models.host),
+                embedding_model=models.embedding_model,
+                language_model=OllamaLanguageModel(model=models.language_model, host=models.host),
                 question=question,
                 language=language,
                 since=since,
@@ -875,7 +925,7 @@ def _command_insights(args: argparse.Namespace) -> int:
         return EXIT_OK
     if args.story:
         try:
-            story = tell_insights(report, OllamaLanguageModel(), language=args.lang, names=names)
+            story = tell_insights(report, _language_model(args), language=args.lang, names=names)
         except (ModelRefusedError, ModelUnavailableError) as error:
             print(f"the model could not answer: {error}", file=sys.stderr)
             return EXIT_BAD_INPUT
@@ -2255,7 +2305,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_usage(sys.stderr)
         return EXIT_BAD_INPUT
 
-    exit_code: int = args.run(args)
+    try:
+        exit_code: int = args.run(args)
+    except ModelRefusedByBoundaryError as refusal:
+        # The one refusal that is a decision rather than a failure: the
+        # model is further away than the owner allowed (ADR-0073).
+        print(str(refusal), file=sys.stderr)
+        return EXIT_BAD_INPUT
+    except ValueError as error:
+        # A setting that would have done nothing, said at the door.
+        print(str(error), file=sys.stderr)
+        return EXIT_BAD_INPUT
     return exit_code
 
 
