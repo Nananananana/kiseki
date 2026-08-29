@@ -17,8 +17,16 @@ DAY = date(2026, 6, 1)
 
 
 def _interest(topic: str, score: float = 0.6, confidence: float = 0.5) -> Interest:
-    evidence = (
-        InterestEvidence(kind=EvidenceKind.PHOTOGRAPH, reference="caption:aa", observed_at=WHEN),
+    # Three separate readings: the export asks for that many before a
+    # topic may leave (ADR-0069), and these tests are about what the
+    # document does not carry rather than about how much it carries.
+    evidence = tuple(
+        InterestEvidence(
+            kind=EvidenceKind.PHOTOGRAPH,
+            reference=f"caption:aa{index}",
+            observed_at=WHEN,
+        )
+        for index in range(3)
     )
     return Interest(
         topic=topic,

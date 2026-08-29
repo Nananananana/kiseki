@@ -71,12 +71,13 @@ def test_the_export_carries_no_identifier_no_place_no_timestamp() -> None:
     )
 
     when = datetime(2026, 6, 1, 12, 34, 56, tzinfo=UTC)
-    evidence = (
+    evidence = tuple(
         InterestEvidence(
             kind=EvidenceKind.PHOTOGRAPH,
-            reference="caption:aaaaaaaabbbbbbbb",
+            reference=f"caption:aaaaaaaabbbbbbbb{index}",
             observed_at=when,
-        ),
+        )
+        for index in range(3)
     )
     profile = Profile(
         generated_at=when,
