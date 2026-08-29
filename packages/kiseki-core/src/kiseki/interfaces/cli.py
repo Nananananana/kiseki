@@ -395,7 +395,10 @@ def _print_profile(
 
 def _command_profile(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
-    profile = _pipeline_from(paths.db_path).profile()
+    # Reading is not keeping. Printed four times in an afternoon, this
+    # command wrote four readings into the history, and every
+    # derivation that reads the history read them (ADR-0070).
+    profile = _pipeline_from(paths.db_path).profile(keep=args.keep)
     if args.json:
         print(json.dumps(profile_payload(profile), indent=2))
     else:
@@ -1555,7 +1558,10 @@ def _command_refresh(args: argparse.Namespace) -> int:
     for stage in REFRESH_STAGES:
         print(RULE)
         print(f"  {stage}")
-        parsed = parser.parse_args([*base, stage])
+        # The weekly routine is the act that keeps a reading; printing
+        # one is not (ADR-0070).
+        extra = ["--keep"] if stage == "profile" else []
+        parsed = parser.parse_args([*base, stage, *extra])
         code: int = parsed.run(parsed)
         if code != EXIT_OK:
             print(f"  {stage} stopped ({code}); nothing after it ran", file=sys.stderr)
@@ -1917,6 +1923,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--unfolded",
         action="store_true",
         help="show every reading apart, without folding a family into one",
+    )
+    profile.add_argument(
+        "--keep",
+        action="store_true",
+        help="keep this reading in the history, as refresh does",
     )
     profile.set_defaults(run=_command_profile)
 
