@@ -97,7 +97,7 @@ from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
-from kiseki.interfaces.naming import place_names
+from kiseki.interfaces.naming import fold_by_name, place_names
 from kiseki.interfaces.payloads import (
     BLURRED_BY_DEFAULT,
     NEVER_STORED,
@@ -1442,24 +1442,36 @@ def _command_places(args: argparse.Namespace) -> int:
         print("  no places yet: run `kiseki build` once the photographs are in")
         return EXIT_OK
     gazetteer = FileGazetteer(paths.gazetteer_path)
-    shown = places[:15]
-    print(f"  places        {len(places)} (showing {len(shown)}, the most visited first)")
+
+    def _named(place: Any) -> str | None:
+        found = gazetteer.nearest(place.centroid, Distance(25_000))
+        return found.label if found is not None else None
+
+    # A name is coarser than a place: sixteen places in one suburb all
+    # answer to the town. Folded, the listing says how many (ADR-0072).
+    folded, held = (
+        fold_by_name(places, _named) if not getattr(args, "unfolded", False) else (list(places), {})
+    )
+    limit = _limit_of(args)
+    shown = _capped(folded, limit)
+    print(f"  places        {len(places)} in {len(folded)} named spots")
     print()
-    for place in shown:
-        named = gazetteer.nearest(place.centroid, Distance(25_000))
-        label = (
-            named.label
-            if named is not None
-            else f"{place.centroid.latitude:.2f},{place.centroid.longitude:.2f}"
-        )
+    for index, place in enumerate(shown):
+        label = _named(place) or (f"{place.centroid.latitude:.2f},{place.centroid.longitude:.2f}")
         gap = f"every ~{place.median_gap_days}d" if place.median_gap_days is not None else "once"
+        under = held.get(index, 0)
+        stands = f"  and {under} more there" if under else ""
         print(
             f"    {label:<28}"
             f"  visits {place.visits:>3}"
             f"  first {place.first_seen.date().isoformat()}"
             f"  last {place.last_seen.date().isoformat()}"
             f"  {gap}"
+            f"{stands}"
         )
+    note = _shown(len(shown), len(folded))
+    if note:
+        print(note)
     return EXIT_OK
 
 
@@ -2125,6 +2137,23 @@ def build_parser() -> argparse.ArgumentParser:
     discover.set_defaults(run=_command_discover)
 
     places = commands.add_parser("places", help="what your journeys say about each place")
+    places.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    places.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
+    places.add_argument(
+        "--unfolded",
+        action="store_true",
+        help="show every place apart, without folding a name into one",
+    )
     places.set_defaults(run=_command_places)
 
     forgetting = commands.add_parser(
