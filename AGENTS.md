@@ -192,5 +192,14 @@ Read the ADRs that cover what you are changing. There are 64.
   three, what this could reveal, is the one that decides.
 - The Apple Health converter waits for an export to exist. The
   receiving half -- ActivityRecord v1, the table, `kiseki activity` --
-  is done.- Every version reserves its last issue for what the previous
+  is done.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
+  changes three things: notes and web pages as sources the owner writes
+  rather than takes, the model's location settled before anything else,
+  and the commands that say what the library cannot do. Notes come
+  before the web because a folder of text files is simpler than a
+  browser's locked database, and the contract should be settled against
+  the easy source.
+- A producer that discards text cannot be checked afterwards, so a
+  source of that kind ships with a dry run and is not recorded until
+  the owner has seen what would be.- Every version reserves its last issue for what the previous
   version's data says.
