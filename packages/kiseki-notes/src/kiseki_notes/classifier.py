@@ -46,6 +46,16 @@ MAX_LABELS = 8
 
 PROMPT_VERSION = "note/1"
 
+MAX_ANSWER_TOKENS = 200
+"""How long an answer may be before it is stopped.
+
+A classification is a category and a few labels: fifty tokens, and two
+hundred is generous. Measured on a real folder, one note took two
+hundred seconds while a note four times its size took eleven -- the
+excerpt is capped, so the prompts were the same length and the model
+was simply still talking. A ceiling turns that into a refusal in a few
+seconds instead of a stall."""
+
 EXCERPT_CHARACTERS = 4000
 """How much of a note the model sees. Enough to tell a recipe from a
 diary; short enough that a long document does not become a long
@@ -72,7 +82,16 @@ Answer with JSON only: {"category": "...", "labels": ["...", "..."]}"""
 
 
 class ClassifierUnavailableError(RuntimeError):
-    """The model could not be reached. Nothing was read."""
+    """The model could not be reached at all. Nothing was read.
+
+    Told apart from a note that took too long, because the two mean
+    different things: a note that stalled is one refusal and the work
+    goes on, while a host that answers nothing will answer nothing for
+    every note after it too (ADR-0015, ADR-0052)."""
+
+
+class NoteTookTooLongError(RuntimeError):
+    """This note did not come back in time. The next one might."""
 
 
 @dataclass(frozen=True)
@@ -119,7 +138,7 @@ def _ask(host: str, model: str, excerpt: str, timeout: float) -> str:
             "prompt": excerpt,
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0.0},
+            "options": {"temperature": 0.0, "num_predict": MAX_ANSWER_TOKENS},
         }
     ).encode("utf-8")
     request = urllib.request.Request(
@@ -130,7 +149,13 @@ def _ask(host: str, model: str, excerpt: str, timeout: float) -> str:
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except TimeoutError as error:
+        raise NoteTookTooLongError(str(error)) from error
+    except (urllib.error.URLError, OSError) as error:
+        if isinstance(getattr(error, "reason", None), TimeoutError):
+            raise NoteTookTooLongError(str(error)) from error
+        if "timed out" in str(error).lower():
+            raise NoteTookTooLongError(str(error)) from error
         raise ClassifierUnavailableError(str(error)) from error
     answer: str = payload.get("response", "")
     return answer
@@ -142,7 +167,18 @@ def classify(
     model: str,
     timeout: float = 120.0,
 ) -> Classification:
-    """One note, read once. Raises only when the model cannot be reached."""
+    """One note, read once. Raises only when the model cannot be reached.
+
+    An empty note is not asked about. There is nothing in it to
+    classify, and a model asked about nothing answers with something.
+    """
+    if not excerpt.strip():
+        return Classification(
+            category="other",
+            labels=(),
+            model=model,
+            refused="the note is empty",
+        )
     answer = _ask(host, model, excerpt[:EXCERPT_CHARACTERS], timeout)
     try:
         parsed = json.loads(answer)

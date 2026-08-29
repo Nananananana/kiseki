@@ -17,9 +17,12 @@ from pathlib import Path
 
 from kiseki_notes.classifier import (
     SENSITIVE,
+    Classification,
     ClassifierUnavailableError,
+    NoteTookTooLongError,
     classify,
 )
+from kiseki_notes.evaluation import read_expectations, score
 from kiseki_notes.reader import MAX_BYTES, SUFFIXES, days_of, find_notes
 from kiseki_notes.trust import admitted, describe, host_of
 
@@ -119,6 +122,7 @@ def _command_read(args: argparse.Namespace) -> int:
     print()
 
     records: list[dict[str, object]] = []
+    counted: dict[str, int] = {}
     refusals = 0
     for note in readable:
         try:
@@ -153,6 +157,10 @@ def _command_read(args: argparse.Namespace) -> int:
     sensitive = sum(1 for record in records if record["category"] in SENSITIVE)
     if sensitive:
         print(f"  counted only  {sensitive} in a sensitive category, with no labels")
+    if counted:
+        print("\n  by category")
+        for category, count in sorted(counted.items(), key=lambda pair: -pair[1]):
+            print(f"    {category:<12}  {count}")
 
     if not args.apply:
         print(
@@ -169,6 +177,95 @@ def _command_read(args: argparse.Namespace) -> int:
     print(f"\n  written to    {destination}")
     print("  read it with  uv run kiseki notes <that file>")
     return EXIT_OK
+
+
+def _command_eval(args: argparse.Namespace) -> int:
+    """Read a labelled corpus and say how well the classifier did.
+
+    Three figures, because one would hide the asymmetry: a sensitive
+    note read as ordinary has its labels recorded, and an ordinary note
+    read as sensitive only costs coverage. The leaks are named, since
+    an aggregate says something moved and not what (ADR-0077).
+    """
+    root = Path(args.corpus).expanduser()
+    folder = root / "notes"
+    answers_file = root / "expectations.json"
+    if not answers_file.is_file():
+        print(f"no expectations.json under {root}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    expectations = read_expectations(answers_file)
+
+    host, model, boundary, trusted = _settings_from(args)
+    endpoint_host = host_of(host)
+    if not admitted(endpoint_host, boundary, trusted):
+        print(
+            f"REFUSED. '{endpoint_host}' is {describe(endpoint_host)},"
+            f" outside the {boundary} boundary.",
+            file=sys.stderr,
+        )
+        return EXIT_BAD_INPUT
+
+    notes = find_notes(folder)
+    by_relative = {str(note.path.relative_to(folder)).replace("\\", "/"): note for note in notes}
+    print(RULE)
+    print(f"  corpus        {root.name}, {len(expectations)} notes")
+    print(f"  model         {model} at {host}")
+    print()
+
+    answers: dict[str, tuple[str, tuple[str, ...]]] = {}
+    for expectation in expectations:
+        note = by_relative.get(expectation.path)
+        if note is None:
+            continue
+        try:
+            excerpt = note.path.read_text(encoding="utf-8", errors="replace")
+            settled = classify(excerpt, host, model, timeout=args.timeout)
+        except NoteTookTooLongError:
+            settled = Classification(
+                category="other", labels=(), model=model, refused="took too long"
+            )
+        except ClassifierUnavailableError as error:
+            print(f"the model could not be reached: {error}", file=sys.stderr)
+            return EXIT_BAD_INPUT
+        answers[expectation.path] = (settled.category, settled.labels)
+
+    result = score(expectations, answers)
+    print(
+        f"  leak rate         {result.leak_rate:>6.1%}"
+        f"   {len(result.leaks)}/{len(result.sensitive)} sensitive notes read as ordinary"
+    )
+    print(
+        f"  over-caution      {result.over_caution_rate:>6.1%}"
+        f"   {len(result.over_cautions)}/{len(result.ordinary)} ordinary notes read as sensitive"
+    )
+    print(f"  exact             {result.exact:>6}   of {len(result.outcomes)}")
+    print(f"  acceptable        {result.allowed:>6}   of {len(result.outcomes)}")
+
+    if result.leaks:
+        print(f"\n  what leaked ({result.labels_leaked} labels recorded)")
+        for outcome in result.leaks:
+            labels = ", ".join(outcome.labels) if outcome.labels else "no labels"
+            print(f"    {outcome.expected:<11} read as {outcome.answered:<11} {labels}")
+    if result.over_cautions:
+        print("\n  what was withheld and need not have been")
+        for outcome in result.over_cautions:
+            print(f"    {outcome.expected:<11} read as {outcome.answered}")
+
+    wrong = [
+        outcome
+        for outcome in result.outcomes
+        if not outcome.acceptable and not outcome.leaked and not outcome.over_cautious
+    ]
+    if wrong:
+        print("\n  otherwise misread")
+        for outcome in wrong:
+            print(f"    {outcome.expected:<11} read as {outcome.answered}")
+
+    print(
+        "\n  a floor to hold, not a claim about your notes: two dozen invented"
+        "\n  files say nothing about a real folder"
+    )
+    return EXIT_BAD_INPUT if result.leaks and args.strict else EXIT_OK
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -194,9 +291,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="how far away the model may be",
     )
     read.add_argument("--limit", type=int, default=None, help="read only this many")
+    read.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="how long one note may take before it counts as refused",
+    )
     read.add_argument("--out", default=None, help="where the records go")
     read.add_argument("--apply", action="store_true", help="write the records; without it, nothing")
     read.set_defaults(run=_command_read)
+
+    evaluate = commands.add_parser("eval", help="how well the classifier reads a labelled corpus")
+    evaluate.add_argument("corpus", help="a folder holding notes/ and expectations.json")
+    evaluate.add_argument("--model-host", default=None, help="where the model is")
+    evaluate.add_argument("--model", default=None, help="which model reads them")
+    evaluate.add_argument(
+        "--boundary",
+        default=None,
+        choices=["same_host", "private_network", "anywhere"],
+        help="how far away the model may be",
+    )
+    evaluate.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="how long one note may take before it counts as refused",
+    )
+    evaluate.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero when anything leaked, for a build to fail on",
+    )
+    evaluate.set_defaults(run=_command_eval)
     return parser
 
 
