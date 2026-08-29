@@ -93,6 +93,7 @@ from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
 from kiseki.domain.services.theme_families import fold_by_family
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.services.trips import derive_trips
+from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
@@ -532,6 +533,10 @@ def _print_trend(
     print(RULE)
     print(f"  baseline      {report.baseline_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
+    overlap = overlap_of((trend.baseline, trend.strength) for trend in report.trends)
+    print(f"  topics        {overlap.before} then, {overlap.after} now")
+    if overlap.caution:
+        print(overlap.caution)
 
     if report.trends:
         rows, held = _folded_rows(report.trends, themes, folded)
@@ -983,6 +988,12 @@ def _command_compare(args: argparse.Namespace) -> int:
     print(RULE)
     print(f"  before        {comparison.before_at.date().isoformat()}")
     print(f"  after         {comparison.after_at.date().isoformat()}")
+    overlap = overlap_of(
+        (entry.strength_before, entry.strength_after) for entry in comparison.entries
+    )
+    print(f"  topics        {overlap.before} then, {overlap.after} now")
+    if overlap.caution:
+        print(overlap.caution)
     if moved:
         rows, held = _folded_rows(
             moved,
