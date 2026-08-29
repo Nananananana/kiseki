@@ -290,19 +290,54 @@ def _command_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _print_profile(profile: Profile, names: dict[str, str]) -> None:
+DEFAULT_LIMIT = 20
+"""How many rows a listing shows before it says how many it kept back.
+
+A real library answers with hundreds of topics, and hundreds of lines
+is not an answer -- the first run against two years of photographs
+printed five hundred rows of drift and nothing could be read in it.
+The number is small on purpose: a reader who wants everything asks
+for it, and `--json` never truncates, because a program is not a
+reader. See ADR-0066.
+"""
+
+
+def _shown(rows: int, total: int) -> str:
+    """The line that admits what was left out, or nothing to admit."""
+    if rows >= total:
+        return ""
+    return f"\n  showing {rows} of {total}; --all for the rest"
+
+
+def _limit_of(args: argparse.Namespace) -> int | None:
+    """None means everything; otherwise the number of rows to show."""
+    if getattr(args, "all_rows", False):
+        return None
+    return int(getattr(args, "limit", DEFAULT_LIMIT))
+
+
+def _capped(items: Sequence[Any], limit: int | None) -> Sequence[Any]:
+    return items if limit is None else items[:limit]
+
+
+def _print_profile(profile: Profile, names: dict[str, str], limit: int | None = None) -> None:
     print(RULE)
     print(f"  interests     {len(profile.interests)}")
 
     if profile.interests:
+        ranked = profile.ranked()
+        shown = _capped(ranked, limit)
         print("\n  read as interests")
-        for interest in profile.ranked():
+        for interest in shown:
             print(
                 f"    {names.get(interest.topic, interest.topic):<32}"
                 f"  score {interest.score:>5.2f}"
                 f"  confidence {interest.confidence:>5.2f}"
                 f"  evidence {len(interest.evidence)}"
             )
+        note = _shown(len(shown), len(ranked))
+        if note:
+            print(note)
 
 
 def _command_profile(args: argparse.Namespace) -> int:
@@ -313,7 +348,7 @@ def _command_profile(args: argparse.Namespace) -> int:
     else:
         gazetteer = FileGazetteer(paths.gazetteer_path)
         names = place_names((interest.topic for interest in profile.interests), gazetteer)
-        _print_profile(profile, names)
+        _print_profile(profile, names, _limit_of(args))
     return EXIT_OK
 
 
@@ -426,20 +461,24 @@ def _command_themes(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _print_trend(report: TrendReport) -> None:
+def _print_trend(report: TrendReport, limit: int | None = None) -> None:
     print(RULE)
     print(f"  baseline      {report.baseline_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
 
     if report.trends:
+        shown = _capped(report.trends, limit)
         print("\n  drift, largest movement first")
-        for trend in report.trends:
+        for trend in shown:
             print(
                 f"    {trend.direction.value:<10}"
                 f"  {trend.topic:<32}"
                 f"  now {trend.strength:>5.2f}"
                 f"  was {trend.baseline:>5.2f}"
             )
+        note = _shown(len(shown), len(report.trends))
+        if note:
+            print(note)
 
 
 def _command_trend(args: argparse.Namespace) -> int:
@@ -457,7 +496,7 @@ def _command_trend(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(trend_payload(report), indent=2))
     else:
-        _print_trend(report)
+        _print_trend(report, _limit_of(args))
     return EXIT_OK
 
 
@@ -698,15 +737,28 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
     print(f"  oldest        {report.oldest_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
     if report.lifecycles:
-        print("\n  where each topic stands")
+        limit = _limit_of(args)
+        # Capped per stage rather than overall: a hundred new topics
+        # would otherwise fill the page and the dormant ones -- the
+        # interesting ones -- would never be seen.
+        by_stage: dict[str, list[Any]] = {}
         for item in report.lifecycles:
-            print(
-                f"    {item.stage.value:<10}"
-                f"  {names.get(item.topic, item.topic):<32}"
-                f"  now {item.strength:>5.2f}"
-                f"  (was {item.baseline:>5.2f})"
-                f"  seen {item.seen_profiles}"
-            )
+            by_stage.setdefault(item.stage.value, []).append(item)
+        print("\n  where each topic stands")
+        for stage, items in by_stage.items():
+            shown = _capped(items, limit)
+            for item in shown:
+                print(
+                    f"    {item.stage.value:<10}"
+                    f"  {names.get(item.topic, item.topic):<32}"
+                    f"  now {item.strength:>5.2f}"
+                    f"  (was {item.baseline:>5.2f})"
+                    f"  seen {item.seen_profiles}"
+                )
+            if len(shown) < len(items):
+                print(f"    {'':<10}  ... {len(items) - len(shown)} more {stage}")
+        if limit is not None:
+            print(f"\n  showing up to {limit} per stage; --all for the rest")
     return EXIT_OK
 
 
@@ -743,8 +795,9 @@ def _command_insights(args: argparse.Namespace) -> int:
             return EXIT_BAD_INPUT
         print("\n" + story if story else "\n  no findings worth a story yet")
         return EXIT_OK
+    shown = _capped(report.insights, _limit_of(args))
     print("\n  findings, the most novel first")
-    for item in report.insights:
+    for item in shown:
         arrow = {"up": "+", "down": "-", "flat": "="}[item.direction.value]
         print(
             f"    {item.kind.value:<10}"
@@ -753,7 +806,10 @@ def _command_insights(args: argparse.Namespace) -> int:
             f"  confidence {item.confidence:.2f}"
             f"  evidence {len(item.evidence)}"
         )
-    said = read_from(reference for item in report.insights for reference in item.evidence)
+    note = _shown(len(shown), len(report.insights))
+    if note:
+        print(note)
+    said = read_from(reference for item in shown for reference in item.evidence)
     if said:
         print(f"\n  {said}")
     mixed = derive_mixed(report)
@@ -847,14 +903,18 @@ def _command_compare(args: argparse.Namespace) -> int:
     print(f"  before        {comparison.before_at.date().isoformat()}")
     print(f"  after         {comparison.after_at.date().isoformat()}")
     if moved:
+        shown = _capped(moved, _limit_of(args))
         print("\n  what changed, the loudest first")
-        for entry in moved:
+        for entry in shown:
             print(
                 f"    {entry.change.value:<9}"
                 f"  {names.get(entry.topic, entry.topic):<32}"
                 f"  {entry.strength_before:.2f} -> {entry.strength_after:.2f}"
                 f"  evidence {entry.evidence_before} -> {entry.evidence_after}"
             )
+        note = _shown(len(shown), len(moved))
+        if note:
+            print(note)
     else:
         print("\n  nothing moved between the two readings")
     print(f"\n  steady        {len(comparison.entries) - len(moved)} topics")
@@ -1757,6 +1817,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     profile = commands.add_parser("profile", help="read the measures as interests")
     profile.add_argument("--json", action="store_true", help="machine readable output")
+    profile.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    profile.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
     profile.set_defaults(run=_command_profile)
 
     caption = commands.add_parser("caption", help="describe the stays with a vision model")
@@ -1776,6 +1848,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     trend = commands.add_parser("trend", help="read the drift between kept profiles")
     trend.add_argument("--json", action="store_true", help="machine readable output")
+    trend.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    trend.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
     trend.set_defaults(run=_command_trend)
 
     serving = commands.add_parser("serve", help="answer over local HTTP")
@@ -1826,12 +1910,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     lifecycle = commands.add_parser("lifecycle", help="where each topic stands in its life")
     lifecycle.add_argument("--json", action="store_true", help="machine readable output")
+    lifecycle.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    lifecycle.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
     lifecycle.set_defaults(run=_command_lifecycle)
 
     insights = commands.add_parser("insights", help="the current findings, with evidence")
     insights.add_argument("--story", action="store_true", help="narrate the findings")
     insights.add_argument("--lang", default="ja", choices=["ja", "en"], help="story language")
     insights.add_argument("--json", action="store_true", help="machine readable output")
+    insights.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    insights.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
     insights.set_defaults(run=_command_insights)
 
     correct = commands.add_parser(
@@ -1859,6 +1967,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="ISO date; picks the latest kept profile at or before it",
     )
     compare.add_argument("--json", action="store_true", help="machine readable output")
+    compare.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="how many rows to show",
+    )
+    compare.add_argument(
+        "--all",
+        dest="all_rows",
+        action="store_true",
+        help="show every row",
+    )
     compare.set_defaults(run=_command_compare)
 
     privacy = commands.add_parser("privacy", help="how the owner's data is treated, in counts")
