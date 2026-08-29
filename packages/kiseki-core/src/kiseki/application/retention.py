@@ -5,7 +5,7 @@ days, and nobody decided that -- it simply happened. So the shape is
 chosen now, while the choice is cheap, and it is expressed as rules
 about what to forget rather than as a machine that forgets.
 
-Three rules, and every one of them is off by default. A library that
+Four rules, and every one of them is off by default. A library that
 quietly discards the owner's past because a default said so would
 break the promise the rest of this code keeps: what is stored is
 theirs, and it goes when they say. Nothing here runs on a timer;
@@ -16,11 +16,21 @@ same path a deliberate deletion takes (ADR-0061).
     keep_refusals_for     forget refusals older than this
     keep_profiles         keep the recent readings, and one per month
                           before them
+    one_a_day             keep the first reading of each day
 
 The profile rule keeps the shape of a history rather than a window of
 it: the trend, the lifecycle and the comparison all read across
 years, and thinning to one reading a month leaves them a decade to
-read while holding a fraction of the rows. See ADR-0062.
+read while holding a fraction of the rows.
+
+The daily rule answers a different question. A weekly routine does
+not produce four readings in an afternoon; a person looking at
+something does, and until ADR-0070 printing the profile kept one
+every time. Reading the same day twice says nothing the first reading
+did not, so the first of a day is the day. It is a poor substitute
+for the monthly rule and a good companion to it: applied to a history
+of keystrokes it keeps the days, where the monthly rule would keep
+whichever readings happened to be recent. See ADR-0062.
 """
 
 from __future__ import annotations
@@ -40,6 +50,7 @@ class RetentionPolicy:
     keep_photographs_for: timedelta | None = None
     keep_refusals_for: timedelta | None = None
     keep_profiles: int | None = None
+    one_a_day: bool = False
 
     def __post_init__(self) -> None:
         for label, span in (
@@ -57,6 +68,7 @@ class RetentionPolicy:
             self.keep_photographs_for is None
             and self.keep_refusals_for is None
             and self.keep_profiles is None
+            and not self.one_a_day
         )
 
 
@@ -128,6 +140,35 @@ def _thinnable_profiles(connection: sqlite3.Connection, keep: int) -> tuple[str,
     return tuple(doomed)
 
 
+def _same_day_duplicates(connection: sqlite3.Connection) -> tuple[str, ...]:
+    """Every reading after the first of its day.
+
+    The first is kept because it is the earliest statement of that
+    day, not because it is the best: a day has one reading in it, and
+    which one is arbitrary as long as the choice is stable.
+    """
+    rows = connection.execute("SELECT generated_at FROM profiles ORDER BY generated_at").fetchall()
+    seen_days: set[str] = set()
+    doomed: list[str] = []
+    for (generated,) in rows:
+        day = generated[:10]
+        if day in seen_days:
+            doomed.append(generated)
+        else:
+            seen_days.add(day)
+    return tuple(doomed)
+
+
+def _doomed_profiles(connection: sqlite3.Connection, policy: RetentionPolicy) -> tuple[str, ...]:
+    """Every kept reading the policy lets go, counted once."""
+    doomed: set[str] = set()
+    if policy.one_a_day:
+        doomed.update(_same_day_duplicates(connection))
+    if policy.keep_profiles is not None:
+        doomed.update(_thinnable_profiles(connection, policy.keep_profiles))
+    return tuple(sorted(doomed))
+
+
 def plan_retention(
     connection: sqlite3.Connection,
     policy: RetentionPolicy,
@@ -142,10 +183,11 @@ def plan_retention(
     refusals = 0
     if policy.keep_refusals_for is not None:
         refusals = _older_refusals(connection, today - policy.keep_refusals_for)
-    profiles: tuple[str, ...] = ()
-    if policy.keep_profiles is not None:
-        profiles = _thinnable_profiles(connection, policy.keep_profiles)
-    return RetentionPlan(photo_ids=photographs, refusals=refusals, profiles=len(profiles))
+    return RetentionPlan(
+        photo_ids=photographs,
+        refusals=refusals,
+        profiles=len(_doomed_profiles(connection, policy)),
+    )
 
 
 def apply_retention(
@@ -177,12 +219,11 @@ def apply_retention(
                     )
                 except sqlite3.OperationalError:
                     continue
-    if policy.keep_profiles is not None:
-        doomed = _thinnable_profiles(connection, policy.keep_profiles)
-        if doomed:
-            marks = ",".join("?" for _ in doomed)
-            with connection:
-                connection.execute(f"DELETE FROM profiles WHERE generated_at IN ({marks})", doomed)
+    doomed = _doomed_profiles(connection, policy)
+    if doomed:
+        marks = ",".join("?" for _ in doomed)
+        with connection:
+            connection.execute(f"DELETE FROM profiles WHERE generated_at IN ({marks})", doomed)
     return plan
 
 
