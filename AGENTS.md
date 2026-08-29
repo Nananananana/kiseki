@@ -93,7 +93,7 @@ Read the ADRs that cover what you are changing. There are 64.
   a package, and duplicate basenames break collection.
 - Any test that invokes the CLI must isolate itself: chdir to tmp_path
   and strip `KISEKI_*` (the root conftest strips them, but `.env` is
-  read from the cwd, and an `.env` path outranks `--data-root`). A CLI
+  read from the cwd, and an `.env` path no longer outranks `--data-root` (ADR-0079)). A CLI
   test once wrote into the developer's real database.
 - Tests that call a real model carry the `llm` marker and are excluded
   from CI; run `uv run pytest -m llm` before merging model-adjacent
@@ -159,7 +159,7 @@ Read the ADRs that cover what you are changing. There are 64.
 ## Current state
 
 - Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1457 passing, 13 llm-marked and deselected in CI.
+- Tests: 1462 passing, 13 llm-marked and deselected in CI.
 - Schema: version 8.
 - Commands: `paths`, `ingest`, `build`, `report`, `profile`,
   `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
