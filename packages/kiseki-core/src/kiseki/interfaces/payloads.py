@@ -19,6 +19,7 @@ from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.trends import TrendReport
+from kiseki.interfaces.claims import NEVER_STORED
 
 BLUR_DECIMALS = 2
 """Decimal places kept when blurring: roughly a kilometre grid,
@@ -138,14 +139,6 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
     }
 
 
-NEVER_STORED = (
-    ("screenshot text", "a reading is a category and labels; no text field exists (ADR-0030)"),
-    ("place names", "resolved from the owner's own gazetteer at display time (ADR-0040)"),
-    ("anchor names", "anchors are never named (ADR-0040)"),
-    ("story-withheld records", "discarded at ingest, never stored (ADR-0032)"),
-    ("outbound copies", "nothing is sent anywhere; no network call exists"),
-)
-
 BLURRED_BY_DEFAULT = (
     "served and written coordinates are rounded to about a kilometre"
     " unless raw output is asked for explicitly (ADR-0026)"
@@ -167,7 +160,7 @@ def privacy_payload(report: PrivacyReport) -> dict[str, Any]:
         "kept_profiles": report.kept_profiles,
         "corrections": report.corrections,
         "active_exclusions": report.active_exclusions,
-        "never_stored": [name for name, _reason in NEVER_STORED],
+        "never_stored": [name for name, _reason, _test in NEVER_STORED],
         "blurred_by_default": True,
     }
 

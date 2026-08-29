@@ -117,9 +117,25 @@ def test_the_blur_is_about_a_kilometre() -> None:
 
 def test_the_privacy_report_still_names_what_is_never_stored() -> None:
     assert NEVER_STORED
-    named = {name for name, _reason in NEVER_STORED}
+    named = {name for name, _reason, _test in NEVER_STORED}
     assert "screenshot text" in named
-    assert "outbound copies" in named
+    assert "identifiers in the export" in named
+
+
+def test_every_claim_carries_the_test_that_keeps_it() -> None:
+    """A claim nobody checks is a description, and descriptions drift."""
+    for subject, _reason, test in NEVER_STORED:
+        assert test.startswith("tests/"), subject
+
+
+def test_what_leaves_is_computed_rather_than_asserted() -> None:
+    """The old line said no network call exists, while captioning made one."""
+    from kiseki.config.model import ModelSettings
+    from kiseki.interfaces.claims import outbound_lines
+
+    said = dict(outbound_lines(ModelSettings()))
+    assert said["which is"] == "this machine"
+    assert "nowhere else" in said["photographs"]
 
 
 def test_no_personal_data_is_committed() -> None:
