@@ -71,6 +71,7 @@ from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
 from kiseki.domain.interests import Profile
+from kiseki.domain.note.reading import NoteReading
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.services.cross_timeline import (
     ALIGNMENT_STRONG,
@@ -261,6 +262,75 @@ def _to_days(records: list[dict[str, Any]]) -> list[DailyActivity]:
         )
         for record in records
     ]
+
+
+def _to_note_readings(records: list[dict[str, Any]]) -> list["NoteReading"]:
+    """Turn NoteRecord v1 documents into readings.
+
+    A sensitive category arriving with labels is refused rather than
+    trimmed. The producer promised not to send them (ADR-0075), and a
+    core that quietly tidied that up would be hiding a producer that
+    had stopped keeping its promise.
+    """
+    from datetime import date as _date
+    from datetime import datetime as _datetime
+
+    from kiseki.domain.note.reading import NoteReading
+
+    now = _datetime.now()
+    readings: list[NoteReading] = []
+    for record in records:
+        readings.append(
+            NoteReading(
+                reference=str(record["reference"]),
+                day=_date.fromisoformat(str(record["day"])),
+                category=str(record["category"]),
+                labels=tuple(str(label) for label in record.get("labels", [])),
+                model=str(record.get("model", "unknown")),
+                created_at=now,
+                prompt_version=(
+                    str(record["prompt_version"]) if record.get("prompt_version") else None
+                ),
+            )
+        )
+    return readings
+
+
+def _command_notes(args: argparse.Namespace) -> int:
+    """Read what a note producer wrote (NoteRecord v1).
+
+    A third contract beside PhotoRecord v1 and ActivityRecord v1, and
+    independent of both. The text never arrives, because there is
+    nowhere in the document for it to be (ADR-0075).
+    """
+    from kiseki.adapters.sqlite.store import SqliteNoteReadingRepository
+
+    try:
+        document = json.loads(Path(args.records).read_text(encoding="utf-8-sig"))
+        if not isinstance(document, list):
+            raise ValueError("a NoteRecord document is a list of readings")
+        readings = _to_note_readings(document)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"the records could not be read: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    repository = SqliteNoteReadingRepository(connection)
+    repository.save_all(readings)
+    held = repository.all()
+    print(RULE)
+    print(f"  readings read {len(readings)}")
+    print(f"  readings held {len(held)}")
+    if held:
+        notes = len({reading.reference for reading in held})
+        days = len({reading.day for reading in held})
+        print(f"  notes         {notes} across {days} days")
+        counted: dict[str, int] = {}
+        for reading in held:
+            counted[reading.category] = counted.get(reading.category, 0) + 1
+        print("\n  by category")
+        for category, count in sorted(counted.items(), key=lambda pair: -pair[1]):
+            print(f"    {category:<12}  {count}")
+    return EXIT_OK
 
 
 def _command_activity(args: argparse.Namespace) -> int:
@@ -2023,6 +2093,10 @@ def build_parser() -> argparse.ArgumentParser:
     activity = commands.add_parser("activity", help="read days of movement (ActivityRecord v1)")
     activity.add_argument("records", help="the ActivityRecord v1 document")
     activity.set_defaults(run=_command_activity)
+
+    notes = commands.add_parser("notes", help="read what a note producer wrote (NoteRecord v1)")
+    notes.add_argument("records", help="the NoteRecord v1 document")
+    notes.set_defaults(run=_command_notes)
 
     commands.add_parser("build", help="recompute stops, outings and anchors").set_defaults(
         run=_command_build
