@@ -30,6 +30,7 @@ from kiseki.domain.interests import (
     InterestEvidence,
     Profile,
 )
+from kiseki.domain.note.reading import NoteReading
 from kiseki.domain.outing.outing import Outing, OutingId
 from kiseki.domain.outing.stop import Stop
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -38,7 +39,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -148,6 +149,17 @@ CREATE TABLE IF NOT EXISTS corrections (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS note_readings (
+    reference  TEXT PRIMARY KEY,
+    day        TEXT NOT NULL,
+    category   TEXT NOT NULL,
+    labels     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT,
+    prompt_version TEXT
+);
+
 CREATE TABLE IF NOT EXISTS daily_activity (
     day        TEXT PRIMARY KEY,
     steps      INTEGER NOT NULL,
@@ -197,6 +209,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 5:
             _migrate_v5_to_v6(connection)
             version = 6
+        if version == 6:
+            _migrate_v6_to_v7(connection)
+            version = 7
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -235,6 +250,78 @@ def _migrate_v3_to_v4(connection: sqlite3.Connection) -> None:
     """
     connection.execute("ALTER TABLE photos ADD COLUMN use_for_preference INTEGER")
     connection.execute("UPDATE schema_version SET version = ?", (4,))
+
+
+def _migrate_v6_to_v7(connection: sqlite3.Connection) -> None:
+    """The one change from 6 to 7: a table for note readings.
+
+    A third kind of witness, in a table of its own. Photographs and
+    days of movement are untouched, and a library that never reads a
+    note has an empty table -- which every derivation must survive
+    (ADR-0063, ADR-0075).
+    """
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS note_readings ("
+        " reference TEXT PRIMARY KEY, day TEXT NOT NULL,"
+        " category TEXT NOT NULL, labels TEXT NOT NULL,"
+        " model TEXT NOT NULL, created_at TEXT NOT NULL,"
+        " refused TEXT, prompt_version TEXT)"
+    )
+    connection.execute("UPDATE schema_version SET version = ?", (7,))
+
+
+class SqliteNoteReadingRepository:
+    """Note readings, keyed by the reference the producer made."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, reading: NoteReading) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO note_readings"
+                " (reference, day, category, labels, model, created_at,"
+                " refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    reading.reference,
+                    reading.day.isoformat(),
+                    reading.category,
+                    json.dumps(list(reading.labels)),
+                    reading.model,
+                    reading.created_at.isoformat(),
+                    reading.refused,
+                    reading.prompt_version,
+                ),
+            )
+
+    def save_all(self, readings: Sequence[NoteReading]) -> None:
+        for reading in readings:
+            self.save(reading)
+
+    def all(self) -> tuple[NoteReading, ...]:
+        rows = self._connection.execute(
+            "SELECT reference, day, category, labels, model, created_at,"
+            " refused, prompt_version FROM note_readings ORDER BY rowid"
+        )
+        return tuple(
+            NoteReading(
+                reference=reference,
+                day=_date.fromisoformat(day),
+                category=category,
+                labels=tuple(json.loads(labels)),
+                model=model,
+                created_at=datetime.fromisoformat(created_at),
+                refused=refused,
+                prompt_version=prompt_version,
+            )
+            for reference, day, category, labels, model, created_at, refused, prompt_version in rows
+        )
+
+    def count(self) -> int:
+        row = self._connection.execute("SELECT COUNT(*) FROM note_readings").fetchone()
+        total: int = row[0]
+        return total
 
 
 def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:

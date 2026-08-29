@@ -159,8 +159,8 @@ Read the ADRs that cover what you are changing. There are 64.
 ## Current state
 
 - Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1379 passing, 13 llm-marked and deselected in CI.
-- Schema: version 6.
+- Tests: 1409 passing, 13 llm-marked and deselected in CI.
+- Schema: version 7.
 - Commands: `paths`, `ingest`, `build`, `report`, `profile`,
   `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
   `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
