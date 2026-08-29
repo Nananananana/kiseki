@@ -321,6 +321,31 @@ def _capped(items: Sequence[Any], limit: int | None) -> Sequence[Any]:
     return items if limit is None else items[:limit]
 
 
+def _folded_rows(
+    rows: Sequence[Any],
+    themes: Sequence[Any],
+    folded: bool,
+) -> tuple[list[Any], dict[str, int]]:
+    """The rows to show and what each stands for, in the order given.
+
+    The listing is already sorted by whatever it ranks on -- movement,
+    change, score -- so the first of a family is the one that earned
+    the line. See ADR-0068.
+    """
+    if not folded or not themes:
+        return list(rows), {}
+    by_topic: dict[str, Any] = {}
+    for row in rows:
+        by_topic.setdefault(row.topic, row)
+    order, held = fold_by_family((row.topic for row in rows), themes)
+    return [by_topic[topic] for topic in order], held
+
+
+def _stands_for(held: dict[str, int], topic: str) -> str:
+    under = held.get(topic, 0)
+    return f"  and {under} more like it" if under else ""
+
+
 def _themes_of(db_path: Path) -> Sequence[Any]:
     """The current theme set, or nothing if none was ever named."""
     latest = SqliteThemeSetRepository(connect(db_path)).latest()
@@ -495,13 +520,19 @@ def _command_themes(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _print_trend(report: TrendReport, limit: int | None = None) -> None:
+def _print_trend(
+    report: TrendReport,
+    limit: int | None = None,
+    themes: Sequence[Any] = (),
+    folded: bool = True,
+) -> None:
     print(RULE)
     print(f"  baseline      {report.baseline_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
 
     if report.trends:
-        shown = _capped(report.trends, limit)
+        rows, held = _folded_rows(report.trends, themes, folded)
+        shown = _capped(rows, limit)
         print("\n  drift, largest movement first")
         for trend in shown:
             print(
@@ -509,8 +540,9 @@ def _print_trend(report: TrendReport, limit: int | None = None) -> None:
                 f"  {trend.topic:<32}"
                 f"  now {trend.strength:>5.2f}"
                 f"  was {trend.baseline:>5.2f}"
+                f"{_stands_for(held, trend.topic)}"
             )
-        note = _shown(len(shown), len(report.trends))
+        note = _shown(len(shown), len(rows))
         if note:
             print(note)
 
@@ -530,7 +562,12 @@ def _command_trend(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(trend_payload(report), indent=2))
     else:
-        _print_trend(report, _limit_of(args))
+        _print_trend(
+            report,
+            _limit_of(args),
+            themes=_themes_of(_paths_for(args).db_path),
+            folded=not getattr(args, "unfolded", False),
+        )
     return EXIT_OK
 
 
@@ -778,9 +815,15 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
         by_stage: dict[str, list[Any]] = {}
         for item in report.lifecycles:
             by_stage.setdefault(item.stage.value, []).append(item)
+        themes = _themes_of(paths.db_path)
+        folded = not getattr(args, "unfolded", False)
         print("\n  where each topic stands")
         for stage, items in by_stage.items():
-            shown = _capped(items, limit)
+            # Folded within the stage: a subject that is new and a
+            # subject that is growing are two different statements, and
+            # a family may honestly appear in both.
+            rows, held = _folded_rows(items, themes, folded)
+            shown = _capped(rows, limit)
             for item in shown:
                 print(
                     f"    {item.stage.value:<10}"
@@ -788,9 +831,10 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
                     f"  now {item.strength:>5.2f}"
                     f"  (was {item.baseline:>5.2f})"
                     f"  seen {item.seen_profiles}"
+                    f"{_stands_for(held, item.topic)}"
                 )
-            if len(shown) < len(items):
-                print(f"    {'':<10}  ... {len(items) - len(shown)} more {stage}")
+            if len(shown) < len(rows):
+                print(f"    {'':<10}  ... {len(rows) - len(shown)} more {stage}")
         if limit is not None:
             print(f"\n  showing up to {limit} per stage; --all for the rest")
     return EXIT_OK
@@ -937,7 +981,12 @@ def _command_compare(args: argparse.Namespace) -> int:
     print(f"  before        {comparison.before_at.date().isoformat()}")
     print(f"  after         {comparison.after_at.date().isoformat()}")
     if moved:
-        shown = _capped(moved, _limit_of(args))
+        rows, held = _folded_rows(
+            moved,
+            _themes_of(paths.db_path),
+            not getattr(args, "unfolded", False),
+        )
+        shown = _capped(rows, _limit_of(args))
         print("\n  what changed, the loudest first")
         for entry in shown:
             print(
@@ -945,8 +994,9 @@ def _command_compare(args: argparse.Namespace) -> int:
                 f"  {names.get(entry.topic, entry.topic):<32}"
                 f"  {entry.strength_before:.2f} -> {entry.strength_after:.2f}"
                 f"  evidence {entry.evidence_before} -> {entry.evidence_after}"
+                f"{_stands_for(held, entry.topic)}"
             )
-        note = _shown(len(shown), len(moved))
+        note = _shown(len(shown), len(rows))
         if note:
             print(note)
     else:
@@ -1899,6 +1949,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show every row",
     )
+    trend.add_argument(
+        "--unfolded",
+        action="store_true",
+        help="show every reading apart, without folding a family into one",
+    )
     trend.set_defaults(run=_command_trend)
 
     serving = commands.add_parser("serve", help="answer over local HTTP")
@@ -1961,6 +2016,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show every row",
     )
+    lifecycle.add_argument(
+        "--unfolded",
+        action="store_true",
+        help="show every reading apart, without folding a family into one",
+    )
     lifecycle.set_defaults(run=_command_lifecycle)
 
     insights = commands.add_parser("insights", help="the current findings, with evidence")
@@ -2017,6 +2077,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest="all_rows",
         action="store_true",
         help="show every row",
+    )
+    compare.add_argument(
+        "--unfolded",
+        action="store_true",
+        help="show every reading apart, without folding a family into one",
     )
     compare.set_defaults(run=_command_compare)
 
