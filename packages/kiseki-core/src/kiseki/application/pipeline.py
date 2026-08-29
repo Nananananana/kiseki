@@ -32,6 +32,10 @@ from kiseki.domain.services.discovering import derive_discoveries
 from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
 from kiseki.domain.services.lifecycle_derivation import derive_lifecycles
+from kiseki.domain.services.note_interest_derivation import (
+    derive_note_interests,
+    merge_note_interests,
+)
 from kiseki.domain.services.outing_assembly import assemble_outings
 from kiseki.domain.services.screen_interest_derivation import (
     derive_screen_interests,
@@ -46,6 +50,7 @@ from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSe
 from kiseki.domain.trends import TrendReport
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.corrections import CorrectionRepository
+from kiseki.ports.notes import NoteReadingRepository
 from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
     AnchorRepository,
@@ -135,6 +140,7 @@ class Pipeline:
         subjects: SubjectRepository | None = None,
         themes: ThemeSetRepository | None = None,
         screens: ScreenshotReadingRepository | None = None,
+        notes: NoteReadingRepository | None = None,
         singles: SingleCaptionRepository | None = None,
         corrections: CorrectionRepository | None = None,
     ) -> None:
@@ -147,6 +153,7 @@ class Pipeline:
         self._subjects = subjects
         self._themes = themes
         self._screens = screens
+        self._notes = notes
         self._singles = singles
         self._corrections = corrections
 
@@ -224,6 +231,11 @@ class Pipeline:
                 profile,
                 derive_screen_interests(self._screens.all(), at=profile.generated_at),
             )
+        if self._notes is not None:
+            # Last, and append-only: a photograph of a thing is stronger
+            # evidence of caring about it than a word in a file
+            # (ADR-0080).
+            profile = merge_note_interests(profile, derive_note_interests(self._notes.all()))
         if self._profiles is not None and keep:
             self._profiles.save(profile)
         return self._corrected(profile)

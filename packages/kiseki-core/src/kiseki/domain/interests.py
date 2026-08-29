@@ -29,6 +29,7 @@ class EvidenceKind(Enum):
     VISIT = "visit"
     PHOTOGRAPH = "photograph"
     SCREENSHOT = "screenshot"
+    NOTE = "note"
 
 
 @dataclass(frozen=True)
