@@ -129,7 +129,19 @@ Read the ADRs that cover what you are changing. There are 64.
   comprehensions, and has broken this codebase twice.
 - Never insert an expression into an implicit string concatenation --
   make the line one f-string or replace the function.
-- To add an import, name an existing import line and put the new one
+- Count before you replace. `.Replace()` changes every match, and the
+  same line appears in more than one place more often than it looks:
+  a function-local import reads exactly like the module import at the
+  top, and a parser registered as `x = add_parser(...)` reads
+  differently from one registered as `add_parser(...).set_defaults(...)`.
+  Assert the count is one, then replace.
+- Replace one function per operation. Two functions written into one
+  function's range leaves the second one indented inside the first,
+  and the error surfaces two hundred lines away.
+- After any edit to `cli.py`, run
+  `python -c "import ast, io; ast.parse(io.open(PATH, encoding='utf-8').read())"`
+  before the tests. A syntax error there stops forty test files from
+  being collected, and the traceback names none of them.- To add an import, name an existing import line and put the new one
   after it. Searching for "the last import" fails on files whose
   imports are all relative or all `__future__`.
 
