@@ -60,7 +60,15 @@ handful of subjects; more would be the text arriving in pieces."""
 
 @dataclass(frozen=True)
 class NoteReading:
-    """One model's reading of one note, or its refusal."""
+    """One reading of one note on one day, or its refusal.
+
+    Not the state of a note. A note the owner returned to across six
+    months is six readings, and the returning is the evidence: it is
+    the difference between a thought had once and a thought lived
+    with. The same note read twice on one day is one reading, because
+    running the producer twice in an afternoon is not a second
+    thought. See ADR-0076.
+    """
 
     reference: str
     day: date

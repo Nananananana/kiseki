@@ -39,7 +39,7 @@ from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -150,14 +150,15 @@ CREATE TABLE IF NOT EXISTS corrections (
 );
 
 CREATE TABLE IF NOT EXISTS note_readings (
-    reference  TEXT PRIMARY KEY,
+    reference  TEXT NOT NULL,
     day        TEXT NOT NULL,
     category   TEXT NOT NULL,
     labels     TEXT NOT NULL,
     model      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     refused    TEXT,
-    prompt_version TEXT
+    prompt_version TEXT,
+    PRIMARY KEY (reference, day)
 );
 
 CREATE TABLE IF NOT EXISTS daily_activity (
@@ -212,6 +213,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 6:
             _migrate_v6_to_v7(connection)
             version = 7
+        if version == 7:
+            _migrate_v7_to_v8(connection)
+            version = 8
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -252,6 +256,34 @@ def _migrate_v3_to_v4(connection: sqlite3.Connection) -> None:
     connection.execute("UPDATE schema_version SET version = ?", (4,))
 
 
+def _migrate_v7_to_v8(connection: sqlite3.Connection) -> None:
+    """The one change from 7 to 8: a note may be read more than once.
+
+    Version 7 keyed a note reading by the note, which made a second
+    reading a correction of the first. A note is not a state to be
+    kept current; it is a thing the owner returned to, and the times
+    they returned are the evidence (ADR-0076).
+
+    SQLite cannot widen a primary key in place, so the table is
+    rebuilt and every existing row carried over. Each of them is a
+    first sighting, which is exactly what it was.
+    """
+    connection.executescript(
+        "ALTER TABLE note_readings RENAME TO note_readings_v7;"
+        " CREATE TABLE note_readings ("
+        " reference TEXT NOT NULL, day TEXT NOT NULL, category TEXT NOT NULL,"
+        " labels TEXT NOT NULL, model TEXT NOT NULL, created_at TEXT NOT NULL,"
+        " refused TEXT, prompt_version TEXT,"
+        " PRIMARY KEY (reference, day));"
+        " INSERT INTO note_readings"
+        " (reference, day, category, labels, model, created_at, refused, prompt_version)"
+        " SELECT reference, day, category, labels, model, created_at, refused,"
+        " prompt_version FROM note_readings_v7;"
+        " DROP TABLE note_readings_v7;"
+    )
+    connection.execute("UPDATE schema_version SET version = ?", (8,))
+
+
 def _migrate_v6_to_v7(connection: sqlite3.Connection) -> None:
     """The one change from 6 to 7: a table for note readings.
 
@@ -262,10 +294,11 @@ def _migrate_v6_to_v7(connection: sqlite3.Connection) -> None:
     """
     connection.execute(
         "CREATE TABLE IF NOT EXISTS note_readings ("
-        " reference TEXT PRIMARY KEY, day TEXT NOT NULL,"
+        " reference TEXT NOT NULL, day TEXT NOT NULL,"
         " category TEXT NOT NULL, labels TEXT NOT NULL,"
         " model TEXT NOT NULL, created_at TEXT NOT NULL,"
-        " refused TEXT, prompt_version TEXT)"
+        " refused TEXT, prompt_version TEXT,"
+        " PRIMARY KEY (reference, day))"
     )
     connection.execute("UPDATE schema_version SET version = ?", (7,))
 
@@ -302,7 +335,7 @@ class SqliteNoteReadingRepository:
     def all(self) -> tuple[NoteReading, ...]:
         rows = self._connection.execute(
             "SELECT reference, day, category, labels, model, created_at,"
-            " refused, prompt_version FROM note_readings ORDER BY rowid"
+            " refused, prompt_version FROM note_readings ORDER BY day, reference"
         )
         return tuple(
             NoteReading(

@@ -15,7 +15,7 @@ from kiseki.domain.activity.daily import DailyActivity
 def test_the_schema_is_at_six(tmp_path: Path) -> None:
     connection = connect(tmp_path / "kiseki.sqlite3")
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
-    assert stored[0] == SCHEMA_VERSION == 7
+    assert stored[0] == SCHEMA_VERSION == 8
 
 
 def test_a_day_survives_the_round_trip(tmp_path: Path) -> None:
@@ -73,6 +73,6 @@ def test_a_version_five_database_gains_the_table(tmp_path: Path) -> None:
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
     # The walk does not stop at six: a database from v5 arrives at the
     # current version, gaining each table on the way.
-    assert stored[0] == 7
+    assert stored[0] == 8
     assert SqliteDailyActivityRepository(connection).all() == ()
     assert SqlitePhotoRepository(connection).all() == ()

@@ -28,7 +28,7 @@ def _reading(reference: str, category: str = "reading", labels: tuple[str, ...] 
 def test_the_schema_is_at_seven(tmp_path: Path) -> None:
     connection = connect(tmp_path / "kiseki.sqlite3")
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
-    assert stored[0] == SCHEMA_VERSION == 7
+    assert stored[0] == SCHEMA_VERSION == 8
 
 
 def test_a_reading_survives_the_round_trip(tmp_path: Path) -> None:
@@ -76,6 +76,6 @@ def test_a_version_six_database_gains_the_table(tmp_path: Path) -> None:
     legacy.close()
 
     connection = connect(path)
-    assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 7
+    assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 8
     assert SqliteNoteReadingRepository(connection).all() == ()
     assert SqlitePhotoRepository(connection).all() == ()
