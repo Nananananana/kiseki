@@ -29,6 +29,7 @@ from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
     SqliteCorrectionRepository,
+    SqliteNoteReadingRepository,
     SqliteOutingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
@@ -223,6 +224,7 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
         screens=SqliteScreenshotReadingRepository(connection),
+        notes=SqliteNoteReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
     )
 
@@ -731,6 +733,7 @@ def _command_view(args: argparse.Namespace) -> int:
         themes=SqliteThemeSetRepository(connection),
         singles=SqliteSingleCaptionRepository(connection),
         screens=SqliteScreenshotReadingRepository(connection),
+        notes=SqliteNoteReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
     )
     profile = pipeline.profile(keep=False)
