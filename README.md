@@ -181,6 +181,7 @@ uv run kiseki suggest        # go back, pick up, day trip
 uv run kiseki correct ...    # your word against a reading
 uv run kiseki corrections    # the append-only log
 uv run kiseki privacy        # how your data is treated, in counts
+uv run kiseki llm            # where the model is, and whether it is allowed
 uv run kiseki trips          # the nights away, as journeys
 uv run kiseki forget ...     # remove photographs, and all that spoke
 uv run kiseki retention      # what a decade should look like
@@ -396,16 +397,16 @@ flowchart LR
 | v0.8 | Recommend with evidence: `kiseki demo`, day trips measured against your own distances, the provider boundary, cross-timeline drift with no causal claim, the narration check | **Released** |
 | v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
 | v0.10 | More than photographs, the boundary: every source may be absent and a matrix proves it, records as siblings with PhotoRecord v1 frozen, a second contract for daily movement, the rules a new source passes | **Released** |
-| v0.11 | The first new sources: web pages and watched videos read into categories and labels, the text discarded at ingest; cross-source retrieval and one profile from several kinds of witness | In progress |
-| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, evidence from several kinds of witness at once | Planned |
-| v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, where trips, places and drift turn out to be one subject | Planned |
+| v0.11 | Where the model is, and what you write: a trust boundary for the model with the strictest default, privacy computed from your settings with the name of the test beside every claim, notes and web pages read into labels by a producer that discards the text, a dry run before anything is recorded | In progress |
+| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, documents on the way out, `kiseki limits` for what this cannot tell you | Planned |
+| v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, and `kiseki eval` for what the model tier is actually worth | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
 The versions climb a longer ladder: **Phase 0** measure the trail (done),
 **Phase 1** understand yourself (done), **Phase 2** recommendations with
 evidence (v0.8 onward), **Phase 3** an anonymous interest community,
 **Phase 4** an interest graph. Direction and decisions:
-[proposals/0007](docs/proposals/0007-the-road-to-v1-0.md).
+[proposals/0009](docs/proposals/0009-what-the-owner-writes.md).
 
 Every source may be absent. A derivation declares what it can read,
 works with any subset of it, and names the sources its answer came
