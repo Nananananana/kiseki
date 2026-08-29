@@ -11,6 +11,7 @@ members = [
     "kiseki",
     "kiseki-conformance",
     "kiseki-ingest",
+    "kiseki-notes",
     "kiseki-workspace",
 ]
 
@@ -397,6 +398,11 @@ requires-dist = [
     { name = "pillow-heif", marker = "extra == 'heif'", specifier = ">=0.16" },
 ]
 provides-extras = ["heif"]
+
+[[package]]
+name = "kiseki-notes"
+version = "0.1.0"
+source = { editable = "packages/kiseki-notes" }
 
 [[package]]
 name = "kiseki-workspace"
