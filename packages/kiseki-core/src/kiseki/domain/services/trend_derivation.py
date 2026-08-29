@@ -15,6 +15,7 @@ from collections.abc import Sequence
 
 from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import Profile
+from kiseki.domain.services.theme_mapping import theme_mapping
 from kiseki.domain.shared.moment import days_between
 from kiseki.domain.trends import TopicTrend, TrendDirection, TrendReport
 
@@ -46,7 +47,7 @@ def derive_trend(
     if baseline is None:
         return None
 
-    mapping = {member: theme.name for theme in themes for member in theme.members}
+    mapping = theme_mapping(themes)
     before = _strengths(baseline, mapping)
     after = _strengths(latest, mapping)
 

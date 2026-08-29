@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from kiseki.domain.caption.themes import Theme
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport, LifecycleStage, TopicLifecycle
+from kiseki.domain.services.theme_mapping import theme_mapping
 from kiseki.domain.services.trend_derivation import derive_trend
 from kiseki.domain.shared.moment import same_moment
 from kiseki.domain.trends import TrendDirection
@@ -45,7 +46,7 @@ def derive_lifecycles(
     if trend is None:
         return None
 
-    mapping = {member: theme.name for theme in themes for member in theme.members}
+    mapping = theme_mapping(themes)
     presence = [_topics(profile, mapping) for profile in history]
     baseline_index = next(
         index
