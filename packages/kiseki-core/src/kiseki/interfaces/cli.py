@@ -90,6 +90,7 @@ from kiseki.domain.services.place_reading import (
     derive_place_profiles,
 )
 from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
+from kiseki.domain.services.theme_families import fold_by_family
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.services.trips import derive_trips
 from kiseki.domain.shared.geo import Distance, GeoPoint
@@ -320,24 +321,51 @@ def _capped(items: Sequence[Any], limit: int | None) -> Sequence[Any]:
     return items if limit is None else items[:limit]
 
 
-def _print_profile(profile: Profile, names: dict[str, str], limit: int | None = None) -> None:
+def _themes_of(db_path: Path) -> Sequence[Any]:
+    """The current theme set, or nothing if none was ever named."""
+    latest = SqliteThemeSetRepository(connect(db_path)).latest()
+    return latest.themes if latest is not None else ()
+
+
+def _print_profile(
+    profile: Profile,
+    names: dict[str, str],
+    limit: int | None = None,
+    themes: Sequence[Any] = (),
+    folded: bool = True,
+) -> None:
     print(RULE)
     print(f"  interests     {len(profile.interests)}")
 
-    if profile.interests:
-        ranked = profile.ranked()
-        shown = _capped(ranked, limit)
-        print("\n  read as interests")
-        for interest in shown:
-            print(
-                f"    {names.get(interest.topic, interest.topic):<32}"
-                f"  score {interest.score:>5.2f}"
-                f"  confidence {interest.confidence:>5.2f}"
-                f"  evidence {len(interest.evidence)}"
-            )
-        note = _shown(len(shown), len(ranked))
-        if note:
-            print(note)
+    if not profile.interests:
+        return
+    ranked = profile.ranked()
+    by_topic = {interest.topic: interest for interest in ranked}
+    if folded and themes:
+        order, held = fold_by_family((interest.topic for interest in ranked), themes)
+    else:
+        order, held = [interest.topic for interest in ranked], {}
+    shown = _capped(order, limit)
+    print("\n  read as interests")
+    for topic in shown:
+        interest = by_topic[topic]
+        under = held.get(topic, 0)
+        stands = f"  and {under} more like it" if under else ""
+        print(
+            f"    {names.get(topic, topic):<32}"
+            f"  score {interest.score:>5.2f}"
+            f"  confidence {interest.confidence:>5.2f}"
+            f"  evidence {len(interest.evidence)}"
+            f"{stands}"
+        )
+    note = _shown(len(shown), len(order))
+    if note:
+        print(note)
+    if folded and themes and len(order) < len(ranked):
+        print(
+            f"  {len(ranked) - len(order)} readings sit under one of these;"
+            " --unfolded to see them apart"
+        )
 
 
 def _command_profile(args: argparse.Namespace) -> int:
@@ -348,7 +376,13 @@ def _command_profile(args: argparse.Namespace) -> int:
     else:
         gazetteer = FileGazetteer(paths.gazetteer_path)
         names = place_names((interest.topic for interest in profile.interests), gazetteer)
-        _print_profile(profile, names, _limit_of(args))
+        _print_profile(
+            profile,
+            names,
+            _limit_of(args),
+            themes=_themes_of(paths.db_path),
+            folded=not getattr(args, "unfolded", False),
+        )
     return EXIT_OK
 
 
@@ -1828,6 +1862,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest="all_rows",
         action="store_true",
         help="show every row",
+    )
+    profile.add_argument(
+        "--unfolded",
+        action="store_true",
+        help="show every reading apart, without folding a family into one",
     )
     profile.set_defaults(run=_command_profile)
 
