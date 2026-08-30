@@ -49,9 +49,13 @@ The constitution, enforced by construction rather than by promise:
 ## Architecture map
 
 Monorepo under `packages/`. `kiseki-core` declares zero runtime
-dependencies (sqlite3 and urllib are the whole infrastructure);
-`kiseki-ingest` is the reference producer of PhotoRecord v1 documents
-(the only input contract; see `docs/photo-record.md`).
+dependencies (sqlite3 and urllib are the whole infrastructure). Three
+reference producers sit beside it, none of which the core imports or
+is imported by: `kiseki-ingest` for PhotoRecord v1
+(`docs/photo-record.md`), `kiseki-notes` for NoteRecord v1
+(`docs/note-record.md`), and `kiseki-web` for WebRecord v1
+(`docs/web-record.md`, and only `plan` so far). `kiseki-conformance`
+checks documents against the contracts KISEKI publishes.
 
 Inside `kiseki-core/src/kiseki/`:
 

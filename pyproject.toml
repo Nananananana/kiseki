@@ -18,6 +18,7 @@ members = ["packages/*"]
 kiseki = { workspace = true }
 kiseki-ingest = { workspace = true }
 kiseki-notes = { workspace = true }
+kiseki-web = { workspace = true }
 kiseki-conformance = { workspace = true }
 
 [dependency-groups]
@@ -45,7 +46,7 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 python_version = "3.12"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/kiseki-core/src:packages/kiseki-ingest/src:packages/kiseki-notes/src:packages/kiseki-conformance/src"
+mypy_path = "packages/kiseki-core/src:packages/kiseki-ingest/src:packages/kiseki-notes/src:packages/kiseki-web/src:packages/kiseki-conformance/src"
 
 [[tool.mypy.overrides]]
 module = ["jsonschema.*", "PIL.*", "pillow_heif.*"]

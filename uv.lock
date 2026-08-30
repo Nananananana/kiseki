@@ -12,6 +12,7 @@ members = [
     "kiseki-conformance",
     "kiseki-ingest",
     "kiseki-notes",
+    "kiseki-web",
     "kiseki-workspace",
 ]
 
@@ -403,6 +404,11 @@ provides-extras = ["heif"]
 name = "kiseki-notes"
 version = "0.1.0"
 source = { editable = "packages/kiseki-notes" }
+
+[[package]]
+name = "kiseki-web"
+version = "0.1.0"
+source = { editable = "packages/kiseki-web" }
 
 [[package]]
 name = "kiseki-workspace"
