@@ -1,0 +1,9 @@
+{
+  "schema": "kiseki-interest-export",
+  "version": 1,
+  "exported_on": "2026-08-30",
+  "interests": [
+    { "topic": "ramen", "score": 0.82, "confidence": 0.7, "first_seen": "2024-11", "last_seen": "2026-08" }
+  ],
+  "stages": [{ "topic": "ramen", "stage": "flourishing" }]
+}

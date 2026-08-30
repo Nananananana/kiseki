@@ -1,0 +1,9 @@
+{
+  "schema": "kiseki-interest-export",
+  "version": 1,
+  "exported_on": "2026-08-30",
+  "interests": [
+    { "topic": "kanji", "score": 0.5, "confidence": 0.4, "first_seen": "2026-01", "last_seen": "2026-06" }
+  ],
+  "stages": []
+}
