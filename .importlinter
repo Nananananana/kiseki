@@ -4,6 +4,7 @@ root_packages =
     kiseki
     kiseki_ingest
     kiseki_notes
+    kiseki_web
 
 [importlinter:contract:layers]
 name = Layer dependency direction
@@ -59,3 +60,13 @@ source_modules =
 forbidden_modules =
     kiseki.domain
     kiseki.application
+
+[importlinter:contract:web-independence]
+name = Web producer must not depend on core domain or application
+type = forbidden
+source_modules =
+    kiseki_web
+forbidden_modules =
+    kiseki.domain
+    kiseki.application
+    kiseki.adapters
