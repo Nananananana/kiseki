@@ -53,8 +53,8 @@ them names itself, and why they differ, is ADR-0081.
    over, never refused. A producer may carry its own notes, and a
    contract that argues with them forces every producer to be written
    twice. This is a rule about **the reader**, and
-   the schemas are stricter than it on purpose: every one of them sets
-   `additionalProperties: false`, because a producer that claims to
+   the schemas are stricter than it on purpose: every object in every
+   schema sets `additionalProperties: false`, because a producer that claims to
    emit PhotoRecord and emits PhotoRecord-plus-something is not
    emitting PhotoRecord, and the conformance kit exists to say so.
    Strict at the door, tolerant in the room -- the kit tells a producer

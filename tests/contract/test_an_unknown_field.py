@@ -5,8 +5,11 @@ know**: an unrecognised field is passed over, never refused, because a
 producer may carry its own notes and a contract that argues with them
 forces every producer to be written twice.
 
-Every schema in `schemas/` sets `additionalProperties: false`, in all
-eighteen places. Read side by side, those look like a contradiction.
+Every schema in `schemas/` sets `additionalProperties: false` -- nine
+declarations across two contracts, each published twice under ADR-0005,
+which is where a count of eighteen comes from and why it is the wrong
+number to quote. Read beside the rule above, they look like a
+contradiction.
 
 They are two layers, and this pins both.
 
