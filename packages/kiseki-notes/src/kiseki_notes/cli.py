@@ -81,6 +81,10 @@ def _command_plan(args: argparse.Namespace) -> int:
             "\n  Nothing is refused: a folder written in one sitting looks the same."
         )
     print(
+        "\n  every reference is relative to this folder, so naming a different"
+        "\n  one starts the trail again. Name the same one each time."
+    )
+    print(
         "\n  nothing was opened. Names, sizes and dates are all this needed,"
         "\n  and none of them left this process"
     )

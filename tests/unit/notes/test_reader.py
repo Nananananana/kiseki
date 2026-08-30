@@ -173,3 +173,14 @@ def test_the_command_that_would_record_it_says_so_too(
     )
     main(["read", str(tmp_path)])
     assert "copy rather than a history" in capsys.readouterr().out
+
+
+def test_the_root_you_name_is_part_of_the_reference(tmp_path: Path) -> None:
+    """Relative hashing keeps a reference when the folder moves, and the
+    same file under two different roots is two notes. That is the cost
+    of not putting an absolute path -- which would name a user account
+    -- into a handle the core keeps forever."""
+    note = _write(tmp_path, "vault/documents/design/gear.md")
+    above = reference_for(note, tmp_path / "vault")
+    inside = reference_for(note, tmp_path / "vault" / "documents")
+    assert above != inside

@@ -59,6 +59,13 @@ def reference_for(path: Path, root: Path) -> str:
     folder layout do not collide with each other's libraries -- there
     is only ever one owner, but a reference that leaked its absolute
     path would name a user account.
+
+    The root is therefore part of the identity, and naming a different
+    one re-identifies everything under it. `~/vault` and `~/vault/notes`
+    give the same file two references. That is a real cost of relative
+    hashing and not a bug in it: the alternative, an absolute path,
+    keeps the reference stable until the folder moves and names a user
+    account in the meantime.
     """
     try:
         relative = path.relative_to(root)

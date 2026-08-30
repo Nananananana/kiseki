@@ -83,6 +83,15 @@ again; a misclassified note cannot, because the text is gone. The
 producer shows what it would record, and records only when told a
 second time.
 
+**The reference is relative to the folder you name, and the folder you
+name is part of it.** The producer hashes each note's path relative to
+its root, so a note keeps its reference when the whole folder moves --
+and gets a new one if you name a different root next time. Reading
+`~/vault` on Monday and `~/vault/notes` on Tuesday re-identifies every
+note underneath, with nothing renamed. Measured: the same file under
+two roots produces two references. Name the same folder each time, or
+accept that the trail starts again.
+
 **The day comes from the filesystem, and that is fragile.** A note
 carries no date of its own; `mtime` is the only one there is. A `cp`
 without `-p`, an unzip, or a converter that writes fresh files resets
