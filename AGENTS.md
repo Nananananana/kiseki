@@ -171,7 +171,7 @@ Read the ADRs that cover what you are changing. There are 81.
 ## Current state
 
 - Version: v0.10.0 released. v0.11 in progress.
-- Tests: 1516 passing, 13 llm-marked and deselected in CI.
+- Tests: 1521 passing, 13 llm-marked and deselected in CI.
 - Schema: version 8.
 - Commands (38): `paths`, `ingest`, `activity`, `notes`, `build`,
   `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
