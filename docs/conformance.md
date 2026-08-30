@@ -102,3 +102,10 @@ package and replace that one value.
 Each schema is published twice: at `schemas/` for discoverability, and
 inside the package so that an installed copy is self-contained. A test
 asserts each pair is identical, so they cannot drift. See ADR-0005.
+
+Being inside the package is not the same as being inside the wheel, so
+CI builds the wheel, installs it into an empty environment, and reads
+both schemas and runs both suites from a directory outside the
+repository (`tools/check_packaging.py`). This package exists to be
+installed by somebody else; "installed without its schemas" is close to
+the only way it can fail.
