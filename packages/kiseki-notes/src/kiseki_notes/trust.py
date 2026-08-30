@@ -9,7 +9,11 @@ read this code.
 
 A copy that must agree with another copy is a debt, and the debt is
 paid the only honest way -- by saying so here, and by the conformance
-kit checking both against the same table when it grows one.
+kit checking both against the same table. It has one now
+(`kiseki_conformance.trust`), and on its first run it found two places
+where this copy had drifted: an empty host was read as a local name,
+and a host the owner named was matched only if the caller had
+normalised it.
 
 Nothing here resolves a name. Resolution is a network call, and this
 decides whether to make one.
@@ -42,6 +46,11 @@ def is_this_machine(host: str) -> bool:
 
 def is_your_network(host: str) -> bool:
     name = host.strip().lower()
+    if not name:
+        # An endpoint with no host is not a local name. It was read as
+        # one, because a name with no dots is local and "" has no dots,
+        # and the note's text would have gone to it.
+        return False
     try:
         address = ipaddress.ip_address(name)
     except ValueError:
@@ -59,7 +68,10 @@ def describe(host: str) -> str:
 
 def admitted(host: str, boundary: str, trusted: tuple[str, ...] = ()) -> bool:
     """Whether a note's text may be sent to this host."""
-    if host in trusted:
+    # Normalised here rather than trusted to the caller. A host the
+    # owner named is a decision, and a decision that depends on who
+    # lowercased it is not one.
+    if host.strip().lower() in {name.strip().lower() for name in trusted if name.strip()}:
         return True
     if boundary == "anywhere":
         return True

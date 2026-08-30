@@ -88,6 +88,45 @@ why the check is not shared: a PhotoRecord document with no records is a
 misconfigured producer, and an export with no interests is a library that
 has nothing to say yet.
 
+## One rule, more than one implementation
+
+The kit also checks a **behaviour** that exists in more than one place:
+the trust boundary of ADR-0073, which decides whether a photograph or
+the text of a note may be sent to a model.
+
+It is implemented separately in the core and in each producer, on
+purpose. A producer that imported the core's version could not be
+rewritten in another language by somebody who has never read this code,
+and the record contract -- the only thing the two sides are meant to
+share -- would become decorative. The duplication is the design; the
+*unchecked* duplication was the defect.
+
+```python
+from kiseki_conformance import TrustBoundaryConformance
+
+
+class TestMyProducer(TrustBoundaryConformance):
+    @pytest.fixture
+    def admits(self):
+        return lambda endpoint, boundary, named: my.admitted(...)
+```
+
+Thirty-one cases: loopback written five ways, the private ranges,
+single-label and `.local` names, public addresses, a dotted name that
+cannot be placed from its shape, an endpoint with no host, and a host
+the owner named outranking the boundary.
+
+**The table checks the decision, not the words.** The core answers with
+a locality and a reason; a producer answers with predicates and a
+sentence. Two implementations that refuse the same host for reasons
+phrased differently both conform.
+
+On its first run it found two places where the notes producer had
+drifted from the core: an endpoint with no host was read as a local
+name -- a name with no dots is local, and `""` has no dots -- and a host
+the owner had named was matched only if the caller had lowercased it
+first.
+
 ## Adding a contract
 
 Everything specific to one contract is a `Contract` value in

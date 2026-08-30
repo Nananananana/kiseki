@@ -34,8 +34,6 @@ class TestTheNotesProducerDecides(TrustBoundaryConformance):
     @pytest.fixture
     def admits(self):  # type: ignore[no-untyped-def]
         def decide(endpoint: str, boundary: str, trusted: Sequence[str]) -> bool:
-            return notes_trust.admitted(
-                notes_trust.host_of(endpoint), boundary, tuple(trusted)
-            )
+            return notes_trust.admitted(notes_trust.host_of(endpoint), boundary, tuple(trusted))
 
         return decide

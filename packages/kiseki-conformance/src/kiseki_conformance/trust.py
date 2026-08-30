@@ -47,7 +47,7 @@ class Case:
 
     @property
     def label(self) -> str:
-        named = f" +named" if self.trusted else ""
+        named = " +named" if self.trusted else ""
         return f"{self.endpoint or '<empty>'}@{self.boundary}{named}"
 
 
