@@ -4,6 +4,13 @@
 six later versions, because a release changes the README and the release note
 and nothing has ever built a wheel. Anybody installing from this tree would
 have been told 0.4.0, and the person who noticed would have been a stranger.
+
+Nothing else about this file's contents is asserted here. `kiseki-core`
+declares no runtime dependency, and that claim is checked where it is a fact
+rather than a declaration -- against the `Requires-Dist` of a built wheel, in
+`tools/check_packaging.py`. Two tests of different strength asserting one fact
+are worse than one: the weaker is what a reader finds first, and it looks like
+coverage.
 """
 
 import tomllib
@@ -34,10 +41,3 @@ def test_the_distribution_version_is_the_one_that_was_released() -> None:
         "packages/kiseki-core/pyproject.toml and docs/releases disagree about "
         "which version this is. A release bumps both."
     )
-
-
-def test_the_core_declares_no_runtime_dependency() -> None:
-    """The claim the whole architecture rests on, read from the metadata a
-    wheel would carry rather than from the imports import-linter watches."""
-    project: dict[str, list[str]] = tomllib.loads(CORE.read_text(encoding="utf-8"))["project"]
-    assert project["dependencies"] == []
