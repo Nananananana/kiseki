@@ -23,7 +23,14 @@ from kiseki_notes.classifier import (
     classify,
 )
 from kiseki_notes.evaluation import read_expectations, score
-from kiseki_notes.reader import MAX_BYTES, SUFFIXES, days_of, find_notes
+from kiseki_notes.reader import (
+    MAX_BYTES,
+    SUFFIXES,
+    busiest_day,
+    days_of,
+    find_notes,
+    looks_copied,
+)
 from kiseki_notes.trust import admitted, describe, host_of
 
 EXIT_OK = 0
@@ -62,6 +69,17 @@ def _command_plan(args: argparse.Namespace) -> int:
         print(f"    {day.isoformat()}  {count}")
     if len(days) > 14:
         print(f"    ... and {len(days) - 14} earlier days")
+    if looks_copied(days):
+        day, count = busiest_day(days)
+        print(
+            f"\n  {count} of {len(notes)} were last written on {day.isoformat()}."
+            "\n  A folder somebody wrote is spread across the days they wrote it,"
+            "\n  so this is usually a copy rather than a history: `cp` without -p,"
+            "\n  an unzip, or a converter that wrote fresh files. A note carries no"
+            "\n  date of its own and the filesystem's is the only one there is, so"
+            "\n  every trail in this folder would arrive as one day (ADR-0076)."
+            "\n  Nothing is refused: a folder written in one sitting looks the same."
+        )
     print(
         "\n  nothing was opened. Names, sizes and dates are all this needed,"
         "\n  and none of them left this process"
@@ -119,6 +137,14 @@ def _command_read(args: argparse.Namespace) -> int:
     print(f"  reading       {len(readable)} of {len(notes)}")
     if skipped:
         print(f"  too large     {skipped} skipped")
+    if notes and looks_copied(days_of(notes)):
+        day, count = busiest_day(days_of(notes))
+        # The command that would record it says so too. `plan` is the
+        # one people run first, and it is not the one people run.
+        print(
+            f"  dates         {count} of {len(notes)} last written on {day.isoformat()},"
+            " which is usually a copy rather than a history: see `plan`"
+        )
     print()
 
     records: list[dict[str, object]] = []

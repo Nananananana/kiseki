@@ -147,3 +147,29 @@ def test_the_plan_says_what_a_flat_folder_usually_means(
     printed = capsys.readouterr().out
     assert "copied" in printed or "copy" in printed
     assert "-p" in printed
+
+
+def test_the_command_that_would_record_it_says_so_too(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`plan` is the one people run first, and it is not the one people
+    run. The dry run that classifies carries the same line.
+
+    The model is replaced: this is about the dates, and a unit test that
+    reaches a model is an llm test wearing a unit test's clothes.
+    """
+    from kiseki_notes import cli
+    from kiseki_notes.classifier import Classification
+
+    for name in ("a.md", "b.md", "c.md"):
+        _write(tmp_path, name)
+    monkeypatch.setenv("KISEKI_MODEL_HOST", "http://127.0.0.1:11434")
+    monkeypatch.setattr(
+        cli,
+        "classify",
+        lambda *_args, **_kwargs: Classification(
+            category="note", labels=("a label",), model="a stand-in"
+        ),
+    )
+    main(["read", str(tmp_path)])
+    assert "copy rather than a history" in capsys.readouterr().out
