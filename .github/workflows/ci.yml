@@ -39,3 +39,26 @@ jobs:
 
       - name: Test
         run: uv run pytest -m "not llm" --cov=kiseki --cov-report=term-missing
+
+  package:
+    # Every step above runs against `uv sync`, which puts the source tree on
+    # the path and hides packaging mistakes. This one never sees it: it builds
+    # the wheels, installs the conformance kit into an empty environment, and
+    # uses it from a directory outside the repository.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Build, install, and use from outside the source tree
+        run: uv run --no-project python tools/check_packaging.py
