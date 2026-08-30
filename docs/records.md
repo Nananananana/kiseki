@@ -52,7 +52,14 @@ them names itself, and why they differ, is ADR-0081.
 2. **Ignore what it does not know.** An unrecognised field is passed
    over, never refused. A producer may carry its own notes, and a
    contract that argues with them forces every producer to be written
-   twice.
+   twice. This is a rule about **the reader**, and
+   the schemas are stricter than it on purpose: every one of them sets
+   `additionalProperties: false`, because a producer that claims to
+   emit PhotoRecord and emits PhotoRecord-plus-something is not
+   emitting PhotoRecord, and the conformance kit exists to say so.
+   Strict at the door, tolerant in the room -- the kit tells a producer
+   its output is wrong, and the library still reads the document rather
+   than losing a photograph over a note somebody left beside it.
 3. **Speak the owner's local time.** Dates and times are the ones the
    owner lived, with an offset where a moment is meant and a plain
    date where a day is meant. The library compares them in one shape
