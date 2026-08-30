@@ -174,8 +174,11 @@ as it does to captioning and to notes.
 
 **A dry run comes first**, and is not optional for this source. A
 misclassified photograph can be looked at again; a misclassified page
-cannot, because the text is gone. The producer shows what it would
-record and records only when told a second time.
+cannot, because the address is gone. `kiseki-web read` shows what it
+would record -- a reference, a category and the labels, never an
+address -- and writes only when told a second time with `--apply
+--out`. `kiseki-web plan` comes before even that: it counts a window
+without opening a page or reaching a model at all.
 
 **The browser's database is locked while the browser runs.** The
 producer copies it and reads the copy, and the copy is deleted
@@ -186,6 +189,9 @@ afterwards. It never writes to the original.
 ```bash
 uv run kiseki web ~/kiseki-data/web-records.json
 ```
+
+*(The producer writes that file today; nothing in the core reads it
+yet. `kiseki web` is what the command will be called.)*
 
 Re-reading a window is safe: a page whose day has not changed replaces
 its reading, and the same page on a later day adds one.
