@@ -79,7 +79,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 80.
+Read the ADRs that cover what you are changing. There are 81.
 
 ## Conventions and hard-won rules
 
@@ -104,13 +104,25 @@ Read the ADRs that cover what you are changing. There are 80.
   `uv run pre-commit run --all-files`. If pre-commit rewrites
   anything, `git add` and run it again -- a commit whose hooks failed
   did not happen.
+- Packaging is checked by CI rather than by the list above, because it
+  takes half a minute:
+  `uv run --no-project python tools/check_packaging.py` builds every
+  wheel, installs `kiseki-conformance` into an empty environment and
+  uses it from a directory outside the repository. Run it by hand
+  before touching a `pyproject.toml` or anything under
+  `kiseki_conformance/schemas/` -- everything else in this repository
+  runs against `uv sync`, which shows the source tree and hides what a
+  wheel would not carry.
 - Checkpoints: after `git commit`, confirm the `[branch hash]` line;
   after `gh pr merge`, confirm `Squashed and merged`; after pulling
   main, run pytest once more. Before `gh pr create`, run
   `git log --oneline -3` and confirm the feat/fix commit is there.
 - Before `gh release create`, confirm the release note file exists and
   is not empty. A tag and a changelog entry do not reveal an empty
-  note; three of them shipped that way.
+  note; three of them shipped that way. A release also bumps `version` in
+  `packages/kiseki-core/pyproject.toml`, which is the only place the
+  released version is written; a test compares it with the newest note
+  in `docs/releases/`. It said 0.4.0 for six releases.
 - Windows specifics: set `PYTHONUTF8=1`; paste terminal commands one
   block at a time. Every raw .NET file call must resolve its path with
   `Join-Path $PWD` -- PowerShell's location is not the process working
@@ -158,15 +170,16 @@ Read the ADRs that cover what you are changing. There are 80.
 
 ## Current state
 
-- Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1510 passing, 13 llm-marked and deselected in CI.
+- Version: v0.10.0 released. v0.11 in progress.
+- Tests: 1516 passing, 13 llm-marked and deselected in CI.
 - Schema: version 8.
-- Commands: `paths`, `ingest`, `build`, `report`, `profile`,
-  `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
-  `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
-  `compare`, `drift`, `places`, `trips`, `suggest`, `correct`,
-  `corrections`, `privacy`, `export`, `forget`, `retention`, `doctor`,
-  `reread`, `retry`, `refresh`, `demo`, `serve`, `view`.
+- Commands (38): `paths`, `ingest`, `activity`, `notes`, `build`,
+  `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
+  `themes`, `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`,
+  `discover`, `compare`, `drift`, `places`, `trips`, `suggest`,
+  `correct`, `corrections`, `llm`, `privacy`, `export`, `forget`,
+  `retention`, `doctor`, `reread`, `retry`, `refresh`, `demo`,
+  `serve`, `view`.
 - The real library it is developed against: 4,950 photographs, 360
   stay captions, 1,244 single captions, 297 screen readings, 1,604
   subject readings, 46 kept readings, 8 trips.

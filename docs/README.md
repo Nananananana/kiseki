@@ -26,6 +26,7 @@ top which of the three it is.
 | `docs/records.md` | What every input contract shares, and the gate a new one passes |
 | `docs/photo-record.md` | PhotoRecord and the producer contract |
 | `docs/activity-record.md` | ActivityRecord and the producer contract |
+| `docs/note-record.md` | NoteRecord and the producer contract |
 | `docs/interest-export.md` | The interest export, the one contract that leaves |
 | `docs/conformance.md` | The producer conformance specification |
 | `docs/cli.md` | The commands as they behave today |
