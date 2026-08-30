@@ -317,7 +317,10 @@ on; nothing is stored, and there is no read-state. Over HTTP:
 place: visits, first and last, and the median gap between revisits
 -- deterministic clustering of stops, derived on demand, stored
 nowhere. Names come from the gazetteer at display time; an unnamed
-place shows a blurred coordinate. Local only.
+place shows a blurred coordinate. Local only. A name is coarser than
+a place, so several places answer to one: the line says how many and
+how far apart the widest pair is (ADR-0072, ADR-0083), and `--unfolded`
+lists every place separately.
 
 `kiseki ask --near "lat,lon" [--within-km N]` keeps answer evidence
 within reach of a point, the way a time window keeps it within a

@@ -105,7 +105,7 @@ from kiseki.interfaces.claims import (
     NEVER_STORED,
     outbound_lines,
 )
-from kiseki.interfaces.naming import fold_by_name, place_names
+from kiseki.interfaces.naming import fold_by_name, folded_note, place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
     comparison_payload,
@@ -1638,8 +1638,7 @@ def _command_places(args: argparse.Namespace) -> int:
     for index, place in enumerate(shown):
         label = _named(place) or (f"{place.centroid.latitude:.2f},{place.centroid.longitude:.2f}")
         gap = f"every ~{place.median_gap_days}d" if place.median_gap_days is not None else "once"
-        under = held.get(index, 0)
-        stands = f"  and {under} more there" if under else ""
+        stands = folded_note([place, *held.get(index, [])], lambda row: row.centroid)
         print(
             f"    {label:<28}"
             f"  visits {place.visits:>3}"
