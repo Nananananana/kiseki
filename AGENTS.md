@@ -113,10 +113,35 @@ Read the ADRs that cover what you are changing. There are 81.
   `kiseki_conformance/schemas/` -- everything else in this repository
   runs against `uv sync`, which shows the source tree and hides what a
   wheel would not carry.
-- Checkpoints: after `git commit`, confirm the `[branch hash]` line;
-  after `gh pr merge`, confirm `Squashed and merged`; after pulling
-  main, run pytest once more. Before `gh pr create`, run
-  `git log --oneline -3` and confirm the feat/fix commit is there.
+- Checkpoints: after `git commit`, confirm the `[branch hash]` line.
+  Before `gh pr create`, run `git log --oneline -3` and confirm the
+  feat/fix commit is there.
+- After `gh pr merge`, confirm the work is on main by looking at the
+  repository rather than at GitHub:
+
+      git fetch origin
+      git diff --stat origin/main $(gh pr view <n> --json headRefOid -q .headRefOid)
+
+  Empty means it arrived. Insertions are the pull request's own work
+  missing from main; deletions mean main has moved on since, which is
+  why this belongs immediately after the merge. Then pull main and run
+  pytest once more.
+
+  `Squashed and merged`, and the green `MERGED` badge, mean that a
+  commit reached the base the pull request named. They say nothing
+  about main. Four pull requests displayed it on the same afternoon
+  while thirteen files and five hundred and thirty-nine lines were not
+  on main, because each had merged into the branch below it in a stack
+  (#318). The checkpoint was followed and it passed.
+
+  Use `headRefOid`, never the branch name: a branch can be pushed to
+  after its pull request merges, and a diff against it then compares
+  with something that was never merged.
+- Cut every branch from main. A stacked pull request must be
+  retargeted to main before it is merged, and nothing warns when that
+  is forgotten. If two pull requests would both edit one line -- a
+  count in this file, most often -- the second one changes it, and
+  that is cheaper than a stack.
 - Before `gh release create`, confirm the release note file exists and
   is not empty. A tag and a changelog entry do not reveal an empty
   note; three of them shipped that way. A release also bumps `version` in
