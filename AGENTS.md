@@ -182,7 +182,8 @@ Read the ADRs that cover what you are changing. There are 85.
 - After any edit to `cli.py`, run
   `python -c "import ast, io; ast.parse(io.open(PATH, encoding='utf-8').read())"`
   before the tests. A syntax error there stops forty test files from
-  being collected, and the traceback names none of them.- To add an import, name an existing import line and put the new one
+  being collected, and the traceback names none of them.
+- To add an import, name an existing import line and put the new one
   after it. Searching for "the last import" fails on files whose
   imports are all relative or all `__future__`.
 
@@ -249,7 +250,8 @@ Read the ADRs that cover what you are changing. There are 85.
   hash answers membership questions about clinics and parties. The producer is
   given a page's address and title and **fetches nothing** (ADR-0085):
   a history holds no page, and re-requesting every URL would be a
-  second browsing session in somebody else's logs.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
+  second browsing session in somebody else's logs.
+- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
   changes three things: notes and web pages as sources the owner writes
   rather than takes, the model's location settled before anything else,
   and the commands that say what the library cannot do. Notes come
@@ -258,5 +260,6 @@ Read the ADRs that cover what you are changing. There are 85.
   the easy source.
 - A producer that discards text cannot be checked afterwards, so a
   source of that kind ships with a dry run and is not recorded until
-  the owner has seen what would be.- Every version reserves its last issue for what the previous
+  the owner has seen what would be.
+- Every version reserves its last issue for what the previous
   version's data says.
