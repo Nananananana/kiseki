@@ -12,6 +12,20 @@ suburb all come back as the same town. Listed by name they read as
 sixteen duplicates of a bug. They are not duplicates; they are one
 name and sixteen places, and a listing that says so is honest where
 one that repeats the name is not. See ADR-0072.
+
+How coarse depends on the fold, and a count alone cannot say which.
+Measured on a real library of two hundred and thirteen places under
+seventy-five names: twelve places inside one and a half kilometres,
+which is a suburb correctly named, and seven places across twenty,
+which is a name borrowed from too far away. Both printed as "one
+name, N places" and read alike. The listing gives the widest gap, so
+they do not.
+
+Narrowing the radius does not help and was measured too: the
+gazetteer already answers with the nearest entry it has, so a smaller
+radius folds no fewer names, it only leaves places unnamed -- at ten
+kilometres, three fewer names and eighteen places with no name at
+all.
 """
 
 from collections.abc import Iterable, Sequence
@@ -47,8 +61,8 @@ def place_names(topics: Iterable[str], gazetteer: Gazetteer) -> dict[str, str]:
 def fold_by_name(
     rows: Sequence[Any],
     label_of: Any,
-) -> tuple[list[Any], dict[int, int]]:
-    """The rows to show, and how many places each one stands for.
+) -> tuple[list[Any], dict[int, list[Any]]]:
+    """The rows to show, and the rows each one stands for.
 
     The rows arrive in the order the listing ranks them, so the first
     of a name is the one that earned the line -- the most visited
@@ -60,7 +74,7 @@ def fold_by_name(
     rows may legitimately carry the same label in different sections.
     """
     shown: list[Any] = []
-    held: dict[int, int] = {}
+    held: dict[int, list[Any]] = {}
     seen: dict[str, int] = {}
     for row in rows:
         label = label_of(row)
@@ -68,8 +82,30 @@ def fold_by_name(
             shown.append(row)
             continue
         if label in seen:
-            held[seen[label]] = held.get(seen[label], 0) + 1
+            held.setdefault(seen[label], []).append(row)
             continue
         seen[label] = len(shown)
         shown.append(row)
     return shown, held
+
+
+def folded_note(places: Sequence[Any], point_of: Any) -> str:
+    """How many more places answer to this name, and how far they reach.
+
+    The widest pair rather than the distance from the first, which
+    understates a line of places running away from it. Empty when a
+    place stands only for itself: there is nothing to say.
+    """
+    if len(places) < 2:
+        return ""
+    points = [point_of(place) for place in places]
+    widest = max(one.distance_to(other).meters for one in points for other in points)
+    return f"  and {len(places) - 1} more within {_reach(widest)}"
+
+
+def _reach(meters: float) -> str:
+    """Metres up to a kilometre, kilometres above it. A place is not
+    located to the metre and a fold is not measured to one."""
+    if meters < 1_000:
+        return f"{round(meters / 100) * 100:.0f} m"
+    return f"{meters / 1000:.1f} km"
