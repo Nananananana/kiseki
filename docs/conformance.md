@@ -57,6 +57,16 @@ Structural rules come from the JSON Schema: required fields, value ranges,
 patterns, the rule that `location_source` accompanies `location`, and the
 rule that no exported topic names a place.
 
+**The kit is stricter than the library, deliberately.** Every schema sets
+`additionalProperties: false`, so a document carrying a field no contract
+mentions does not conform -- while `docs/records.md` promises that the
+library *ignores* what it does not know, and it does. The two are layers,
+not a contradiction: the kit answers "is this PhotoRecord", where an
+unexplained field means no; the library answers "can I read this", where
+losing a photograph over a note somebody left beside it would be absurd.
+A producer should therefore expect the kit to refuse what the library
+would have accepted, and fix it anyway.
+
 Semantic rules are checked separately, because a schema cannot express
 them. JSON Schema 2020-12 has no way to compare two properties of the same
 object, to require an order, or to make one part of a document agree with
