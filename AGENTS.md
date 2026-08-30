@@ -79,7 +79,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 64.
+Read the ADRs that cover what you are changing. There are 80.
 
 ## Conventions and hard-won rules
 
@@ -159,7 +159,7 @@ Read the ADRs that cover what you are changing. There are 64.
 ## Current state
 
 - Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1472 passing, 13 llm-marked and deselected in CI.
+- Tests: 1510 passing, 13 llm-marked and deselected in CI.
 - Schema: version 8.
 - Commands: `paths`, `ingest`, `build`, `report`, `profile`,
   `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
@@ -184,6 +184,13 @@ Read the ADRs that cover what you are changing. There are 64.
   routes a question to the derivation that can answer it and adds
   `kiseki now`; v0.13 builds the typical week and month from whatever
   exists. v1.0 goes public and adds no new intelligence.
+- The interest export is a published contract, not just a command:
+  `schemas/interest-export-v1.json` is normative,
+  `InterestExportConformance` checks a document against it, and the
+  three rules a schema cannot state -- ordering, `last_seen` after
+  `first_seen`, stages agreeing with interests -- are checked beside
+  it. A document that travels names itself; one that is handed to a
+  command names only its version (ADR-0081).
 - Input contracts are siblings, and `docs/records.md` holds what they
   share: name the owner and the producer, ignore unknown fields, speak
   the owner's local time, survive a byte order mark, land in a table of

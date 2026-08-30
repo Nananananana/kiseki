@@ -29,6 +29,13 @@ The two documents are not even the same shape at the top level, and
 that is allowed. A contract answers to its own subject, not to the
 contract that came first.
 
+These are the contracts KISEKI **reads**. The one it **writes** --
+[kiseki-interest-export v1](interest-export.md) -- is a contract too,
+and the only one anybody outside reads. It is not a record and answers
+to none of the rules below; what it shares with them is the discipline
+of naming its version and being checkable by the same kit. Which of
+them names itself, and why they differ, is ADR-0081.
+
 ## What every contract must do
 
 1. **Name the owner and the producer.** Every record carries `owner`

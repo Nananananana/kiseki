@@ -252,7 +252,10 @@ the dashboard is deliberately not served over HTTP.
 corrected profile's interests with month-level time, and the
 lifecycle stages (ADR-0047). No place topics, no identifiers, no
 exact timestamps, no coordinates -- and deliberately no endpoint;
-exporting is a command the owner runs on purpose.
+exporting is a command the owner runs on purpose. The contract is
+published like any other: `schemas/interest-export-v1.json` is
+normative, `docs/interest-export.md` explains it, and
+`kiseki-conformance interests.json` checks a document against it.
 
 ## Doctor
 

@@ -1,0 +1,9 @@
+{
+  "schema": "kiseki-interest-export",
+  "version": 1,
+  "exported_on": "2026-08-30",
+  "interests": [
+    { "topic": "place:kyoto", "score": 0.9, "confidence": 0.8, "first_seen": "2025-01", "last_seen": "2026-08" }
+  ],
+  "stages": []
+}

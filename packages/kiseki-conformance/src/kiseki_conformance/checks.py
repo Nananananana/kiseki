@@ -5,37 +5,23 @@ rules a schema cannot express: uniqueness, parseability, and internal
 consistency across records.
 """
 
-import json
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from functools import lru_cache
-from importlib.resources import files
 from typing import Any
+
+from kiseki_conformance import schema
 
 SCHEMA_RESOURCE = "photo-record-v1.json"
 
 
 def load_schema() -> dict[str, Any]:
     """Return the bundled PhotoRecord v1 schema."""
-    resource = files("kiseki_conformance").joinpath("schemas", SCHEMA_RESOURCE)
-    schema: dict[str, Any] = json.loads(resource.read_text(encoding="utf-8"))
-    return schema
-
-
-@lru_cache(maxsize=1)
-def _validator() -> Any:
-    from jsonschema import Draft202012Validator
-
-    return Draft202012Validator(load_schema())
+    return schema.load(SCHEMA_RESOURCE)
 
 
 def validate_document(document: object) -> list[str]:
     """Return schema violations as readable messages. Empty means valid."""
-    messages: list[str] = []
-    for error in _validator().iter_errors(document):
-        location = "/".join(str(part) for part in error.absolute_path) or "<root>"
-        messages.append(f"{location}: {error.message}")
-    return sorted(messages)
+    return schema.violations(SCHEMA_RESOURCE, document)
 
 
 def check_semantics(document: Mapping[str, Any]) -> list[str]:
