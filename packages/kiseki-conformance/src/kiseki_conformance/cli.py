@@ -6,19 +6,33 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from kiseki_conformance.checks import check_semantics, validate_document
+from kiseki_conformance.contracts import BY_OPTION, CONTRACTS, identify
 
 EXIT_OK = 0
 EXIT_VIOLATIONS = 1
 EXIT_UNREADABLE = 2
 
+AUTO = "auto"
+
+UNNAMED = (
+    "names no contract, so it is refused rather than guessed at. "
+    "A PhotoRecord document carries 'schema_version'; "
+    "a kiseki-interest-export carries 'schema' and 'version'."
+)
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="kiseki-conformance",
-        description="Check that a document conforms to the PhotoRecord v1 contract.",
+        description="Check that a document conforms to one of the contracts KISEKI publishes.",
     )
     parser.add_argument("path", type=Path, help="path to the JSON document to check")
+    parser.add_argument(
+        "--contract",
+        default=AUTO,
+        choices=[AUTO, *(contract.option for contract in CONTRACTS)],
+        help="which contract to check against; by default the document is asked",
+    )
     parser.add_argument(
         "--quiet",
         action="store_true",
@@ -35,10 +49,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{args.path} is not valid JSON: {error}", file=sys.stderr)
         return EXIT_UNREADABLE
 
-    violations = validate_document(document)
-    if isinstance(document, dict):
-        violations += check_semantics(document)
+    contract = BY_OPTION[args.contract] if args.contract != AUTO else identify(document)
+    if contract is None:
+        if not args.quiet:
+            print(f"{args.path}: {UNNAMED}", file=sys.stderr)
+        return EXIT_VIOLATIONS
 
+    violations = contract.violations(document)
     if violations:
         if not args.quiet:
             print(f"{args.path}: {len(violations)} violation(s)", file=sys.stderr)
@@ -47,8 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_VIOLATIONS
 
     if not args.quiet:
-        count = len(document.get("records", [])) if isinstance(document, dict) else 0
-        print(f"{args.path}: conforms to PhotoRecord v1 ({count} record(s))")
+        print(f"{args.path}: {contract.summarise(document)}")
     return EXIT_OK
 
 

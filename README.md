@@ -338,6 +338,14 @@ contract any program in any language can emit, checked by a
 [conformance kit](docs/conformance.md); a contract forbids the reference
 producer from importing the core.
 
+**One documented output.** [kiseki-interest-export
+v1](docs/interest-export.md) is the only document KISEKI ever prepares for
+the world outside the machine, and the only published contract other people
+read. It has a schema and a conformance suite of its own, because an input
+contract fails loudly at ingest and an output contract fails quietly, months
+later, in somebody else's program
+([ADR-0047](docs/adr/0047-export-is-a-one-way-abstraction.md)).
+
 **Ports are protocols.** Storage, models and the gazetteer are
 `typing.Protocol`; one shared test suite runs against both the fake and the
 real implementation, so the fake cannot drift
@@ -431,9 +439,10 @@ and what might become true.
   [ubiquitous language](docs/ubiquitous-language.md)
 - [CLI reference](docs/cli.md), [runbook](docs/runbook.md),
   [gazetteer](docs/gazetteer.md)
-- [PhotoRecord v1](docs/photo-record.md) and the
+- [PhotoRecord v1](docs/photo-record.md),
+  [kiseki-interest-export v1](docs/interest-export.md) and the
   [conformance kit](docs/conformance.md)
-- [Architecture decisions](docs/adr) -- 64 ADRs, including the ones later
+- [Architecture decisions](docs/adr) -- 80 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 
