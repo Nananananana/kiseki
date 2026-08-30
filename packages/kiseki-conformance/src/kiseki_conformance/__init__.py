@@ -35,14 +35,18 @@ from kiseki_conformance.suite import (
     InterestExportConformance,
     PhotoRecordConformance,
 )
+from kiseki_conformance.trust import CASES, Case, TrustBoundaryConformance
 
 __all__ = [
+    "CASES",
     "INTEREST_EXPORT",
     "PHOTO_RECORD",
+    "Case",
     "Contract",
     "ContractConformance",
     "InterestExportConformance",
     "PhotoRecordConformance",
+    "TrustBoundaryConformance",
     "check_export_semantics",
     "check_semantics",
     "identify",
