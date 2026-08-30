@@ -83,7 +83,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 84.
+Read the ADRs that cover what you are changing. There are 85.
 
 ## Conventions and hard-won rules
 
@@ -246,7 +246,10 @@ Read the ADRs that cover what you are changing. There are 84.
   written first on purpose. Its reference is a **salted** hash of the
   URL, which is the one place it must be stronger than NoteRecord --
   a path is a private string and a URL is a public one, so an unsalted
-  hash answers membership questions about clinics and parties.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
+  hash answers membership questions about clinics and parties. The producer is
+  given a page's address and title and **fetches nothing** (ADR-0085):
+  a history holds no page, and re-requesting every URL would be a
+  second browsing session in somebody else's logs.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
   changes three things: notes and web pages as sources the owner writes
   rather than takes, the model's location settled before anything else,
   and the commands that say what the library cannot do. Notes come
