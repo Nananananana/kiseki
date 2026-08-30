@@ -167,10 +167,20 @@ records only visit times, the gap to the next visit is the estimate.
 The threshold belongs to the producer and is not in this contract,
 because it depends on what the browser can say.
 
-It classifies with a model, and where that model runs is the whole
-privacy argument: the page's text reaches the classifier before
-anything is discarded. The trust boundary (ADR-0073) applies exactly
-as it does to captioning and to notes.
+**It is given the address and the title, and fetches nothing**
+(ADR-0085). A browser history holds no page: getting the text would
+mean re-requesting every URL the owner visited, which is a second
+browsing session in the sites' logs, blind to anything behind a login,
+and dated today rather than when they read it.
+
+So where the model runs is the whole privacy argument, and it is a
+sharper argument than it looks. A clinic's appointment URL and the
+title beside it are the most revealing strings in this system --
+routinely more so than the page body, because a body is prose and an
+address is a statement of what somebody went there to do. The trust
+boundary (ADR-0073) applies exactly as it does to captioning and to
+notes, and it is the only thing standing between that address and
+another machine.
 
 **A dry run comes first**, and is not optional for this source. A
 misclassified photograph can be looked at again; a misclassified page
