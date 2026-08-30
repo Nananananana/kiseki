@@ -237,7 +237,13 @@ Read the ADRs that cover what you are changing. There are 83.
   three, what this could reveal, is the one that decides.
 - The Apple Health converter waits for an export to exist. The
   receiving half -- ActivityRecord v1, the table, `kiseki activity` --
-  is done.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
+  is done.
+- `WebRecord v1` is settled (`docs/web-record.md`, ADR-0084) and
+  nothing reads it: no producer, no table, no command. The contract was
+  written first on purpose. Its reference is a **salted** hash of the
+  URL, which is the one place it must be stronger than NoteRecord --
+  a path is a private string and a URL is a public one, so an unsalted
+  hash answers membership questions about clinics and parties.- The current plan is `docs/proposals/0009`. It keeps 0008's shape and
   changes three things: notes and web pages as sources the owner writes
   rather than takes, the model's location settled before anything else,
   and the commands that say what the library cannot do. Notes come
