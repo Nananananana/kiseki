@@ -79,7 +79,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 81.
+Read the ADRs that cover what you are changing. There are 82.
 
 ## Conventions and hard-won rules
 
