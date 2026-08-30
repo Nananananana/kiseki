@@ -27,6 +27,12 @@ NoteRecord v1       +--> Evidence --> Personal context
 | [ActivityRecord v1](activity-record.md) | `[...]` | days of movement |
 | [NoteRecord v1](note-record.md) | `[...]` | what the owner wrote, as category and labels |
 
+A fourth is settled and unread: [WebRecord v1](web-record.md), for what
+the owner opened rather than wrote. It is written before its producer
+on purpose -- a contract argued against working code is argued against
+sunk cost -- so it is not in the table above, which says what the
+library reads today.
+
 The documents are not even the same shape at the top level, and that
 is allowed. A contract answers to its own subject, not to the contract
 that came first.
