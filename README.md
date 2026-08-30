@@ -14,6 +14,49 @@ library reads that line -- on your machine, for you alone.
 
 ---
 
+## Where this sits
+
+KISEKI is one of six libraries built on the same idea: your own
+material, read on your own machine, with whatever crosses a boundary
+written down as a contract. **It needs none of the other five.**
+Nothing in this repository imports a sibling, and everything below is
+true with all of them absent.
+
+```text
+     your exports, your folders            your photo library
+                 |                                 |
+            [ musubi ]                        [ KISEKI ]  <- you are here
+       documents/ + traces/            kiseki-interest-export/1
+                 |                                 |
+                 +----------------+----------------+
+                                  |
+                            [ tsumugi ]
+                     tsumugi.context-package/1
+                                  |
+                           [ iriguchi ]
+                 +----------------+----------------+
+                 |                |                |
+             REFUSED       local model         ESCALATED
+            nothing runs   on this machine          |
+                                               [ mamori ]
+                                          protected on the way out,
+                                          restored on the way back
+                                                    |
+                                            ( external model )
+                                                    |
+                                              [ akashi ]
+                                        akashi.audit-report/1
+```
+
+The only thing that ever leaves is
+[kiseki-interest-export v1](docs/interest-export.md): a versioned
+document, written by a command you run on purpose, carrying no place,
+no identifier and no exact time. `tsumugi` reads it today. This
+library does not know that and must not -- a published contract says
+the most that may ever leave, never who is listening (ADR-0047).
+
+---
+
 ## The problem
 
 Your phone holds thousands of photographs, and today's photo AI is good at
