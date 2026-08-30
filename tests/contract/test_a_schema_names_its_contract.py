@@ -8,6 +8,7 @@ validation, measured rather than assumed:
     as published                              validates: True
     $id replaced with audit-report-9.json      validates: True
     title replaced with "Something else"       validates: True
+    $schema swapped for another dialect        validates: True
 
 And a consumer reads the label first, to decide which schema to reach
 for at all.
@@ -39,6 +40,10 @@ PHOTO_RECORD_VERSION = "1.0"
 """What `kiseki_ingest` writes at the top of every document it emits."""
 
 VERSION_IN_NAME = re.compile(r"-v(\d+)\.json$")
+
+DIALECT = "https://json-schema.org/draft/2020-12/schema"
+"""What the kit's validator is built for. A file claiming another
+dialect is a file the kit reads by the wrong rules."""
 
 
 def published(name: str) -> dict[str, Any]:
@@ -94,3 +99,11 @@ class TestEverySchema:
         """Not for validation -- for the person reading a violation."""
         schema = published(contract.resource)
         assert schema["title"] == contract.name
+
+    def test_it_says_which_dialect_it_is_written_in(self, contract: Contract) -> None:
+        """Swapped for another dialect, a schema still validates the same
+        documents today and means something different -- `const` and
+        `$ref` and `items` have all changed meaning between drafts. The
+        one field that says how to read the file is the one field
+        nothing reads."""
+        assert published(contract.resource)["$schema"] == DIALECT
