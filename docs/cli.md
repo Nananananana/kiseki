@@ -14,6 +14,8 @@ uv run kiseki report --json
 |---|---|
 | `paths` | Print where everything will be stored, and stop |
 | `ingest` | Take a PhotoRecord document into the database |
+| `activity` | Take an ActivityRecord document: days of movement |
+| `notes` | Take a NoteRecord document: what the owner wrote, as category and labels |
 | `build` | Recompute stops, outings and anchors from what is stored |
 | `report` | Print what the measures say |
 | `caption` | Describe each stay with a local vision model |
@@ -33,6 +35,7 @@ uv run kiseki report --json
 | `correct` | Exclude a topic or a reading from every derivation |
 | `corrections` | The append-only correction log |
 | `compare` | What changed between two kept readings |
+| `llm` | Where the model is, whether it is allowed, and whether it answers |
 | `privacy` | How the owner's data is treated, in counts |
 | `forget` | Remove photographs and everything said about them |
 | `retention` | What a decade should look like, as rules |
@@ -51,6 +54,25 @@ uv run kiseki report --json
 Ingesting and building are separate because they cost differently. Taking
 photographs in is cheap and additive; rebuilding reconsiders the whole library.
 Importing several exports and building once is the normal way to work.
+
+## The other sources
+
+`kiseki activity` reads an [ActivityRecord v1](activity-record.md)
+document: a day of movement at a time, with no positions in it. A
+library with no photographs can hold activity, and a library with no
+activity behaves exactly as it did before it existed (ADR-0065).
+
+`kiseki notes` reads a [NoteRecord v1](note-record.md) document: what
+the owner wrote, arriving as a category, a day and up to eight labels.
+The text never arrives, because the document has nowhere to put it
+(ADR-0075); the producer -- `kiseki-notes`, outside the core -- reads
+the folder, classifies each note locally and discards everything else,
+and shows what it would record before it records anything.
+
+Both are documents, and both are optional. Each source lands in a
+table of its own, so a contract that turns out to be a mistake is
+dropped without anything else noticing. See
+[the rules every contract shares](records.md).
 
 ## Where things go
 
@@ -239,12 +261,25 @@ evidence counts on both sides (ADR-0045). By default it compares the
 trend's pair; `--from` / `--to` pick the latest kept profile at or
 before each date. Over HTTP: `GET /compare`.
 
+## Where the model is
+
+`kiseki llm` says which host the models are on, whether that host is
+inside the trust boundary and why, and which three models are
+configured (ADR-0073). It touches the network only when asked:
+`--check` puts one question to the language model and reports whether
+it answered. Everything it prints without `--check` is read from
+configuration.
+
 ## Privacy
 
 `kiseki privacy` reports how the library treats the owner's data,
 counted from storage (ADR-0046): what is stored, what the owner has
-withheld, and what is never stored by construction. Local only --
-the dashboard is deliberately not served over HTTP.
+withheld, where the models are and what therefore leaves, and what is
+never stored by construction. The outbound half is computed from this
+installation's own settings rather than asserted, and every claim in
+the last half names the test that fails if it stops being true
+(ADR-0074). Local only -- the dashboard is deliberately not served
+over HTTP.
 
 ## Export
 

@@ -15,19 +15,21 @@ a base schema, and the library translates each into its own vocabulary
 inside the core.
 
 ```text
-PhotoRecord v1  --+
-ActivityRecord v1 +--> Evidence --> Personal context
-(a future one)  --+
+PhotoRecord v1    --+
+ActivityRecord v1   |
+NoteRecord v1       +--> Evidence --> Personal context
+(a future one)    --+
 ```
 
 | Contract | Document | Reads as |
 |---|---|---|
 | [PhotoRecord v1](photo-record.md) | `{"records": [...]}` | photographs, journeys, readings |
 | [ActivityRecord v1](activity-record.md) | `[...]` | days of movement |
+| [NoteRecord v1](note-record.md) | `[...]` | what the owner wrote, as category and labels |
 
-The two documents are not even the same shape at the top level, and
-that is allowed. A contract answers to its own subject, not to the
-contract that came first.
+The documents are not even the same shape at the top level, and that
+is allowed. A contract answers to its own subject, not to the contract
+that came first.
 
 These are the contracts KISEKI **reads**. The one it **writes** --
 [kiseki-interest-export v1](interest-export.md) -- is a contract too,

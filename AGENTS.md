@@ -158,15 +158,16 @@ Read the ADRs that cover what you are changing. There are 81.
 
 ## Current state
 
-- Version: v0.9.0 released. v0.10 in progress.
-- Tests: 1510 passing, 13 llm-marked and deselected in CI.
+- Version: v0.10.0 released. v0.11 in progress.
+- Tests: 1515 passing, 13 llm-marked and deselected in CI.
 - Schema: version 8.
-- Commands: `paths`, `ingest`, `build`, `report`, `profile`,
-  `caption`, `singles`, `screens`, `subjects`, `themes`, `index`,
-  `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
-  `compare`, `drift`, `places`, `trips`, `suggest`, `correct`,
-  `corrections`, `privacy`, `export`, `forget`, `retention`, `doctor`,
-  `reread`, `retry`, `refresh`, `demo`, `serve`, `view`.
+- Commands (38): `paths`, `ingest`, `activity`, `notes`, `build`,
+  `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
+  `themes`, `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`,
+  `discover`, `compare`, `drift`, `places`, `trips`, `suggest`,
+  `correct`, `corrections`, `llm`, `privacy`, `export`, `forget`,
+  `retention`, `doctor`, `reread`, `retry`, `refresh`, `demo`,
+  `serve`, `view`.
 - The real library it is developed against: 4,950 photographs, 360
   stay captions, 1,244 single captions, 297 screen readings, 1,604
   subject readings, 46 kept readings, 8 trips.
