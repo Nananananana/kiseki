@@ -208,3 +208,48 @@ def _within(
             dwell = None
         visits.append(Visit(page=page, at=at, dwell=dwell))
     return tuple(visits)
+
+
+@dataclass(frozen=True)
+class Address:
+    """A page's address and title, for as long as it takes to classify.
+
+    This is the only place either string exists, and it exists in one
+    process for the length of one model call. Nothing here is returned
+    to a caller that writes records, and no field of WebRecord v1 could
+    hold it if it were (ADR-0085).
+    """
+
+    url: str
+    title: str
+
+
+def addresses_for(database: Path, pages: Sequence[int]) -> dict[int, Address]:
+    """The address and title behind each page id, read from a copy.
+
+    `plan` never calls this. Counting needs row numbers and times; only
+    classifying needs to know what a page was.
+    """
+    if not pages:
+        return {}
+    wanted = set(pages)
+    with tempfile.TemporaryDirectory(prefix="kiseki-web-") as raw:
+        copy = Path(raw) / database.name
+        shutil.copy2(database, copy)
+        _also_copy_journals(database, copy)
+        connection = sqlite3.connect(f"file:{copy}?mode=ro", uri=True)
+        try:
+            tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master")}
+            if "moz_places" in tables:
+                rows = connection.execute("SELECT id, url, title FROM moz_places").fetchall()
+            elif "urls" in tables:
+                rows = connection.execute("SELECT id, url, title FROM urls").fetchall()
+            else:
+                raise UnreadableHistoryError(f"{copy.name} holds no page table")
+        finally:
+            connection.close()
+    return {
+        int(identifier): Address(url=str(url or ""), title=str(title or ""))
+        for identifier, url, title in rows
+        if int(identifier) in wanted
+    }

@@ -54,7 +54,8 @@ reference producers sit beside it, none of which the core imports or
 is imported by: `kiseki-ingest` for PhotoRecord v1
 (`docs/photo-record.md`), `kiseki-notes` for NoteRecord v1
 (`docs/note-record.md`), and `kiseki-web` for WebRecord v1
-(`docs/web-record.md`, and only `plan` so far). `kiseki-conformance`
+(`docs/web-record.md`; `plan` and `read`, and nothing in the core
+reads its output yet). `kiseki-conformance`
 checks documents against the contracts KISEKI publishes.
 
 Inside `kiseki-core/src/kiseki/`:
