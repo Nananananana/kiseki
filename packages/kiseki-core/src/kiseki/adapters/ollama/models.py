@@ -11,6 +11,22 @@ speak to a running Ollama. The error mapping follows ADR-0015: what
 may succeed on a retry raises ModelUnavailableError, what will not
 raises ModelRefusedError. keep_alive is explicit per ADR-0014, so one
 stage does not deny the next its memory.
+
+Four things can go wrong before a model answers, and collapsing any
+two of them produces a message that asserts a cause it does not know:
+
+- **unreachable** -- nothing is listening; ModelUnavailableError.
+- **reachable and slow** -- the timeout. Also ModelUnavailableError,
+  because waiting again is reasonable, but never described as a host
+  that cannot be reached: one Ollama answers one request at a time, so
+  the wait may belong to another program's request.
+- **reachable and refusing** -- an HTTP status; typed by _error_for.
+- **could not even ask** -- the host is not an address a request can
+  be built from. Nothing was sent, no retry can help, and a setting
+  has to change, so it is a ValueError said at the door like every
+  other unusable setting, and never one of the two model failures. A
+  batch that recorded it would write a refusal against a photograph
+  for a fault the photograph had nothing to do with.
 """
 
 from __future__ import annotations
@@ -57,14 +73,36 @@ def _error_for(status: int, detail: str) -> RuntimeError:
     return ModelRefusedError(f"ollama answered {status}: {detail}")
 
 
+def _timed_out(error: BaseException) -> bool:
+    """Whether a failure is the clock rather than the network.
+
+    urllib reports a socket timeout as a bare TimeoutError or wrapped in
+    a URLError, depending on where in the exchange it happens."""
+    if isinstance(error, TimeoutError):
+        return True
+    reason = getattr(error, "reason", None)
+    return isinstance(reason, TimeoutError)
+
+
 def _http_post(host: str, timeout: float) -> Post:
     def post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        request = urllib.request.Request(
-            host + path,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
+        try:
+            request = urllib.request.Request(
+                host + path,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+        except ValueError as error:
+            # Not "reached and failed", and not "tried and could not
+            # reach": no request was ever formed, so nothing can be said
+            # about the host at all. A setting has to change, and a
+            # setting that would have done nothing is said at the door.
+            raise ValueError(
+                f"the model host {host!r} is not a usable address, so nothing was sent: "
+                f"{error}. Set KISEKI_MODEL_HOST or --model-host to something like "
+                f"http://127.0.0.1:11434"
+            ) from error
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 document: dict[str, Any] = json.loads(response.read().decode("utf-8"))
@@ -73,6 +111,15 @@ def _http_post(host: str, timeout: float) -> Post:
             detail = error.read().decode("utf-8", errors="replace")[:200]
             raise _error_for(error.code, detail) from error
         except OSError as error:
+            if _timed_out(error):
+                # Reachable and slow, which is not the same as absent.
+                # One Ollama answers one request at a time, so the wait
+                # may belong to another program's request entirely.
+                raise ModelUnavailableError(
+                    f"reached ollama at {host} and waited {timeout:g}s without an answer. "
+                    f"The model may be slow, or the wait may be a queue: one Ollama "
+                    f"answers one request at a time, and `ollama ps` says what is loaded"
+                ) from error
             raise ModelUnavailableError(f"cannot reach ollama at {host}: {error}") from error
 
     return post
