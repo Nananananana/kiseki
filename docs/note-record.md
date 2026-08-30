@@ -83,6 +83,16 @@ again; a misclassified note cannot, because the text is gone. The
 producer shows what it would record, and records only when told a
 second time.
 
+**The day comes from the filesystem, and that is fragile.** A note
+carries no date of its own; `mtime` is the only one there is. A `cp`
+without `-p`, an unzip, or a converter that writes fresh files resets
+every one of them, and the folder then produces one record per note on
+the day of the copy -- internally consistent, and with every trail in
+it gone. The dry run says so when more than half the notes share a
+day, and refuses nothing: a folder written in one sitting looks the
+same. Anything that prepares a folder for this producer must carry the
+original `mtime` through.
+
 ## Reading one
 
 ```bash

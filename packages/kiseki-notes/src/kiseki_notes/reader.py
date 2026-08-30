@@ -16,7 +16,7 @@ forgot they had is a search tool, and this is not one
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -103,3 +103,32 @@ def days_of(notes: Sequence[FoundNote]) -> dict[date, int]:
     for note in notes:
         counted[note.day] = counted.get(note.day, 0) + 1
     return dict(sorted(counted.items()))
+
+
+def busiest_day(days: Mapping[date, int]) -> tuple[date, int]:
+    """The day that holds the most notes, and how many."""
+    return max(days.items(), key=lambda item: (item[1], item[0]))
+
+
+def looks_copied(days: Mapping[date, int]) -> bool:
+    """Whether the dates look like an event rather than a history.
+
+    A folder somebody wrote has its notes spread across the days they
+    were written. More than half of everything on one calendar day is
+    not writing: it is a copy without `-p`, a converter, or an unzip,
+    and the day is the day that happened.
+
+    It matters more here than it would anywhere else. A note carries no
+    date of its own -- the filesystem's is the only one there is -- and
+    ADR-0076 rests the whole design on it: one record is one note on one
+    day, and a note returned to across six months is six records,
+    because the returning is the point. Reset the timestamps and every
+    trail in the folder becomes a single day.
+
+    Never a refusal. A folder genuinely written in one sitting is
+    possible, and this is a dry run for a person to read.
+    """
+    total = sum(days.values())
+    if total < 2:
+        return False
+    return busiest_day(days)[1] * 2 > total
