@@ -1,4 +1,4 @@
-"""The ADR count is quoted twice, and both copies are checked here.
+"""Every number in a current-state document that this repository can check.
 
 `AGENTS.md` and `README.md` each say how many ADRs there are, and the
 number earns its place: *read the ADRs that cover what you are changing,
@@ -18,6 +18,13 @@ Counting the files rather than taking the highest number is deliberate.
 ADR-0074 was cited by the code for ten commits while its file did not
 exist (#305), and a check built on the highest number would have passed
 throughout.
+
+The test count that used to sit beside these is gone rather than
+checked. Checking it needs a *collected* count -- parametrised tests
+mean a static walk undercounts -- so it would mean a second collection
+pass on every run, to defend a sentence nobody acts on. The rule that
+separates the two cases: **delete what needs new machinery to check,
+keep what can be checked against something already on disk.**
 """
 
 import re
@@ -67,3 +74,11 @@ def test_no_number_is_used_twice() -> None:
     present = numbers()
     twice = sorted({n for n in present if present.count(n) > 1})
     assert not twice, f"two decisions share a number: {twice}"
+
+
+def test_agents_says_which_schema_version_the_database_is_at() -> None:
+    """The one a migration is written against, and the only other number
+    in that list which the repository itself can settle."""
+    from kiseki.adapters.sqlite.store import SCHEMA_VERSION
+
+    assert quoted(AGENTS, r"- Schema: version (\d+)\.") == SCHEMA_VERSION
