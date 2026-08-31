@@ -84,7 +84,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 85.
+Read the ADRs that cover what you are changing. There are 86.
 
 When you write one: a consequence that could stop being true names
 what would end it, and a consequence that cannot says so. Most of them
