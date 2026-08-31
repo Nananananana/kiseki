@@ -24,7 +24,13 @@ from pathlib import Path
 SUFFIXES = (".md", ".txt", ".markdown")
 """Plain text the owner wrote. Not .docx, not .pdf: a format that
 needs parsing needs a library, and every library is a dependency that
-reads the owner's notes."""
+reads the owner's notes.
+
+It has a second effect that was not the reason for it. A folder
+prepared by a converter usually holds its own machinery -- a manifest,
+a trace map, an index -- and those are `.json`, so pointing this at
+the whole of such a folder reads the writing and not the bookkeeping.
+Measured on a real one: three notes either way."""
 
 SKIPPED_DIRECTORIES = (".git", ".obsidian", "node_modules", ".trash", ".venv")
 """Machinery, not writing."""
@@ -66,6 +72,18 @@ def reference_for(path: Path, root: Path) -> str:
     hashing and not a bug in it: the alternative, an absolute path,
     keeps the reference stable until the folder moves and names a user
     account in the meantime.
+
+    **How the digest is made is not a contract.** Sixteen hexadecimal
+    characters, sha256, forward slashes on every platform: those are
+    this producer's choices, and `docs/note-record.md` promises only
+    that the reference is stable and opaque. Another library was
+    measured deriving the identical sixteen characters for the same
+    file, having made the same three choices independently -- an
+    agreement nobody designed, nobody promised, and nothing should
+    rely on. Relying on it would turn an accident into a coupling
+    between two libraries that do not know about each other, and the
+    day either changed its truncation the failure would arrive as
+    *nothing matches* rather than as an error.
     """
     try:
         relative = path.relative_to(root)

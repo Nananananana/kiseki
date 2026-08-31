@@ -83,6 +83,13 @@ again; a misclassified note cannot, because the text is gone. The
 producer shows what it would record, and records only when told a
 second time.
 
+**What the reference promises is that it is stable and opaque, and
+nothing else.** Not its length, not its hash, not how a path is
+spelled before hashing. Another library was measured deriving the
+identical handle for the same file, having made the same choices by
+itself; that is an accident and not an agreement, and a consumer that
+matched on it would be coupling to a coincidence.
+
 **The reference is relative to the folder you name, and the folder you
 name is part of it.** The producer hashes each note's path relative to
 its root, so a note keeps its reference when the whole folder moves --
