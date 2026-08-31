@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-from kiseki.adapters.sqlite.store import connect
+from kiseki.adapters.sqlite.store import SCHEMA_VERSION, connect
 
 V3_TABLES = """
 CREATE TABLE schema_version (version INTEGER NOT NULL);
@@ -48,7 +48,7 @@ class TestSchemaV4:
         try:
             assert "use_for_preference" in _columns(connection)
             stored: int = connection.execute("SELECT version FROM schema_version").fetchone()[0]
-            assert stored == 8
+            assert stored == SCHEMA_VERSION
         finally:
             connection.close()
 

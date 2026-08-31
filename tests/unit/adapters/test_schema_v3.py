@@ -9,7 +9,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from kiseki.adapters.sqlite.store import connect
+from kiseki.adapters.sqlite.store import SCHEMA_VERSION, connect
 
 V2_TABLES = """
 CREATE TABLE schema_version (version INTEGER NOT NULL);
@@ -57,7 +57,7 @@ class TestSchemaV3:
         connection = connect(path)
         try:
             assert "content_kind" in _columns(connection)
-            assert _version(connection) == 8
+            assert _version(connection) == SCHEMA_VERSION
         finally:
             connection.close()
 
@@ -68,7 +68,7 @@ class TestSchemaV3:
         try:
             assert "thumbnail_ref" in _columns(connection)
             assert "content_kind" in _columns(connection)
-            assert _version(connection) == 8
+            assert _version(connection) == SCHEMA_VERSION
         finally:
             connection.close()
 

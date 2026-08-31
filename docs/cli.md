@@ -16,6 +16,7 @@ uv run kiseki report --json
 | `ingest` | Take a PhotoRecord document into the database |
 | `activity` | Take an ActivityRecord document: days of movement |
 | `notes` | Take a NoteRecord document: what the owner wrote, as category and labels |
+| `web` | Take a WebRecord document: what the owner opened, as category and labels |
 | `build` | Recompute stops, outings and anchors from what is stored |
 | `report` | Print what the measures say |
 | `caption` | Describe each stay with a local vision model |
@@ -61,6 +62,12 @@ Importing several exports and building once is the normal way to work.
 document: a day of movement at a time, with no positions in it. A
 library with no photographs can hold activity, and a library with no
 activity behaves exactly as it did before it existed (ADR-0065).
+
+`kiseki web` reads a [WebRecord v1](web-record.md) document: what the
+owner opened, in the same shape. No address ever arrives, because the
+document has nowhere to put one (ADR-0085), and the reference is
+salted so that holding the file does not let anybody test which pages
+are in it (ADR-0084). The producer is `kiseki-web`, outside the core.
 
 `kiseki notes` reads a [NoteRecord v1](note-record.md) document: what
 the owner wrote, arriving as a category, a day and up to eight labels.

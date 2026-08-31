@@ -202,8 +202,8 @@ Read the ADRs that cover what you are changing. There are 85.
 ## Current state
 
 - Version: v0.10.0 released. v0.11 in progress.
-- Schema: version 8.
-- Commands (38): `paths`, `ingest`, `activity`, `notes`, `build`,
+- Schema: version 9.
+- Commands (39): `paths`, `ingest`, `activity`, `notes`, `web`, `build`,
   `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
   `themes`, `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`,
   `discover`, `compare`, `drift`, `places`, `trips`, `suggest`,
@@ -243,9 +243,10 @@ Read the ADRs that cover what you are changing. There are 85.
 - The Apple Health converter waits for an export to exist. The
   receiving half -- ActivityRecord v1, the table, `kiseki activity` --
   is done.
-- `WebRecord v1` is settled (`docs/web-record.md`, ADR-0084) and
-  nothing reads it: no producer, no table, no command. The contract was
-  written first on purpose. Its reference is a **salted** hash of the
+- `WebRecord v1` is settled (`docs/web-record.md`, ADR-0084), its
+  producer is `kiseki-web` (`plan` and `read`), and the core reads it
+  into a table of its own at schema 9. The contract was written first
+  on purpose. Its reference is a **salted** hash of the
   URL, which is the one place it must be stronger than NoteRecord --
   a path is a private string and a URL is a public one, so an unsalted
   hash answers membership questions about clinics and parties. The producer is

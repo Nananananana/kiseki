@@ -60,6 +60,7 @@ TOUR: tuple[Stop, ...] = (
     Stop("forget", "removes photographs and everything that spoke about them", runs=False),
     Stop("activity", "reads days of movement from an ActivityRecord document", runs=False),
     Stop("notes", "reads what a note producer wrote, as categories and labels", runs=False),
+    Stop("web", "reads what a web producer wrote, as categories and labels", runs=False),
     Stop("ingest", "takes in a PhotoRecord document", runs=False),
     Stop("build", "recomputes stops, outings and anchors", runs=False),
     Stop("refresh", "the weekly routine, in one idempotent command", runs=False),
