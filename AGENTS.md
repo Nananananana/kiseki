@@ -119,6 +119,11 @@ not edited to match the present.
   `uv run pre-commit run --all-files`. If pre-commit rewrites
   anything, `git add` and run it again -- a commit whose hooks failed
   did not happen.
+- Every distribution ships `py.typed`. Without it a consumer's type
+  checker skips the package entirely (PEP 561) and says so in one line
+  -- the line consumers silence -- and every annotation in here stops
+  existing for them. Measured: with that line silenced, assigning the
+  conformance kit's `list[str]` to an `int` raised no error at all.
 - Packaging is checked by CI rather than by the list above, because it
   takes half a minute:
   `uv run --no-project python tools/check_packaging.py` builds every
