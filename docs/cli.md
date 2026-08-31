@@ -280,9 +280,12 @@ configuration.
 ## Privacy
 
 `kiseki privacy` reports how the library treats the owner's data,
-counted from storage (ADR-0046): what is stored, what the owner has
+counted from storage (ADR-0046): what is stored -- every source,
+including notes, pages and days of movement -- what the owner has
 withheld, where the models are and what therefore leaves, and what is
-never stored by construction. The outbound half is computed from this
+never stored by construction. Every table in the schema is either
+counted or named in the tests as deliberately not counted, so a new
+source cannot land without that being decided. The outbound half is computed from this
 installation's own settings rather than asserted, and every claim in
 the last half names the test that fails if it stops being true
 (ADR-0074). Local only -- the dashboard is deliberately not served
