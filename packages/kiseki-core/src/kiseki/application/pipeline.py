@@ -48,6 +48,7 @@ from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
+from kiseki.ports.activity import DailyActivityRepository
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.corrections import CorrectionRepository
 from kiseki.ports.notes import NoteReadingRepository
@@ -61,6 +62,7 @@ from kiseki.ports.screens import ScreenshotReadingRepository
 from kiseki.ports.singles import SingleCaptionRepository
 from kiseki.ports.subjects import SubjectRepository
 from kiseki.ports.themes import ThemeSetRepository
+from kiseki.ports.web import PageReadingRepository
 
 DEFAULT_PLACE_RADIUS = Distance(500)
 
@@ -111,6 +113,11 @@ class PrivacyReport:
     screen_readings: int
     screens_label_silent: int
     subject_readings: int
+    note_readings: int
+    notes_label_silent: int
+    activity_days: int
+    page_readings: int
+    pages_label_silent: int
     kept_profiles: int
     corrections: int
     active_exclusions: int
@@ -141,6 +148,8 @@ class Pipeline:
         themes: ThemeSetRepository | None = None,
         screens: ScreenshotReadingRepository | None = None,
         notes: NoteReadingRepository | None = None,
+        activity: DailyActivityRepository | None = None,
+        pages: PageReadingRepository | None = None,
         singles: SingleCaptionRepository | None = None,
         corrections: CorrectionRepository | None = None,
     ) -> None:
@@ -154,6 +163,8 @@ class Pipeline:
         self._themes = themes
         self._screens = screens
         self._notes = notes
+        self._activity = activity
+        self._pages = pages
         self._singles = singles
         self._corrections = corrections
 
@@ -261,6 +272,9 @@ class Pipeline:
         singles = self._singles.all() if self._singles is not None else ()
         screens = self._screens.all() if self._screens is not None else ()
         subjects = self._subjects.all() if self._subjects is not None else ()
+        notes = self._notes.all() if self._notes is not None else ()
+        days = self._activity.all() if self._activity is not None else ()
+        pages = self._pages.all() if self._pages is not None else ()
         history = self._profiles.history() if self._profiles is not None else ()
         corrections = self._corrections.all() if self._corrections is not None else ()
         return PrivacyReport(
@@ -278,6 +292,15 @@ class Pipeline:
                 1 for reading in screens if reading.refused is None and not reading.labels
             ),
             subject_readings=len(subjects),
+            note_readings=len(notes),
+            notes_label_silent=sum(
+                1 for reading in notes if reading.refused is None and not reading.labels
+            ),
+            activity_days=len(days),
+            page_readings=len(pages),
+            pages_label_silent=sum(
+                1 for reading in pages if reading.refused is None and not reading.labels
+            ),
             kept_profiles=len(history),
             corrections=len(corrections),
             active_exclusions=len(active_exclusions(corrections)),

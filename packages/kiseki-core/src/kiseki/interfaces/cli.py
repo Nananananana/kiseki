@@ -29,8 +29,10 @@ from kiseki.adapters.sqlite.store import (
     SqliteAnchorRepository,
     SqliteCaptionRepository,
     SqliteCorrectionRepository,
+    SqliteDailyActivityRepository,
     SqliteNoteReadingRepository,
     SqliteOutingRepository,
+    SqlitePageReadingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
     SqliteScreenshotReadingRepository,
@@ -226,6 +228,8 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         singles=SqliteSingleCaptionRepository(connection),
         screens=SqliteScreenshotReadingRepository(connection),
         notes=SqliteNoteReadingRepository(connection),
+        activity=SqliteDailyActivityRepository(connection),
+        pages=SqlitePageReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
     )
 
@@ -1280,6 +1284,15 @@ def _command_privacy(args: argparse.Namespace) -> int:
         f"   label-silent {report.screens_label_silent}"
     )
     print(f"    subject readings  {report.subject_readings:>6}")
+    print(
+        f"    note readings     {report.note_readings:>6}"
+        f"   label-silent {report.notes_label_silent}"
+    )
+    print(
+        f"    page readings     {report.page_readings:>6}"
+        f"   label-silent {report.pages_label_silent}"
+    )
+    print(f"    days of movement  {report.activity_days:>6}")
     print(f"    kept profiles     {report.kept_profiles:>6}")
     print(
         f"    corrections       {report.corrections:>6}   excluding now {report.active_exclusions}"
