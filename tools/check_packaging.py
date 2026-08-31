@@ -28,6 +28,17 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+IMPORT_NAMES = {
+    "kiseki-0": "kiseki",
+    "kiseki_conformance-": "kiseki_conformance",
+    "kiseki_ingest-": "kiseki_ingest",
+    "kiseki_notes-": "kiseki_notes",
+    "kiseki_web-": "kiseki_web",
+}
+"""The distribution name is not the import name. A wheel is addressed
+by the first and unpacked to the second, and a check that assumed they
+matched would pass on four of these five."""
+
 CONFORMANCE_SCHEMAS = ("photo-record-v1.json", "interest-export-v1.json")
 """Every schema the kit reads at runtime. Absent from the wheel, the package
 imports cleanly and fails on first use, in somebody else's program."""
@@ -117,6 +128,30 @@ def check_schemas_are_carried(artefacts: list[Path]) -> None:
     print(f"  the conformance wheel carries {len(CONFORMANCE_SCHEMAS)} schemas")
 
 
+def check_the_types_are_shipped(artefacts: list[Path]) -> None:
+    """Every wheel carries `py.typed`, or its annotations are private.
+
+    PEP 561: without the marker a consumer's type checker skips the
+    package entirely, and says so in one line -- the line every
+    consumer silences. Measured before this check existed: with that
+    line silenced, assigning this kit's `list[str]` to an `int` raised
+    **no error at all**. Strict inside, nothing reaching the outside,
+    and quietly.
+
+    The kit is the sharpest case, being the one distribution whose
+    reason to exist is that somebody else installs it.
+    """
+    missing = []
+    for prefix, package in IMPORT_NAMES.items():
+        wheel = one(artefacts, prefix, ".whl")
+        with zipfile.ZipFile(wheel) as archive:
+            if f"{package}/py.typed" not in set(archive.namelist()):
+                missing.append(wheel.name)
+    if missing:
+        fail(f"wheels shipping annotations nobody can see: {missing}")
+    print(f"  {len(IMPORT_NAMES)} wheels carry py.typed")
+
+
 def one(artefacts: list[Path], prefix: str, suffix: str) -> Path:
     found = [p for p in artefacts if p.name.startswith(prefix) and p.name.endswith(suffix)]
     if len(found) != 1:
@@ -194,6 +229,7 @@ def main() -> int:
         check_metadata(artefacts)
         print("\nchecking what the wheel carries")
         check_schemas_are_carried(artefacts)
+        check_the_types_are_shipped(artefacts)
         print("\nusing it from outside the source tree")
         use_from_outside(artefacts, workspace)
     print("\nthe packages build, install, and work where the source tree is not")

@@ -155,6 +155,10 @@ asserts each pair is identical, so they cannot drift. See ADR-0005.
 Being inside the package is not the same as being inside the wheel, so
 CI builds the wheel, installs it into an empty environment, and reads
 both schemas and runs both suites from a directory outside the
-repository (`tools/check_packaging.py`). This package exists to be
+repository (`tools/check_packaging.py`). The same job checks that every
+wheel carries `py.typed`: without it a consumer's type checker skips
+the package and says so in one line, and that line is the one every
+consumer silences -- after which none of these annotations exists as
+far as they are concerned. This package exists to be
 installed by somebody else; "installed without its schemas" is close to
 the only way it can fail.
