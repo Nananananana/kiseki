@@ -99,6 +99,16 @@ note underneath, with nothing renamed. Measured: the same file under
 two roots produces two references. Name the same folder each time, or
 accept that the trail starts again.
 
+**When something else wrote the folder, its contract says which
+directory holds the writing.** A converter that produces a folder for
+this producer generally puts the documents in one place and its own
+bookkeeping -- a manifest, an index, a map -- in another. Point at the
+documents directory, write down which one you pointed at, and point at
+the same one next time. The bookkeeping is `.json` and would be passed
+over anyway, but that is a happy accident of the suffix filter rather
+than a promise: the folder to name is the one the producer's own
+contract names.
+
 **The day comes from the filesystem, and that is fragile.** A note
 carries no date of its own; `mtime` is the only one there is. A `cp`
 without `-p`, an unzip, or a converter that writes fresh files resets
