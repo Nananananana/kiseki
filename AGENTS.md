@@ -86,6 +86,16 @@ One model in VRAM at a time; `keep_alive` is explicit.
 
 Read the ADRs that cover what you are changing. There are 85.
 
+When you write one: a consequence that could stop being true names
+what would end it, and a consequence that cannot says so. Most of them
+cannot -- a cost a decision accepted does not expire -- and writing
+that down is what tells the next reader they are looking at an
+accepted cost rather than at something nobody revisited. Measured
+before this line existed: eight of eighty-one `## Consequences`
+sections named a condition, and the other seventy-three were silent
+about which kind they were. The old ones stay as they are; an ADR is
+not edited to match the present.
+
 ## Conventions and hard-won rules
 
 - TDD, one issue = one PR, squash merge, close the issue after. Red
