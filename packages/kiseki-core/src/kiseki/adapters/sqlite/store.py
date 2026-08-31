@@ -38,8 +38,9 @@ from kiseki.domain.screen.reading import ScreenshotReading
 from kiseki.domain.shared.confidence import Confidence
 from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
+from kiseki.domain.web.reading import PageReading
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -161,6 +162,18 @@ CREATE TABLE IF NOT EXISTS note_readings (
     PRIMARY KEY (reference, day)
 );
 
+CREATE TABLE IF NOT EXISTS page_readings (
+    reference  TEXT NOT NULL,
+    day        TEXT NOT NULL,
+    category   TEXT NOT NULL,
+    labels     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    refused    TEXT,
+    prompt_version TEXT,
+    PRIMARY KEY (reference, day)
+);
+
 CREATE TABLE IF NOT EXISTS daily_activity (
     day        TEXT PRIMARY KEY,
     steps      INTEGER NOT NULL,
@@ -216,6 +229,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 7:
             _migrate_v7_to_v8(connection)
             version = 8
+        if version == 8:
+            _migrate_v8_to_v9(connection)
+            version = 9
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -282,6 +298,30 @@ def _migrate_v7_to_v8(connection: sqlite3.Connection) -> None:
         " DROP TABLE note_readings_v7;"
     )
     connection.execute("UPDATE schema_version SET version = ?", (8,))
+
+
+def _migrate_v8_to_v9(connection: sqlite3.Connection) -> None:
+    """The one change from 8 to 9: a table for page readings.
+
+    A fourth kind of witness, in a table of its own. Photographs, days
+    of movement and notes are untouched, and a library that never reads
+    a page has an empty table -- which every derivation must survive
+    (ADR-0063, ADR-0065).
+
+    Keyed by reference and day from the start, because the lesson of
+    the seventh migration is already learnt: a page is not a state to
+    be kept current, it is something the owner returned to, and the
+    times they returned are the evidence (ADR-0076).
+    """
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS page_readings ("
+        " reference TEXT NOT NULL, day TEXT NOT NULL,"
+        " category TEXT NOT NULL, labels TEXT NOT NULL,"
+        " model TEXT NOT NULL, created_at TEXT NOT NULL,"
+        " refused TEXT, prompt_version TEXT,"
+        " PRIMARY KEY (reference, day))"
+    )
+    connection.execute("UPDATE schema_version SET version = ?", (9,))
 
 
 def _migrate_v6_to_v7(connection: sqlite3.Connection) -> None:
@@ -353,6 +393,60 @@ class SqliteNoteReadingRepository:
 
     def count(self) -> int:
         row = self._connection.execute("SELECT COUNT(*) FROM note_readings").fetchone()
+        total: int = row[0]
+        return total
+
+
+class SqlitePageReadingRepository:
+    """Page readings, keyed by the reference the producer made."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, reading: PageReading) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT OR REPLACE INTO page_readings"
+                " (reference, day, category, labels, model, created_at,"
+                " refused, prompt_version)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    reading.reference,
+                    reading.day.isoformat(),
+                    reading.category,
+                    json.dumps(list(reading.labels)),
+                    reading.model,
+                    reading.created_at.isoformat(),
+                    reading.refused,
+                    reading.prompt_version,
+                ),
+            )
+
+    def save_all(self, readings: Sequence[PageReading]) -> None:
+        for reading in readings:
+            self.save(reading)
+
+    def all(self) -> tuple[PageReading, ...]:
+        rows = self._connection.execute(
+            "SELECT reference, day, category, labels, model, created_at,"
+            " refused, prompt_version FROM page_readings ORDER BY day, reference"
+        )
+        return tuple(
+            PageReading(
+                reference=reference,
+                day=_date.fromisoformat(day),
+                category=category,
+                labels=tuple(json.loads(labels)),
+                model=model,
+                created_at=datetime.fromisoformat(created_at),
+                refused=refused,
+                prompt_version=prompt_version,
+            )
+            for reference, day, category, labels, model, created_at, refused, prompt_version in rows
+        )
+
+    def count(self) -> int:
+        row = self._connection.execute("SELECT COUNT(*) FROM page_readings").fetchone()
         total: int = row[0]
         return total
 

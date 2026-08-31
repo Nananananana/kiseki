@@ -99,6 +99,7 @@ from kiseki.domain.services.trips import derive_trips
 from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
+from kiseki.domain.web.reading import PageReading
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.claims import (
     BLURRED_BY_DEFAULT,
@@ -306,6 +307,76 @@ def _to_note_readings(records: list[dict[str, Any]]) -> list["NoteReading"]:
             )
         )
     return readings
+
+
+def _to_page_readings(records: list[dict[str, Any]]) -> list["PageReading"]:
+    """Turn WebRecord v1 documents into readings.
+
+    A category that carries no labels arriving with labels is refused
+    rather than trimmed. The producer promised not to send them, and a
+    core that quietly tidied that up would be hiding a producer that
+    had stopped keeping its promise.
+    """
+    from datetime import date as _date
+    from datetime import datetime as _datetime
+
+    from kiseki.domain.web.reading import PageReading
+
+    now = _datetime.now()
+    readings: list[PageReading] = []
+    for record in records:
+        readings.append(
+            PageReading(
+                reference=str(record["reference"]),
+                day=_date.fromisoformat(str(record["day"])),
+                category=str(record["category"]),
+                labels=tuple(str(label) for label in record.get("labels", [])),
+                model=str(record.get("model", "unknown")),
+                created_at=now,
+                prompt_version=(
+                    str(record["prompt_version"]) if record.get("prompt_version") else None
+                ),
+            )
+        )
+    return readings
+
+
+def _command_web(args: argparse.Namespace) -> int:
+    """Read what a web producer wrote (WebRecord v1).
+
+    A fourth contract, independent of the other three. No address ever
+    arrives, because the document has nowhere to put one (ADR-0085),
+    and the reference is salted so that holding this file does not let
+    anybody test which pages are in it (ADR-0084).
+    """
+    from kiseki.adapters.sqlite.store import SqlitePageReadingRepository
+
+    try:
+        document = json.loads(Path(args.records).read_text(encoding="utf-8-sig"))
+        if not isinstance(document, list):
+            raise ValueError("a WebRecord document is a list of readings")
+        readings = _to_page_readings(document)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"the records could not be read: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    repository = SqlitePageReadingRepository(connection)
+    repository.save_all(readings)
+    held = repository.all()
+    print(RULE)
+    print(f"  readings read {len(readings)}")
+    print(f"  readings held {len(held)}")
+    if held:
+        pages = len({reading.reference for reading in held})
+        days = len({reading.day for reading in held})
+        print(f"  pages         {pages} across {days} days")
+        counted: dict[str, int] = {}
+        for reading in held:
+            counted[reading.category] = counted.get(reading.category, 0) + 1
+        print("\n  by category")
+        for category, count in sorted(counted.items(), key=lambda pair: -pair[1]):
+            print(f"    {category:<12}  {count}")
+    return EXIT_OK
 
 
 def _command_notes(args: argparse.Namespace) -> int:
@@ -2109,6 +2180,10 @@ def build_parser() -> argparse.ArgumentParser:
     notes = commands.add_parser("notes", help="read what a note producer wrote (NoteRecord v1)")
     notes.add_argument("records", help="the NoteRecord v1 document")
     notes.set_defaults(run=_command_notes)
+
+    web = commands.add_parser("web", help="read what a web producer wrote (WebRecord v1)")
+    web.add_argument("records", help="the WebRecord v1 document")
+    web.set_defaults(run=_command_web)
 
     commands.add_parser("build", help="recompute stops, outings and anchors").set_defaults(
         run=_command_build
