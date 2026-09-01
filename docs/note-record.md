@@ -99,6 +99,13 @@ note underneath, with nothing renamed. Measured: the same file under
 two roots produces two references. Name the same folder each time, or
 accept that the trail starts again.
 
+**And the library says when a document shares nothing with what it
+holds.** Reading a folder from a different root produces valid records
+that name none of the readings already stored, which is exactly what a
+genuinely new folder produces too. `kiseki notes` says so and refuses
+nothing: the two are indistinguishable from the document, and only the
+owner knows which happened.
+
 **When something else wrote the folder, its contract says which
 directory holds the writing.** A converter that produces a folder for
 this producer generally puts the documents in one place and its own
