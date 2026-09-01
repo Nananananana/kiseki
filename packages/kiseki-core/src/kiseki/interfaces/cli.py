@@ -313,6 +313,32 @@ def _to_note_readings(records: list[dict[str, Any]]) -> list["NoteReading"]:
     return readings
 
 
+SHARES_NOTHING = (
+    "\n  none of these share a reference with what was already held. That is"
+    "\n  a source this library has not seen, or the same one re-identified --"
+    "\n  read from a different root, or renamed (ADR-0086). The two look alike"
+    "\n  from here, and the second doubles every trail in the library."
+    "\n  Nothing is refused: a second folder shares nothing either."
+)
+
+
+def _shares_nothing(existing: set[str], arriving: set[str]) -> bool:
+    """Whether a document has no reference in common with what is held.
+
+    A library that already holds readings, given a document that names
+    none of them, is looking at one of two things: a source it has not
+    seen before, or the same source re-identified -- a folder pointed
+    at from a different root, or one whose files were renamed
+    (ADR-0086). The two are indistinguishable from the document, and
+    the difference matters enormously: the second doubles every trail
+    in the library and looks exactly like the first while doing it.
+
+    Said, never refused. A second vault is a perfectly good reason for
+    a document to share nothing.
+    """
+    return bool(existing) and bool(arriving) and not (existing & arriving)
+
+
 def _to_page_readings(records: list[dict[str, Any]]) -> list["PageReading"]:
     """Turn WebRecord v1 documents into readings.
 
@@ -365,6 +391,7 @@ def _command_web(args: argparse.Namespace) -> int:
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqlitePageReadingRepository(connection)
+    before = {reading.reference for reading in repository.all()}
     repository.save_all(readings)
     held = repository.all()
     print(RULE)
@@ -380,6 +407,8 @@ def _command_web(args: argparse.Namespace) -> int:
         print("\n  by category")
         for category, count in sorted(counted.items(), key=lambda pair: -pair[1]):
             print(f"    {category:<12}  {count}")
+    if _shares_nothing(before, {reading.reference for reading in readings}):
+        print(SHARES_NOTHING)
     return EXIT_OK
 
 
@@ -402,6 +431,7 @@ def _command_notes(args: argparse.Namespace) -> int:
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqliteNoteReadingRepository(connection)
+    before = {reading.reference for reading in repository.all()}
     repository.save_all(readings)
     held = repository.all()
     print(RULE)
@@ -417,6 +447,8 @@ def _command_notes(args: argparse.Namespace) -> int:
         print("\n  by category")
         for category, count in sorted(counted.items(), key=lambda pair: -pair[1]):
             print(f"    {category:<12}  {count}")
+    if _shares_nothing(before, {reading.reference for reading in readings}):
+        print(SHARES_NOTHING)
     return EXIT_OK
 
 

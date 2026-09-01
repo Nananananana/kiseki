@@ -110,3 +110,47 @@ def test_nothing_of_the_address_can_arrive(tmp_path: Path) -> None:
     main(["--data-root", str(tmp_path), "web", str(document)])
     paths = resolve_paths({"data_root": str(tmp_path)}, dotenv=Path(".env"))
     assert b"clinic.example.org" not in paths.db_path.read_bytes()
+
+
+class TestADocumentThatSharesNothing:
+    """A library that already holds readings, given a document naming
+    none of them, is looking at a new source or at the same one
+    re-identified (ADR-0086). The two are indistinguishable from the
+    document, and the second doubles every trail while looking like the
+    first."""
+
+    def test_the_first_import_says_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """There is nothing to share a reference with."""
+        document = _document(tmp_path, [_record("page:aaaa")])
+        main(["--data-root", str(tmp_path), "web", str(document)])
+        assert "share a reference" not in capsys.readouterr().out
+
+    def test_a_second_document_that_overlaps_says_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        first = _document(tmp_path, [_record("page:aaaa")])
+        main(["--data-root", str(tmp_path), "web", str(first)])
+        second = _document(tmp_path, [_record("page:aaaa"), _record("page:bbbb")])
+        main(["--data-root", str(tmp_path), "web", str(second)])
+        assert "share a reference" not in capsys.readouterr().out
+
+    def test_a_second_document_that_overlaps_with_nothing_says_so(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        first = _document(tmp_path, [_record("page:aaaa")])
+        main(["--data-root", str(tmp_path), "web", str(first)])
+        second = _document(tmp_path, [_record("page:cccc"), _record("page:dddd")])
+        main(["--data-root", str(tmp_path), "web", str(second)])
+        printed = capsys.readouterr().out
+        assert "share a reference" in printed
+        assert "ADR-0086" in printed
+
+    def test_it_refuses_nothing(self, tmp_path: Path) -> None:
+        """A second folder shares nothing either, and that is fine."""
+        first = _document(tmp_path, [_record("page:aaaa")])
+        main(["--data-root", str(tmp_path), "web", str(first)])
+        second = _document(tmp_path, [_record("page:cccc")])
+        assert main(["--data-root", str(tmp_path), "web", str(second)]) == EXIT_OK
+        assert len(_held(tmp_path)) == 2
