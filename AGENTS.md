@@ -114,7 +114,7 @@ not edited to match the present.
   from CI; run `uv run pytest -m llm` before merging model-adjacent
   changes.
 - Checks before every green commit: `uv run pytest -q`,
-  `uv run mypy packages`, `uv run lint-imports`,
+  `uv run mypy packages tools`, `uv run lint-imports`,
   `uv run ruff check --fix .`, `uv run ruff format .`,
   `uv run pre-commit run --all-files`. If pre-commit rewrites
   anything, `git add` and run it again -- a commit whose hooks failed

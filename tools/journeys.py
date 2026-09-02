@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         min_photographs=args.min_photographs,
     )
     extraction = extract_stops(observations, stop_settings)
-    assembly = assemble_outings(
+    outings = assemble_outings(
         extraction.stops,
         settings=OutingSettings(max_absence=timedelta(hours=args.max_absence)),
     )
@@ -149,9 +149,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"in transit         {len(extraction.in_transit)}")
     print(f"no coordinates     {len(extraction.unlocated)}")
     print(f"stops              {len(extraction.stops)}")
-    print(f"outings            {len(assembly.outings)}")
+    print(f"outings            {len(outings)}")
 
-    shown = [outing for outing in assembly.outings if outing.stop_count >= args.min_stops]
+    shown = [outing for outing in outings if outing.stop_count >= args.min_stops]
     print(RULE)
     print(f"showing {min(len(shown), args.limit)} of {len(shown)} outings")
     for index, outing in enumerate(shown[: args.limit], start=1):

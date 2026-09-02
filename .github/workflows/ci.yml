@@ -32,7 +32,7 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Type check
-        run: uv run mypy packages
+        run: uv run mypy packages tools
 
       - name: Import contracts
         run: uv run lint-imports
