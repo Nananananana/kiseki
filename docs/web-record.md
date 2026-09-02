@@ -194,6 +194,41 @@ without opening a page or reaching a model at all.
 producer copies it and reads the copy, and the copy is deleted
 afterwards. It never writes to the original.
 
+## Checking one
+
+```bash
+kiseki-conformance web-records.json --contract web-record
+```
+
+**The contract has to be named, and that is not an oversight.** This
+document and [NoteRecord v1](note-record.md) are both bare arrays of the
+same six field names, and their category sets overlap in eleven. There
+is no field either could carry to say which it is.
+
+The reference prefix is not that field. `page:` looks like an
+identifier and is not one -- what a reference promises is that it is
+stable and opaque, and nothing else, so a consumer matching on the
+prefix would be coupling to a coincidence. The kit is a consumer, and
+it declines to guess: a guess right most of the time would mislabel,
+in silence, the document that happens to use only shared categories.
+
+A producer written in Python can subclass the suite instead:
+
+```python
+from kiseki_conformance import WebRecordConformance
+
+
+class TestMyProducer(WebRecordConformance):
+    @pytest.fixture
+    def document(self):
+        return json.loads(Path("web-records.json").read_text(encoding="utf-8"))
+```
+
+**The document is UTF-8**, as JSON exchanged between systems must be
+(RFC 8259 section 8.1), with or without a byte order mark. Writing it
+by redirecting a command encodes with the machine's locale rather than
+with the encoding you meant; see [records.md](records.md).
+
 ## Reading one
 
 ```bash
