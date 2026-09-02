@@ -5,6 +5,32 @@ one kind and runs every deterministic command against what is left. A
 command that crashes, or that reports failure because a source it does
 not need is missing, fails here rather than in front of a reader whose
 library happens to lack it. See ADR-0063.
+
+**It said "every kind of evidence" and meant six of nine** (#372).
+ActivityRecord landed at schema 6, NoteRecord at 7, WebRecord at 9,
+and none of the three was ever seeded here. Two claims were failing at
+once, and the second is the worse one:
+
+- absence was unproven for the three newest sources, which is at
+  least the thing this file was aiming at;
+- **no command in this matrix had ever run on a library that had a
+  note reading or a page reading in it.** 18 commands over 7
+  omissions is 126 runs, every one on a library with none of the
+  three. A derivation that crashed on the *presence* of a page
+  reading would have passed the whole matrix, and so would one that
+  ignored it.
+
+That second half is a population that is not empty and where every
+member carries the same value for the thing that matters. Counting
+the runs does not show it. Only a new kind of input does.
+
+`kiseki privacy` had the identical omission, the identical three
+sources, and was fixed in #353; the conformance kit has it still
+(#373). Three machines, each correct when written, none extended when
+the rule they enforce got new members -- because in none of them was
+**adding a source made a decision**. It is one here now: `SOURCES`
+below is the saying, and a table holding the owner's evidence that is
+missing from it fails rather than passing quietly.
 """
 
 import json
@@ -70,7 +96,39 @@ OMISSIONS = (
     "single caption",
     "screen reading",
     "kept reading",
+    "note reading",
+    "page reading",
+    "day of movement",
 )
+
+SOURCES = {
+    "photos": "photograph",
+    "captions": "stay caption",
+    "single_captions": "single caption",
+    "screen_readings": "screen reading",
+    "subjects": "stay caption",
+    "profiles": "kept reading",
+    "note_readings": "note reading",
+    "page_readings": "page reading",
+    "daily_activity": "day of movement",
+}
+"""Every table holding the owner's own evidence, and the omission that
+removes it. Checked against the schema below, so a source that lands
+without being seeded fails here rather than being absent in silence."""
+
+NOT_A_SOURCE = {
+    "schema_version": "one row saying which migration ran",
+    "sqlite_sequence": "SQLite's own bookkeeping",
+    "stops": "derived from photographs, and removed with them",
+    "stop_photos": "which photographs made a stop; removed with them",
+    "outings": "assembled from stops, and removed with them",
+    "anchors": "estimated from stops, and removed with them",
+    "theme_sets": "derived from subject readings, and removed with them",
+    "corrections": "the owner's answer to a derivation, not a source of evidence",
+}
+"""Why each table is not seeded and not omitted. The same shape
+test_the_report_counts_every_table.py uses, for the same reason: the
+list is where a person adding a table has to stop and decide."""
 
 
 @pytest.fixture(autouse=True)
