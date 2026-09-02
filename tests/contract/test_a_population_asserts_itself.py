@@ -47,6 +47,47 @@ def test_the_trust_table_is_not_empty() -> None:
     )
 
 
+def test_the_table_is_not_all_one_direction() -> None:
+    """A population can be the wrong shape without being empty, and
+    that one is not countable the way emptiness is.
+
+    Relayed as a guess -- *31 cases all refusing, and thin on what
+    should be admitted* -- and **measured false**. The table as it
+    stood:
+
+        31 cases            admit 20   refuse 11
+        same_host      14   admit  7   refuse  7
+        private_network 15  admit 11   refuse  4
+        anywhere        2   admit  2   refuse  0
+
+    The skew runs the other way, and `same_host` -- the strictest
+    boundary, and the one that matters -- was exactly even.
+
+    What the measurement *did* find is the thin row. `anywhere` had
+    two cases and no endpoint that could not be placed, while an empty
+    endpoint was pinned under both other boundaries. All three
+    implementations admitted it, **by having been written similarly
+    rather than by anybody deciding** -- which is the coincidence this
+    table exists to turn into an agreement. Three cases were added,
+    and the reason `anywhere` admits an endpoint with no host is now
+    written where the next implementer will read it: refusing a
+    malformed address is not this rule's job, and `urllib` will refuse
+    it a moment later for its own reasons.
+
+        34 cases            admit 22   refuse 12
+        same_host      15   admit  7   refuse  8
+        private_network 15  admit 11   refuse  4
+        anywhere        4   admit  4   refuse  0
+    """
+    same_host = [case for case in CASES if case.boundary == "same_host"]
+    admitted = [case for case in same_host if case.admitted]
+    assert admitted and len(admitted) != len(same_host), (
+        "every same_host case decides the same way, so an implementation "
+        "that answered that way always would conform. The strictest "
+        "boundary needs both directions."
+    )
+
+
 def test_the_trust_table_still_covers_what_it_claimed() -> None:
     """31 was the number when the boundary was written three times over.
     A table that shrinks has stopped holding the three copies together,

@@ -65,6 +65,7 @@ CASES: tuple[Case, ...] = (
     Case("8.8.8.8", SAME_HOST, False, "and certainly not the internet"),
     Case("api.example.com", SAME_HOST, False, "or a name on it"),
     Case("", SAME_HOST, False, "an endpoint with no host at all"),
+    Case("http://", SAME_HOST, False, "nor a scheme with nothing after it"),
     # The network boundary admits the network, and only by shape.
     Case("127.0.0.1", PRIVATE_NETWORK, True, "the stricter case still passes"),
     Case("192.168.1.10", PRIVATE_NETWORK, True, "a private range"),
@@ -84,6 +85,8 @@ CASES: tuple[Case, ...] = (
     # Anywhere means anywhere, which is why it is not the default.
     Case("8.8.8.8", ANYWHERE, True, "the owner said anywhere"),
     Case("api.example.com", ANYWHERE, True, "including what cannot be placed"),
+    Case("", ANYWHERE, True, "and including nothing at all, which is not this rule's to refuse"),
+    Case("   ", ANYWHERE, True, "nor whitespace, for the same reason"),
     # A host the owner named is a decision, and outranks the boundary.
     Case(
         "https://api.example.com",
