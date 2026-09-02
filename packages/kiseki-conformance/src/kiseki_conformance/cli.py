@@ -20,6 +20,20 @@ UNNAMED = (
     "a kiseki-interest-export carries 'schema' and 'version'."
 )
 
+NOT_UTF8 = (
+    "is not UTF-8, and JSON exchanged between systems must be "
+    "(RFC 8259 section 8.1). The usual cause is a redirect on a machine "
+    "whose locale encoding is not UTF-8 -- `producer > document.json` "
+    "writes in the console's encoding, not the one you meant. Write the "
+    "bytes yourself with an encoding you named."
+)
+"""What a producer who got this wrong needs to be told.
+
+They are the least able to diagnose it and the most likely to run this
+command, and until this was written they got a Python stack trace. The
+document read by this kit is the document some other program will read
+too, so the failure is not this tool's."""
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -41,9 +55,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        document = json.loads(args.path.read_text(encoding="utf-8"))
+        document = json.loads(args.path.read_text(encoding="utf-8-sig"))
     except OSError as error:
         print(f"cannot read {args.path}: {error}", file=sys.stderr)
+        return EXIT_UNREADABLE
+    except UnicodeDecodeError as error:
+        print(f"{args.path}: {NOT_UTF8}", file=sys.stderr)
+        print(f"  {error}", file=sys.stderr)
         return EXIT_UNREADABLE
     except json.JSONDecodeError as error:
         print(f"{args.path} is not valid JSON: {error}", file=sys.stderr)

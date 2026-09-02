@@ -65,9 +65,28 @@ them names itself, and why they differ, is ADR-0081.
    date where a day is meant. The library compares them in one shape
    at the moment of comparison (ADR-0064) and stores what it was
    given.
-4. **Survive a byte order mark.** Producers on Windows write one
-   without being asked. Documents are read as `utf-8-sig`, which
-   accepts a file with or without it.
+4. **Write UTF-8, and survive a byte order mark.** A document is
+   UTF-8, always -- RFC 8259 section 8.1 requires it of JSON exchanged
+   between systems, and this is exchange between systems by
+   definition. Producers on Windows write a byte order mark without
+   being asked; documents are read as `utf-8-sig`, which accepts a
+   file with or without one.
+
+   **This one is the easiest to get wrong without noticing, and the
+   producer is rarely the one who wrote the mistake.** Redirecting a
+   command -- `producer > records.json` -- encodes with the machine's
+   locale, not with the encoding the producer chose: on a Japanese
+   Windows machine that is cp932, and the file that lands is not
+   valid JSON. It exits zero. It even reads back correctly on the
+   machine that wrote it. Write the bytes with an encoding you named,
+   rather than letting a shell choose one.
+
+   Measured, in this repository and in a sibling on the same day:
+   `kiseki ask --json > answer.json` wrote cp932 (fixed in #368), and
+   `akashi audit --json > report.json` wrote a document akashi could
+   not read back. Neither project intended it and neither noticed for
+   months. `kiseki-conformance` now says so in a sentence rather than
+   a stack trace.
 5. **Land in a table of its own.** A new record type never adds
    columns to another type's table. If it turns out to be a mistake,
    the table is dropped and nothing else notices (ADR-0065).
