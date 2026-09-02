@@ -86,5 +86,7 @@ def test_the_diagram_shows_every_kind_of_evidence() -> None:
 def test_the_contracts_it_names_have_documents() -> None:
     """A contract named in the table whose document is gone would make
     every check above pass against a promise nobody kept."""
-    missing = [name for name, page in contracts().items() if not (REPO_ROOT / "docs" / page).is_file()]
+    missing = [
+        name for name, page in contracts().items() if not (REPO_ROOT / "docs" / page).is_file()
+    ]
     assert not missing, f"docs/records.md links to contracts with no document: {missing}"

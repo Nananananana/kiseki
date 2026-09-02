@@ -1,8 +1,9 @@
 # KISEKI
 
-**A local-first personal context engine: it turns your photo history into
-evidence-backed insights about your journeys, your interests, and how they
-change over time.**
+**A local-first personal context engine: it turns the traces you already
+leave -- your photographs, your notes, the pages you open, the days you
+move -- into evidence-backed insights about your journeys, your
+interests, and how they change over time.**
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -11,6 +12,26 @@ change over time.**
 
 *Kiseki* means "trail" in Japanese: the line your days draw on a map. This
 library reads that line -- on your machine, for you alone.
+
+Four kinds of evidence arrive, each through a written contract
+([docs/records.md](docs/records.md)), and **any of them may be absent**:
+
+| | what it reads | what reaches this library |
+|---|---|---|
+| [PhotoRecord v1](docs/photo-record.md) | your photo library | a time, a place, a thumbnail reference |
+| [ActivityRecord v1](docs/activity-record.md) | days you moved | a count of steps per day, no positions and no route |
+| [NoteRecord v1](docs/note-record.md) | notes you wrote | a category and some labels |
+| [WebRecord v1](docs/web-record.md) | pages you opened | a category and some labels |
+
+**The text never arrives.** A note and a page are read by a producer
+that runs outside this library, classified there, and discarded there.
+What crosses is a salted hash, a day, a category and a few labels --
+never the writing, never the file name, never the address
+([ADR-0084](docs/adr/0084-a-hash-of-a-url-is-not-a-handle.md)). This
+library could not show you a note you wrote if you asked it to.
+
+Nothing here reads EXIF, opens a browser, or fetches a page. Producers
+do that, and hand over a document.
 
 ---
 
@@ -263,6 +284,9 @@ flowchart LR
     M --> PR["Profile<br/>interests with evidence"]
     SU --> PR
     SC --> PR
+    AD["Activity<br/>steps per day"] --> M
+    NR["Note readings<br/>category + labels only"] --> PR
+    WR["Web readings<br/>category + labels only"] --> PR
     PR --> TL["tell -- a cited story"]
     PR --> IT["trend, lifecycle, insights,<br/>compare, discover, suggest"]
     CA --> IX["Search index"]
