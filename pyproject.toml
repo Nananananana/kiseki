@@ -60,3 +60,4 @@ markers = [
     "slow: tests that take a long time",
 ]
 addopts = "-m 'not llm'"
+empty_parameter_set_mark = "fail_at_collect"

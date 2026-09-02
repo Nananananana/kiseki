@@ -1,0 +1,219 @@
+"""A check with nothing to check is green, and says nothing.
+
+The manager session relayed this from outside the family: a suite
+written as `for x in collection: assert ...` passes completely when
+the collection is empty, so renaming a package turned every
+architecture guarantee green. Measured here, the same shape is in the
+one distribution built to be installed by somebody else.
+
+Emptying the 31-case trust table:
+
+    93 passed  ->  3 skipped, exit 0
+
+**Nobody wrote the word skip.** pytest turns an empty `parametrize`
+into one by itself, which is why grepping for `pytest.skip` -- zero
+hits across 232 test files -- answered a different question than the
+one being asked.
+
+Two spellings of the same silence, and this file refuses both:
+
+    for x in []          "everything passed"
+    parametrize(())      "not applicable"
+
+The distinction that decides which collections get an assertion:
+**empty is a mistake where the collection is a table this kit ships,
+and a fact where the collection is a document somebody handed us.** A
+library with no photographs really has no records. So the table is
+asserted, and the documents are reported on -- a producer running the
+kit against an empty document is told the per-record checks proved
+nothing, rather than being congratulated.
+"""
+
+import importlib.util
+from pathlib import Path
+
+import pytest
+from kiseki_conformance.suite import InterestExportConformance, PhotoRecordConformance
+from kiseki_conformance.trust import CASES
+
+
+def test_the_trust_table_is_not_empty() -> None:
+    """The table is a literal this kit ships. Empty is never a fact
+    about the world, only about a mistake."""
+    assert CASES, (
+        "the trust boundary table is empty. Every case in "
+        "TrustBoundaryConformance would report as skipped, and a "
+        "sibling repository copying the kit would copy the silence."
+    )
+
+
+def test_the_table_is_not_all_one_direction() -> None:
+    """A population can be the wrong shape without being empty, and
+    that one is not countable the way emptiness is.
+
+    Relayed as a guess -- *31 cases all refusing, and thin on what
+    should be admitted* -- and **measured false**. The table as it
+    stood:
+
+        31 cases            admit 20   refuse 11
+        same_host      14   admit  7   refuse  7
+        private_network 15  admit 11   refuse  4
+        anywhere        2   admit  2   refuse  0
+
+    The skew runs the other way, and `same_host` -- the strictest
+    boundary, and the one that matters -- was exactly even.
+
+    What the measurement *did* find is the thin row. `anywhere` had
+    two cases and no endpoint that could not be placed, while an empty
+    endpoint was pinned under both other boundaries. All three
+    implementations admitted it, **by having been written similarly
+    rather than by anybody deciding** -- which is the coincidence this
+    table exists to turn into an agreement. Three cases were added,
+    and the reason `anywhere` admits an endpoint with no host is now
+    written where the next implementer will read it: refusing a
+    malformed address is not this rule's job, and `urllib` will refuse
+    it a moment later for its own reasons.
+
+        34 cases            admit 22   refuse 12
+        same_host      15   admit  7   refuse  8
+        private_network 15  admit 11   refuse  4
+        anywhere        4   admit  4   refuse  0
+    """
+    same_host = [case for case in CASES if case.boundary == "same_host"]
+    admitted = [case for case in same_host if case.admitted]
+    assert admitted and len(admitted) != len(same_host), (
+        "every same_host case decides the same way, so an implementation "
+        "that answered that way always would conform. The strictest "
+        "boundary needs both directions."
+    )
+
+
+def test_the_trust_table_still_covers_what_it_claimed() -> None:
+    """31 was the number when the boundary was written three times over.
+    A table that shrinks has stopped holding the three copies together,
+    and a shrinking table looks exactly like a passing one."""
+    assert len(CASES) >= 31, (
+        f"the trust boundary table has {len(CASES)} cases and had 31. "
+        "Cases may be added; a case removed needs saying why here."
+    )
+
+
+def test_every_case_says_why() -> None:
+    """A case with no reason is a case nobody can review."""
+    silent = [case.label for case in CASES if len(case.why.split()) < 3]
+    assert not silent, f"cases asserting a verdict with no reason: {silent}"
+
+
+class TestASuiteRunOnAnEmptyDocument:
+    """What a producer is told when the kit had nothing to look at."""
+
+    def test_the_photo_suite_says_it_checked_nothing(self) -> None:
+        suite = PhotoRecordConformance()
+        with pytest.raises(AssertionError, match="nothing to check"):
+            suite.test_the_document_had_something_to_check({"schema_version": "1.0"})
+
+    def test_the_export_suite_says_it_checked_nothing(self) -> None:
+        suite = InterestExportConformance()
+        with pytest.raises(AssertionError, match="nothing to check"):
+            suite.test_the_document_had_something_to_check(
+                {"schema": "kiseki-interest-export", "version": 1, "interests": []}
+            )
+
+    def test_a_document_with_records_passes(self) -> None:
+        PhotoRecordConformance().test_the_document_had_something_to_check(
+            {"schema_version": "1.0", "records": [{"id": "sha256:aa"}]}
+        )
+
+    def test_a_document_with_interests_passes(self) -> None:
+        InterestExportConformance().test_the_document_had_something_to_check(
+            {"schema": "kiseki-interest-export", "version": 1, "interests": [{"topic": "raft"}]}
+        )
+
+
+class TestTheImportContracts:
+    """Two holes were looked for here. **One of them was open.**
+
+    Measured, by breaking `.importlinter` and reading the exit code:
+
+        a contract deleted    "5 kept, 0 broken"    **exit 0**
+        a root package renamed                       exit 1
+
+    So `lint-imports` already refuses a root it cannot import -- the
+    shape the outside repository hit, where a source root pointing at
+    nothing left 35 tests passing, **does not exist here**, and the
+    second test below is belt-and-braces rather than a fix.
+
+    The first is not. A contract removed from this file takes its rule
+    with it, the count drops by one, and the build stays green.
+    """
+
+    CONFIGURATION = Path(__file__).parents[2] / ".importlinter"
+
+    EXPECTED = 6
+    """Contracts. Adding one is free; losing one is what this catches."""
+
+    def read(self) -> str:
+        return self.CONFIGURATION.read_text(encoding="utf-8")
+
+    def test_every_contract_is_still_declared(self) -> None:
+        declared = self.read().count("[importlinter:contract:")
+        assert declared >= self.EXPECTED, (
+            f".importlinter declares {declared} contracts and had {self.EXPECTED}. "
+            "lint-imports reports the number it found and exits 0 either way."
+        )
+
+    def test_every_root_package_exists(self) -> None:
+        """A root package that is not importable is a set of layering
+        rules that are true of nothing."""
+        block = self.read().split("root_packages =")[1].split("[")[0]
+        roots = [line.strip() for line in block.splitlines() if line.strip()]
+        assert roots, ".importlinter names no root packages, so it checks nothing"
+        missing = [name for name in roots if importlib.util.find_spec(name) is None]
+        assert not missing, f"root packages that cannot be imported: {missing}"
+
+
+class TestTheGeneralCase:
+    """One line covers every parametrize, written or yet to be written.
+
+    Found by the iriguchi session while experimenting with the same
+    failure, and it is strictly better than the per-site assertions
+    above for the cases it reaches:
+
+        [tool.pytest.ini_options]
+        empty_parameter_set_mark = "fail_at_collect"
+
+    **pytest's default is `skip`.** That is where the silence comes
+    from — nobody writes it, and it is there anyway.
+
+    The per-site assertion on `CASES` stays, and not out of caution.
+    A sibling repository that copies `kiseki_conformance/trust.py`
+    copies the module and **not this repository's pytest
+    configuration**. The line protects this suite; the assertion
+    travels with the kit.
+
+    What neither reaches: `assert not <derived set>` inside a single
+    test is not a parametrize, so pytest cannot see it. Those are the
+    ones a person has to find, so they were swept for with `ast`
+    rather than with a grep -- **16 sites**, of which 15 already
+    guarded their source collection.
+
+    The sixteenth was `documented_in_cli_reference()`, and it is worth
+    recording how it was safe, because it was not safe by design.
+    Breaking the table's shape in `docs/cli.md`:
+
+        1 failed, 4 passed
+
+    `test_the_cli_reference_invents_no_command` subtracted from an
+    empty set and passed. The file went red because its **partner in
+    the other direction** failed. A pair of tests covering each other
+    is real coverage right up to the day somebody deletes one of them
+    as redundant. It now asserts at the source.
+    """
+
+    def test_pytest_is_told_to_fail_rather_than_skip(self) -> None:
+        configuration = (Path(__file__).parents[2] / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'empty_parameter_set_mark = "fail_at_collect"' in configuration, (
+            "pytest's default marks an empty parameter set as skipped, so a "
+            "parametrize over a collection that became empty reports as a "
+            "skip and the build stays green."
+        )
