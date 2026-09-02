@@ -122,8 +122,31 @@ class TestTheExportRedirected:
     def test_the_bytes_are_utf8_and_the_json_parses(self, library: Path, tmp_path: Path) -> None:
         document = json.loads(exported(library, tmp_path, NOT_UTF8).decode("utf-8"))
         assert document["schema"] == "kiseki-interest-export"
-        assert any(label in json.dumps(document, ensure_ascii=False) for label in LABELS), (
-            "the characters that make this a test at all did not survive the round trip"
+
+    def test_the_labels_come_back_exactly_as_they_went_in(
+        self, library: Path, tmp_path: Path
+    ) -> None:
+        """Not *is it valid* but *is the value still the value*.
+
+        The fourth requirement, and the one the first three miss.
+        Reported by the mamori session, who poisoned their own writer
+        with `errors="replace"` and got exit 0, a valid UTF-8 file,
+        valid JSON, and `original_value: "??"`.
+
+        Confirmed here by the same poisoning, before this test was
+        split out to say so: with the writer encoding as ASCII with
+        `errors="replace"`, `test_it_is_the_same_document_under_either
+        _encoding` **passes** -- both encodings produce the same wrong
+        bytes. **Consistency is not fidelity**, and a hash agreeing
+        with itself proves only that the corruption was deterministic.
+        """
+        document = json.loads(exported(library, tmp_path, NOT_UTF8).decode("utf-8"))
+        topics = {str(interest["topic"]) for interest in document["interests"]}
+        missing = [label for label in LABELS if label not in topics]
+        assert not missing, (
+            f"labels that went in and did not come back: {missing}. "
+            f"Present: {sorted(topics)}. A document can be valid UTF-8, parse as "
+            "JSON, and carry question marks where the owner's words were."
         )
 
     def test_exit_zero_is_not_taken_as_the_answer(self, library: Path, tmp_path: Path) -> None:
