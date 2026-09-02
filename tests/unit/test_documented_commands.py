@@ -29,6 +29,13 @@ def registered_commands() -> set[str]:
 def documented_in_cli_reference() -> set[str]:
     """The names in the command table of docs/cli.md."""
     rows = re.findall(r"^\| `([a-z-]+)` \|", CLI_DOC.read_text(encoding="utf-8"), re.MULTILINE)
+    assert rows, (
+        "no command rows found in docs/cli.md, which means the table's shape "
+        "changed rather than that it documents nothing. Without this, "
+        "test_the_cli_reference_invents_no_command passes by subtracting from "
+        "an empty set -- measured: 1 failed, 4 passed, where the one failure "
+        "was its partner rather than itself."
+    )
     return set(rows)
 
 

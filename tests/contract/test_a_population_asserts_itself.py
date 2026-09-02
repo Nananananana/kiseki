@@ -129,3 +129,50 @@ class TestTheImportContracts:
         assert roots, ".importlinter names no root packages, so it checks nothing"
         missing = [name for name in roots if importlib.util.find_spec(name) is None]
         assert not missing, f"root packages that cannot be imported: {missing}"
+
+
+class TestTheGeneralCase:
+    """One line covers every parametrize, written or yet to be written.
+
+    Found by the iriguchi session while experimenting with the same
+    failure, and it is strictly better than the per-site assertions
+    above for the cases it reaches:
+
+        [tool.pytest.ini_options]
+        empty_parameter_set_mark = "fail_at_collect"
+
+    **pytest's default is `skip`.** That is where the silence comes
+    from — nobody writes it, and it is there anyway.
+
+    The per-site assertion on `CASES` stays, and not out of caution.
+    A sibling repository that copies `kiseki_conformance/trust.py`
+    copies the module and **not this repository's pytest
+    configuration**. The line protects this suite; the assertion
+    travels with the kit.
+
+    What neither reaches: `assert not <derived set>` inside a single
+    test is not a parametrize, so pytest cannot see it. Those are the
+    ones a person has to find, so they were swept for with `ast`
+    rather than with a grep -- **16 sites**, of which 15 already
+    guarded their source collection.
+
+    The sixteenth was `documented_in_cli_reference()`, and it is worth
+    recording how it was safe, because it was not safe by design.
+    Breaking the table's shape in `docs/cli.md`:
+
+        1 failed, 4 passed
+
+    `test_the_cli_reference_invents_no_command` subtracted from an
+    empty set and passed. The file went red because its **partner in
+    the other direction** failed. A pair of tests covering each other
+    is real coverage right up to the day somebody deletes one of them
+    as redundant. It now asserts at the source.
+    """
+
+    def test_pytest_is_told_to_fail_rather_than_skip(self) -> None:
+        configuration = (Path(__file__).parents[2] / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'empty_parameter_set_mark = "fail_at_collect"' in configuration, (
+            "pytest's default marks an empty parameter set as skipped, so a "
+            "parametrize over a collection that became empty reports as a "
+            "skip and the build stays green."
+        )
