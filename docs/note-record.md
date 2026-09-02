@@ -90,6 +90,28 @@ identical handle for the same file, having made the same choices by
 itself; that is an accident and not an agreement, and a consumer that
 matched on it would be coupling to a coincidence.
 
+**What the folder may hold.** Everything the producer will read, and
+everything it will pass over:
+
+```text
+extensions   .md .txt .markdown
+skipped      .git .obsidian node_modules .trash .venv
+size cap     512 KB per file
+```
+
+Plain text the owner wrote, and nothing that needs parsing: a format
+that needs a library is a library that reads the owner's notes. The
+skipped directories are machinery rather than writing, and the cap is
+generous -- half a megabyte is a hundred thousand words, so a file
+above it is a data file with a `.txt` extension.
+
+This is worth reading if you are *writing* a folder for this producer
+rather than pointing it at one you already keep. A converter that
+writes `.markdown` when this reads `.md` produces a folder that yields
+nothing, and the message it yields is `no notes found` -- which is
+also what an empty folder produces, and what a mistyped root produces.
+Three causes, one message, and the producer cannot tell them apart.
+
 **The reference is relative to the folder you name, and the folder you
 name is part of it.** The producer hashes each note's path relative to
 its root, so a note keeps its reference when the whole folder moves --
