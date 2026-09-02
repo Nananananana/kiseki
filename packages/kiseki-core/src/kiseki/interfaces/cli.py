@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from kiseki.adapters.filesystem.gazetteer import FileGazetteer
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
@@ -127,6 +127,43 @@ EXIT_OK = 0
 EXIT_BAD_INPUT = 2
 RULE = "-" * 70
 DOTENV = Path(".env")
+
+
+def write_document(payload: Any, stream: TextIO | None = None) -> None:
+    """Write a document a program will read, in UTF-8, always.
+
+    Redirected, Python encodes stdout with the locale encoding. On a
+    Japanese Windows machine that is cp932, so `kiseki ask --json >
+    answer.json` wrote a file that was not valid JSON for exchange
+    (RFC 8259 section 8.1), with exit 0 and no warning -- and a
+    character cp932 has no room for ended the command with a
+    `UnicodeEncodeError` instead. Both halves arrive from outside: the
+    question comes from argv and the answer comes from the model.
+
+    Prose is left alone on purpose. A character lost from a sentence
+    is a character lost from a sentence, and the person reading it can
+    see that something is missing. A character lost from a document is
+    corruption that reaches a program looking like data.
+
+    The thirteen other machine-readable prints in this file were
+    already safe, because `json.dumps` escapes non-ASCII unless told
+    not to. They were safe **by accident**; going through here makes
+    it a decision, and the same bytes come out whatever console ran
+    the command -- which is what makes a hash over a document mean
+    anything.
+    """
+    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    target = sys.stdout if stream is None else stream
+    buffer = getattr(target, "buffer", None)
+    if buffer is None:
+        # A stream with no bytes underneath: a capture, or a pipe
+        # somebody handed us. It keeps whatever encoding it was made
+        # with, which is the caller's decision rather than ours.
+        target.write(text)
+        return
+    target.flush()
+    buffer.write(text.encode("utf-8"))
+    buffer.flush()
 
 
 def _read_records(path: Path) -> list[dict[str, Any]]:
@@ -521,7 +558,7 @@ def _print_report(report: Report) -> None:
 def _command_report(args: argparse.Namespace) -> int:
     report = _pipeline_for(args).report()
     if args.json:
-        print(json.dumps(report_payload(report), indent=2))
+        write_document(report_payload(report))
     else:
         _print_report(report)
     return EXIT_OK
@@ -636,7 +673,7 @@ def _command_profile(args: argparse.Namespace) -> int:
     # derivation that reads the history read them (ADR-0070).
     profile = _pipeline_from(paths.db_path).profile(keep=args.keep)
     if args.json:
-        print(json.dumps(profile_payload(profile), indent=2))
+        write_document(profile_payload(profile))
     else:
         gazetteer = FileGazetteer(paths.gazetteer_path)
         names = place_names((interest.topic for interest in profile.interests), gazetteer)
@@ -794,7 +831,7 @@ def _command_trend(args: argparse.Namespace) -> int:
     report = _pipeline_for(args).trend()
     if report is None:
         if args.json:
-            print(json.dumps({"trends": None, "reason": "not enough history"}, indent=2))
+            write_document({"trends": None, "reason": "not enough history"})
         else:
             print(RULE)
             print(
@@ -803,7 +840,7 @@ def _command_trend(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        print(json.dumps(trend_payload(report), indent=2))
+        write_document(trend_payload(report))
     else:
         _print_trend(
             report,
@@ -973,7 +1010,7 @@ def _command_ask(args: argparse.Namespace) -> int:
         print(f"the model could not answer: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT
     if args.json:
-        print(json.dumps(answer_payload(answer), ensure_ascii=False, indent=2))
+        write_document(answer_payload(answer))
         return EXIT_OK
     print(RULE)
     if not answer.answered:
@@ -1041,7 +1078,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
     report = _pipeline_from(paths.db_path).lifecycle()
     if report is None:
         if args.json:
-            print(json.dumps({"lifecycles": None, "reason": "not enough history"}, indent=2))
+            write_document({"lifecycles": None, "reason": "not enough history"})
         else:
             print(RULE)
             print(
@@ -1050,7 +1087,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        print(json.dumps(lifecycle_payload(report), indent=2))
+        write_document(lifecycle_payload(report))
         return EXIT_OK
     names = place_names(
         (item.topic for item in report.lifecycles), FileGazetteer(paths.gazetteer_path)
@@ -1096,7 +1133,7 @@ def _command_insights(args: argparse.Namespace) -> int:
     report = _pipeline_from(paths.db_path).insights()
     if report is None:
         if args.json:
-            print(json.dumps({"insights": None, "reason": "not enough history"}, indent=2))
+            write_document({"insights": None, "reason": "not enough history"})
         else:
             print(RULE)
             print(
@@ -1105,7 +1142,7 @@ def _command_insights(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        print(json.dumps(insights_payload(report), indent=2))
+        write_document(insights_payload(report))
         return EXIT_OK
     names = place_names(
         (item.topic for item in report.insights), FileGazetteer(paths.gazetteer_path)
@@ -1216,13 +1253,13 @@ def _command_compare(args: argparse.Namespace) -> int:
         return EXIT_BAD_INPUT
     if comparison is None:
         if args.json:
-            print(json.dumps({"entries": None, "reason": "not enough history"}, indent=2))
+            write_document({"entries": None, "reason": "not enough history"})
         else:
             print(RULE)
             print("  not enough history: compare needs two kept profiles to pair")
         return EXIT_OK
     if args.json:
-        print(json.dumps(comparison_payload(comparison), indent=2))
+        write_document(comparison_payload(comparison))
         return EXIT_OK
     names = place_names(
         (entry.topic for entry in comparison.entries), FileGazetteer(paths.gazetteer_path)
@@ -1304,7 +1341,7 @@ def _command_llm(args: argparse.Namespace) -> int:
 def _command_privacy(args: argparse.Namespace) -> int:
     report = _pipeline_from(_paths_for(args).db_path).privacy()
     if args.json:
-        print(json.dumps(privacy_payload(report), indent=2))
+        write_document(privacy_payload(report))
         return EXIT_OK
     print(RULE)
     print("  what is stored, in counts")
@@ -1351,14 +1388,15 @@ def _command_export(args: argparse.Namespace) -> int:
         pipeline.lifecycle(),
         _date.today(),
     )
-    text = json.dumps(document, indent=2)
     if args.out is not None:
         target = Path(args.out)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text + "\n", encoding="utf-8")
+        target.write_text(
+            json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         print(f"exported {len(document['interests'])} interests to {target}")
         return EXIT_OK
-    print(text)
+    write_document(document)
     return EXIT_OK
 
 
@@ -1432,7 +1470,7 @@ def _command_discover(args: argparse.Namespace) -> int:
     feed = _pipeline_from(paths.db_path).discover()
     if feed is None:
         if args.json:
-            print(json.dumps({"discoveries": None, "reason": "not enough history"}, indent=2))
+            write_document({"discoveries": None, "reason": "not enough history"})
         else:
             print(RULE)
             print(
@@ -1441,7 +1479,7 @@ def _command_discover(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        print(json.dumps(discovery_payload(feed), indent=2))
+        write_document(discovery_payload(feed))
         return EXIT_OK
     names = place_names(
         (entry.topic for entry in feed.entries), FileGazetteer(paths.gazetteer_path)

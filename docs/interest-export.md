@@ -89,6 +89,16 @@ kiseki export --out interests.json
 kiseki-conformance interests.json
 ```
 
+**The document is UTF-8**, as JSON exchanged between systems must be
+(RFC 8259 section 8.1), with or without a byte order mark. `--out`
+writes the bytes; so does printing to a terminal or a pipe, which is
+not what a shell would have chosen. `kiseki export > interests.json`
+on a machine whose locale is not UTF-8 used to write the console's
+encoding instead, and the file that landed read back correctly on the
+machine that wrote it and nowhere else (#368). If you are producing
+this document rather than consuming it, that is the mistake to avoid,
+and `kiseki-conformance` names it in a sentence when it sees one.
+
 A producer of this document written in Python can subclass the suite:
 
 ```python
