@@ -72,7 +72,7 @@ CASES: tuple[Case, ...] = (
     Case("172.16.0.1", PRIVATE_NETWORK, True, "and the third"),
     Case("169.254.10.1", PRIVATE_NETWORK, True, "link-local is not the internet"),
     Case("llm01", PRIVATE_NETWORK, True, "a single-label name is a local name"),
-    Case("gpu.local", PRIVATE_NETWORK, True, "mDNS"),
+    Case("gpu.local", PRIVATE_NETWORK, True, "mDNS resolves only on this network"),
     Case("box.lan", PRIVATE_NETWORK, True, "a router's idea of a domain"),
     Case("host.internal", PRIVATE_NETWORK, True, "and a container's"),
     Case("thing.home.arpa", PRIVATE_NETWORK, True, "the name reserved for exactly this"),
@@ -107,6 +107,17 @@ CASES: tuple[Case, ...] = (
         trusted=("api.example.com",),
     ),
 )
+
+assert CASES, (
+    "the trust boundary table is empty. Every case below would report "
+    "as skipped rather than failing -- pytest turns an empty "
+    "parametrize into a skip without being asked -- so a repository "
+    "that copied this kit would copy a green silence."
+)
+"""Measured: emptying the table takes the suite from 93 passed to
+3 skipped, exit 0. The table is a literal this kit ships, so empty is
+never a fact about the world."""
+
 
 Admits = Callable[[str, str, Sequence[str]], bool]
 """Whether the text may be sent: endpoint, boundary, hosts the owner named."""
