@@ -5,16 +5,46 @@ one kind and runs every deterministic command against what is left. A
 command that crashes, or that reports failure because a source it does
 not need is missing, fails here rather than in front of a reader whose
 library happens to lack it. See ADR-0063.
+
+**It said "every kind of evidence" and meant six of nine** (#372).
+ActivityRecord landed at schema 6, NoteRecord at 7, WebRecord at 9,
+and none of the three was ever seeded here. Two claims were failing at
+once, and the second is the worse one:
+
+- absence was unproven for the three newest sources, which is at
+  least the thing this file was aiming at;
+- **no command in this matrix had ever run on a library that had a
+  note reading or a page reading in it.** 18 commands over 7
+  omissions is 126 runs, every one on a library with none of the
+  three. A derivation that crashed on the *presence* of a page
+  reading would have passed the whole matrix, and so would one that
+  ignored it.
+
+That second half is a population that is not empty and where every
+member carries the same value for the thing that matters. Counting
+the runs does not show it. Only a new kind of input does.
+
+`kiseki privacy` had the identical omission, the identical three
+sources, and was fixed in #353; the conformance kit has it still
+(#373). Three machines, each correct when written, none extended when
+the rule they enforce got new members -- because in none of them was
+**adding a source made a decision**. It is one here now: `SOURCES`
+below is the saying, and a table holding the owner's evidence that is
+missing from it fails rather than passing quietly.
 """
 
 import json
 import os
+import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from kiseki.adapters.sqlite.store import (
     SqliteCaptionRepository,
+    SqliteDailyActivityRepository,
+    SqliteNoteReadingRepository,
+    SqlitePageReadingRepository,
     SqlitePhotoRepository,
     SqliteProfileRepository,
     SqliteScreenshotReadingRepository,
@@ -23,6 +53,7 @@ from kiseki.adapters.sqlite.store import (
     connect,
 )
 from kiseki.config.paths import resolve_paths
+from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.caption.subjects import SubjectExtraction
@@ -32,9 +63,11 @@ from kiseki.domain.interests import (
     InterestEvidence,
     Profile,
 )
+from kiseki.domain.note.reading import NoteReading
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.screen.reading import ScreenshotReading
 from kiseki.domain.shared.geo import GeoPoint
+from kiseki.domain.web.reading import PageReading
 from kiseki.interfaces.cli import EXIT_OK, main
 
 NOW = datetime.now(UTC)
@@ -70,7 +103,39 @@ OMISSIONS = (
     "single caption",
     "screen reading",
     "kept reading",
+    "note reading",
+    "page reading",
+    "day of movement",
 )
+
+SOURCES = {
+    "photos": "photograph",
+    "captions": "stay caption",
+    "single_captions": "single caption",
+    "screen_readings": "screen reading",
+    "subjects": "stay caption",
+    "profiles": "kept reading",
+    "note_readings": "note reading",
+    "page_readings": "page reading",
+    "daily_activity": "day of movement",
+}
+"""Every table holding the owner's own evidence, and the omission that
+removes it. Checked against the schema below, so a source that lands
+without being seeded fails here rather than being absent in silence."""
+
+NOT_A_SOURCE = {
+    "schema_version": "one row saying which migration ran",
+    "sqlite_sequence": "SQLite's own bookkeeping",
+    "stops": "derived from photographs, and removed with them",
+    "stop_photos": "which photographs made a stop; removed with them",
+    "outings": "assembled from stops, and removed with them",
+    "anchors": "estimated from stops, and removed with them",
+    "theme_sets": "derived from subject readings, and removed with them",
+    "corrections": "the owner's answer to a derivation, not a source of evidence",
+}
+"""Why each table is not seeded and not omitted. The same shape
+test_the_report_counts_every_table.py uses, for the same reason: the
+list is where a person adding a table has to stop and decide."""
 
 
 @pytest.fixture(autouse=True)
@@ -182,6 +247,36 @@ def _seed(tmp_path: Path) -> None:
                 ),
             )
         )
+    notes = SqliteNoteReadingRepository(connection)
+    pages = SqlitePageReadingRepository(connection)
+    for week in range(6):
+        day = (NOW - timedelta(days=7 * week)).date()
+        notes.save(
+            NoteReading(
+                reference=f"note:{week:016x}",
+                day=day,
+                category="study",
+                labels=("raft", "ramen"),
+                model="demo",
+                created_at=NOW,
+            )
+        )
+        pages.save(
+            PageReading(
+                reference=f"page:{week:016x}",
+                day=day,
+                category="reading",
+                labels=("raft",),
+                model="demo",
+                created_at=NOW,
+            )
+        )
+    SqliteDailyActivityRepository(connection).save_all(
+        [
+            DailyActivity(day=(NOW - timedelta(days=days)).date(), steps=6000 + 100 * days)
+            for days in range(30)
+        ]
+    )
     connection.close()
     assert main(["--data-root", str(tmp_path), "build"]) == EXIT_OK
 
@@ -205,6 +300,9 @@ def _remove(tmp_path: Path, omission: str) -> None:
         "single caption": ["DELETE FROM single_captions"],
         "screen reading": ["DELETE FROM screen_readings"],
         "kept reading": ["DELETE FROM profiles"],
+        "note reading": ["DELETE FROM note_readings"],
+        "page reading": ["DELETE FROM page_readings"],
+        "day of movement": ["DELETE FROM daily_activity"],
     }[omission]
     with connection:
         for statement in statements:
@@ -213,6 +311,91 @@ def _remove(tmp_path: Path, omission: str) -> None:
             except Exception:
                 continue
     connection.close()
+
+
+def _rows(tmp_path: Path, table: str) -> int:
+    paths = resolve_paths({"data_root": str(tmp_path)}, dotenv=Path(".env"))
+    connection = connect(paths.db_path)
+    try:
+        count: int = connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+    finally:
+        connection.close()
+    return count
+
+
+def test_every_source_is_actually_seeded(tmp_path: Path) -> None:
+    """The check this file most needed and did not have.
+
+    Seeding a source and forgetting to seed it look identical from
+    every test below: the commands run, nothing crashes, and the
+    absence is what was being tested anyway. This is what makes the
+    other thirty mean something.
+    """
+    _seed(tmp_path)
+    empty = [table for table in SOURCES if _rows(tmp_path, table) == 0]
+    assert not empty, (
+        f"seeded nothing into {sorted(empty)}, so every command below runs "
+        "on a library without them and proves nothing about their presence."
+    )
+
+
+def test_removing_a_source_actually_removes_it(tmp_path: Path) -> None:
+    """And the other direction. An omission that deleted from the
+    wrong table would leave every run identical to 'nothing'."""
+    _seed(tmp_path)
+    survivors = []
+    for table, omission in SOURCES.items():
+        # Keyed by table, not by omission: two tables share "stay
+        # caption", because a subject reading is what a stay caption
+        # was found to be about and cannot outlive it.
+        root = tmp_path / table
+        root.mkdir()
+        _seed(root)
+        _remove(root, omission)
+        if _rows(root, table) != 0:
+            survivors.append(f"{omission} left {table} behind")
+    assert not survivors, survivors
+
+
+def test_every_table_is_a_source_or_says_why_not() -> None:
+    """Adding a source is a decision here, as adding a table is a
+    decision for the privacy report. That was the missing piece: three
+    contracts landed and nothing had to be updated."""
+    with tempfile.TemporaryDirectory() as raw:
+        connection = connect(Path(raw) / "kiseki.sqlite3")
+        try:
+            tables = {
+                row[0]
+                for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+            }
+        finally:
+            connection.close()
+    assert tables, "a fresh database has no tables, so this is looking in the wrong place"
+    undecided = tables - set(SOURCES) - set(NOT_A_SOURCE)
+    assert not undecided, (
+        f"tables the matrix neither seeds nor excuses: {sorted(undecided)}. "
+        "Seed and omit them, or say in NOT_A_SOURCE why not."
+    )
+
+
+def test_nothing_is_named_that_the_schema_does_not_have() -> None:
+    with tempfile.TemporaryDirectory() as raw:
+        connection = connect(Path(raw) / "kiseki.sqlite3")
+        try:
+            tables = {
+                row[0]
+                for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+            }
+        finally:
+            connection.close()
+    invented = (set(SOURCES) | set(NOT_A_SOURCE)) - tables
+    assert not invented, f"named here but not in the schema: {sorted(invented)}"
+
+
+def test_every_source_has_an_omission_that_runs() -> None:
+    named = set(SOURCES.values())
+    missing = [omission for omission in named if omission not in OMISSIONS]
+    assert not missing, f"sources whose omission is never run: {missing}"
 
 
 @pytest.mark.parametrize("omission", OMISSIONS)
