@@ -41,18 +41,36 @@ NOT_UTF8 = "cp932"
 one is the one a Japanese Windows machine picks by itself."""
 
 
-LABELS = ["温泉", "ラーメン"]
-"""The document has to carry a character that cp932 and UTF-8 spell
-differently, or none of this proves anything.
+LABELS = ["温泉", "ラーメン", "𩸽"]
+"""Two stages, and the fixture failed each of them in turn.
 
-**Written the other way first, and it passed with the fix removed.**
-The sandbox `kiseki demo` builds is entirely English, and its export
-came to 123 bytes with **zero** above 127 -- so cp932 and UTF-8
-produced identical bytes and every assertion below held on a document
-that could not have shown the defect. A population that is not empty
-and cannot exhibit the thing being checked: the failure this
-afternoon's other work was about, arriving in the check written to
-catch it."""
+**Stage one: no non-ASCII at all.** Written against the sandbox
+`kiseki demo` builds, which is entirely English -- 123 bytes of export
+with **zero** above 127. cp932 and UTF-8 produced identical bytes, and
+all seven assertions held on a document that could not have shown the
+defect. Japanese labels fixed that.
+
+**Stage two: non-ASCII, all of it inside cp932.** Raised by the seam
+session, who hit the same thing, and measured here before it was
+believed:
+
+    温泉 ラーメン   in cp932      -> errors="replace" never fires
+    𩸽             not in cp932  -> it does
+
+So the poison that isolates requirement four -- encode to cp932 with
+`errors="replace"`, then hand back UTF-8, producing a **valid**
+document with question marks where the words were -- **passed all
+eight tests** against a fixture of `温泉` and `ラーメン`. Nothing was
+replaced, because nothing needed replacing.
+
+`𩸽` (U+29E3D) is outside cp932, so it is the character that makes
+requirement four a requirement rather than a sentence. The other two
+stay: they are what makes requirement three fail, since a cp932-
+encoded `温泉` is not valid UTF-8 at all.
+
+One lesson under both stages, not two: **a fixture has to be asserted
+capable of failing, and "carries a non-ASCII character" was not the
+capability being relied on.**"""
 
 
 @pytest.fixture
@@ -91,13 +109,34 @@ def exported(library: Path, tmp_path: Path, encoding: str | None) -> bytes:
 
 
 def test_the_document_under_test_has_something_to_get_wrong(library: Path, tmp_path: Path) -> None:
-    """Every check below is vacuous without this, and was."""
+    """Every check below is vacuous without this, and was -- twice.
+
+    Placed first, and asserting the stronger of the two properties,
+    because a reader who has seen eight passes printed will take the
+    number over a footnote.
+    """
     raw = exported(library, tmp_path, encoding=None)
     assert any(byte > 127 for byte in raw), (
         "the export carries no character outside ASCII, so UTF-8 and cp932 "
-        "would produce identical bytes and nothing below is being tested. "
-        f"Exported {len(raw)} bytes."
+        f"produce identical bytes and nothing below is tested. {len(raw)} bytes."
     )
+    unrepresentable = [
+        character for character in raw.decode("utf-8") if not _fits(character, NOT_UTF8)
+    ]
+    assert unrepresentable, (
+        f"every character in this export round-trips through {NOT_UTF8}, so a writer "
+        'poisoned with errors="replace" would replace nothing and this suite would '
+        "pass with the encoding handling removed. Requirement four needs a character "
+        "the console encoding cannot hold."
+    )
+
+
+def _fits(character: str, encoding: str) -> bool:
+    try:
+        character.encode(encoding)
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def run(
