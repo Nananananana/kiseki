@@ -448,8 +448,8 @@ flowchart LR
 | v0.8 | Recommend with evidence: `kiseki demo`, day trips measured against your own distances, the provider boundary, cross-timeline drift with no causal claim, the narration check | **Released** |
 | v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
 | v0.10 | More than photographs, the boundary: every source may be absent and a matrix proves it, records as siblings with PhotoRecord v1 frozen, a second contract for daily movement, the rules a new source passes | **Released** |
-| v0.11 | Where the model is, and what you write: a trust boundary for the model with the strictest default, privacy computed from your settings with the name of the test beside every claim, notes and web pages read into labels by a producer that discards the text, a dry run before anything is recorded | In progress |
-| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, documents on the way out, `kiseki limits` for what this cannot tell you | Planned |
+| v0.11 | Where the model is, and what you write: a trust boundary for the model with the strictest default, privacy computed from your settings with the name of the test beside every claim, notes and web pages read into labels by a producer that discards the text, a dry run before anything is recorded | **Released** |
+| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, documents on the way out, `kiseki limits` for what this cannot tell you | In progress |
 | v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, and `kiseki eval` for what the model tier is actually worth | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 

@@ -216,7 +216,7 @@ not edited to match the present.
 
 ## Current state
 
-- Version: v0.10.0 released. v0.11 in progress.
+- Version: v0.11.0 released. v0.12 in progress.
 - Schema: version 9.
 - Commands (39): `paths`, `ingest`, `activity`, `notes`, `web`, `build`,
   `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
