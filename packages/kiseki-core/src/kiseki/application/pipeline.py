@@ -28,6 +28,7 @@ from kiseki.domain.photo.observation import PhotoObservation
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
+from kiseki.domain.services.detectors import DEFAULT_DETECTOR, StopDetector
 from kiseki.domain.services.discovering import derive_discoveries
 from kiseki.domain.services.insight_derivation import derive_insights
 from kiseki.domain.services.interest_derivation import derive_interests
@@ -73,6 +74,25 @@ class PipelineSettings:
     outings: OutingSettings = field(default_factory=OutingSettings)
     anchors: AnchorSettings = field(default_factory=AnchorSettings)
     place_radius: Distance = DEFAULT_PLACE_RADIUS
+    stop_detector: StopDetector | None = None
+    """Which algorithm separates stays from journeys, already resolved.
+
+    A callable and not a name, because **resolving a name is not this
+    layer's to do**: the accelerated detectors live in the adapters
+    layer, which sits above this one, and an application that reached
+    up to it would invert the dependency the architecture check keeps
+    (`lint-imports` refused exactly that when this was written the
+    other way). The interface resolves the name and hands down what it
+    resolved. `None` means the domain default.
+    """
+
+    stop_detector_name: str = DEFAULT_DETECTOR
+    """The same choice as a word, kept for reporting.
+
+    A callable cannot go in a build report or a bug report, and two
+    libraries built with different detectors are not comparable
+    however alike their numbers look -- so the name travels beside the
+    thing it named."""
 
 
 @dataclass(frozen=True)
@@ -85,6 +105,12 @@ class BuildResult:
     anchors: int
     in_transit: int
     unlocated: int
+    detector: str = DEFAULT_DETECTOR
+    """Which algorithm produced these stops. Printed by `kiseki build`
+    because a derivation that cannot say what made it is a derivation
+    nobody can argue with -- and because two libraries built with
+    different detectors are not comparable, however alike the numbers
+    look."""
 
 
 @dataclass(frozen=True)
@@ -181,7 +207,9 @@ class Pipeline:
         """
         observations = self._select(since, until)
         journeys = tuple(item for item in observations if item.joins_journeys)
-        extraction = extract_stops(journeys, self._settings.stops)
+        extraction = extract_stops(
+            journeys, self._settings.stops, detector=self._settings.stop_detector
+        )
         outings = assemble_outings(extraction.stops, self._settings.outings)
         anchors = estimate_anchors(extraction.stops, self._settings.anchors)
 
@@ -195,6 +223,7 @@ class Pipeline:
             anchors=len(anchors),
             in_transit=len(extraction.in_transit),
             unlocated=len(extraction.unlocated),
+            detector=self._settings.stop_detector_name,
         )
 
     def report(self) -> Report:

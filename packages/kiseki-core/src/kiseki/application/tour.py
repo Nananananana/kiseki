@@ -42,6 +42,7 @@ TOUR: tuple[Stop, ...] = (
     Stop("corrections", "the owner's word against a reading, appended and applied"),
     Stop("privacy", "what is stored, in counts, and what never is"),
     Stop("map", "the same journeys, in a format QGIS or pandas reads"),
+    Stop("algorithms", "which algorithm decides a stay, and what else is available"),
     Stop("llm", "where the model is, and whether it is allowed to be there"),
     Stop("retention", "what a decade should look like, as rules that are off"),
     Stop("reread", "what a newer prompt version left behind"),
