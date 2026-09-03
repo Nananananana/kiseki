@@ -235,11 +235,11 @@ not edited to match the present.
 
 - Version: v0.11.0 released. v0.12 in progress.
 - Schema: version 9.
-- Commands (39): `paths`, `ingest`, `activity`, `notes`, `web`, `build`,
+- Commands (40): `paths`, `ingest`, `activity`, `notes`, `web`, `build`,
   `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
   `themes`, `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`,
   `discover`, `compare`, `drift`, `places`, `trips`, `suggest`,
-  `correct`, `corrections`, `llm`, `privacy`, `export`, `forget`,
+  `correct`, `corrections`, `map`, `llm`, `privacy`, `export`, `forget`,
   `retention`, `doctor`, `reread`, `retry`, `refresh`, `demo`,
   `serve`, `view`.
 - The real library it is developed against: 4,950 photographs, 360

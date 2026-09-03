@@ -36,6 +36,7 @@ uv run kiseki report --json
 | `correct` | Exclude a topic or a reading from every derivation |
 | `corrections` | The append-only correction log |
 | `compare` | What changed between two kept readings |
+| `map` | Write stops, outings or anchors as GeoJSON or CSV, blurred unless told twice |
 | `llm` | Where the model is, whether it is allowed, and whether it answers |
 | `privacy` | How the owner's data is treated, in counts |
 | `forget` | Remove photographs and everything said about them |
