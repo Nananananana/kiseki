@@ -133,6 +133,23 @@ not edited to match the present.
   `kiseki_conformance/schemas/` -- everything else in this repository
   runs against `uv sync`, which shows the source tree and hides what a
   wheel would not carry.
+- Whether the tests would fail if the code were wrong is a separate
+  question from whether they pass, and `uv run python
+  tools/check_mutations.py` is how it is asked. It changes one module
+  on purpose, many times, and counts how many changes the tests fail
+  to notice. Minutes per target, so not in CI.
+  **It never prints a score without a control** -- the same module
+  measured against tests that cannot reach it, which must leave nearly
+  every mutant alive. The first hand-run session reported a perfect
+  score everywhere because `uv add --dev` had re-synced without
+  `--all-packages`, every test command was failing with
+  `ModuleNotFoundError`, and a failing command counts as a killed
+  mutant. Measured then: stop extraction 87.1%, and 95.5% once the
+  boundary tests it asked for existed.
+- `uv add` and `uv add --dev` re-sync **without** `--all-packages` and
+  uninstall all five workspace packages. Run `uv sync --all-packages`
+  after either. `tests/conftest.py` says so rather than letting it
+  arrive as an import error in every test.
 - Checkpoints: after `git commit`, confirm the `[branch hash]` line.
   Before `gh pr create`, run `git log --oneline -3` and confirm the
   feat/fix commit is there.
