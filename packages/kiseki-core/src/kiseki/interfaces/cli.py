@@ -6,6 +6,7 @@ what it needs.
 """
 
 import argparse
+import io
 import json
 import sqlite3
 import sys
@@ -45,6 +46,7 @@ from kiseki.adapters.sqlite.store import (
     count_outdated,
     count_recoverable,
 )
+from kiseki.application import estimating
 from kiseki.application.answer_validation import validate_answer
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
@@ -124,7 +126,7 @@ from kiseki.interfaces.payloads import (
     trend_payload,
 )
 from kiseki.interfaces.view import render_view
-from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
+from kiseki.ports.models import CaptionRequest, ModelRefusedError, ModelUnavailableError
 
 EXIT_OK = 0
 EXIT_BAD_INPUT = 2
@@ -1402,6 +1404,109 @@ def _command_algorithms(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+SAMPLE_IMAGE_SIZE = 768
+"""A plain square, the size a thumbnail reaches the model at. Not a
+real photograph: what is being timed is the model, and a photograph
+would put the owner's data through a benchmark."""
+
+
+def _timed_caption(args: argparse.Namespace) -> float | None:
+    """One real call, timed on this machine.
+
+    Not a shipped constant. A number measured where this was written
+    would be a number about that hardware, and an estimate carrying
+    somebody else's graphics card is worse than no estimate: it is
+    wrong with authority.
+    """
+    import time
+
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (SAMPLE_IMAGE_SIZE, SAMPLE_IMAGE_SIZE), (110, 140, 90)).save(
+        buffer, format="JPEG", quality=80
+    )
+    request = CaptionRequest(images=(buffer.getvalue(),), prompt="Describe this photograph.")
+    captioner = _captioner(args)
+
+    # Twice, and the second one counts. The first call pays for
+    # loading the model into memory -- measured here as 9.46s against
+    # 3.03s warm, a factor of three -- and every call after the first
+    # in a real run is warm, because the adapter asks Ollama to keep
+    # the model alive. Timing the cold call would treble the estimate
+    # and send a reader away from work that takes an evening.
+    timings = []
+    for _ in range(2):
+        started = time.perf_counter()
+        try:
+            captioner.caption([request])
+        except (ModelRefusedError, ModelUnavailableError):
+            return None
+        timings.append(time.perf_counter() - started)
+    return timings[-1]
+
+
+def _command_cost(args: argparse.Namespace) -> int:
+    """What the model work still to do will take, before doing it.
+
+    The derivations are not the cost: a hundred thousand photographs
+    build in under two seconds, and captioning the stays that finds
+    takes hours. Only one of those is worth knowing in advance.
+    """
+    stages = _pipeline_for(args).outstanding_model_work()
+    print(RULE)
+
+    rate: float | None = None
+    if not args.no_measure:
+        print("  timing one call on this machine...")
+        rate = _timed_caption(args)
+        if rate is None:
+            print("  the model could not be reached, so no rate was measured")
+        else:
+            print(f"  measured       {rate:.2f}s for one call")
+            print()
+
+    stages = tuple(
+        estimating.Stage(stage.name, stage.outstanding, rate, stage.what) for stage in stages
+    )
+    estimate = estimating.estimate(stages)
+
+    for stage in estimate.stages:
+        left = "not known" if not stage.counted else f"{stage.outstanding:,}"
+        if not stage.estimable:
+            cost = "-"
+        elif stage.outstanding == 0:
+            cost = "nothing to do"
+        else:
+            cost = estimating.in_words(stage.seconds)
+        print(f"  {stage.name:<18} {left:>12}  {cost}")
+
+    print()
+    if estimate.nothing_to_do and not estimate.is_a_floor:
+        print("  nothing is waiting for the model")
+        return EXIT_OK
+    if not estimate.estimable:
+        print("  nothing could be estimated; run `kiseki llm --check` first")
+        return EXIT_OK
+
+    total = estimating.in_words(estimate.seconds)
+    if estimate.is_a_floor:
+        missing = ", ".join(stage.name for stage in estimate.unestimable)
+        print(f"  at least       {total}")
+        print(f"  not counted    {missing}")
+        print("  so the real figure is larger; an estimate that drops a stage")
+        print("  is confidently low, and a reader who planned an hour waits three")
+    else:
+        print(f"  altogether     {total}")
+    print()
+    print("  from one timed call with the model already loaded, so it is a")
+    print("  shape rather than a promise")
+    return EXIT_OK
+
+
 def _command_llm(args: argparse.Namespace) -> int:
     """Where the model is, whether it is allowed, and whether it answers.
 
@@ -2596,6 +2701,15 @@ def build_parser() -> argparse.ArgumentParser:
         "algorithms", help="which algorithm each derivation uses, and what else is available"
     )
     algorithms.set_defaults(run=_command_algorithms)
+    cost = commands.add_parser(
+        "cost", help="what the model work still to do will take, before doing it"
+    )
+    cost.add_argument(
+        "--no-measure",
+        action="store_true",
+        help="count the work without timing a call, when the model is not to be disturbed",
+    )
+    cost.set_defaults(run=_command_cost)
 
     llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
     llm.add_argument("--check", action="store_true", help="ask the model whether it is there")
