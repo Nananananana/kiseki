@@ -47,6 +47,29 @@ def listed_in_agents() -> tuple[set[str], int]:
     return set(re.findall(r"`([a-z-]+)`", match.group(2))), int(match.group(1))
 
 
+def test_agents_lists_the_commands_once() -> None:
+    """A second bullet is a second list, and only the first is checked.
+
+    AGENTS.md carried two `- Commands (n):` bullets at once. The
+    regexes below stop at the first, so the second was dead text that
+    nothing held to anything -- it had drifted to a different count
+    and a different set of names, and every test here passed.
+
+    Two copies of one fact is the shape that broke tsumugi, and the
+    answer there was the same: do not check one copy against the
+    other, check that there is one copy.
+    """
+    bullets = [
+        line
+        for line in AGENTS.read_text(encoding="utf-8").splitlines()
+        if line.startswith("- Commands (")
+    ]
+    assert len(bullets) == 1, (
+        f"AGENTS.md has {len(bullets)} command bullets. Everything below reads the "
+        f"first, so the rest are unchecked: {bullets}"
+    )
+
+
 def test_every_command_is_in_the_cli_reference() -> None:
     missing = registered_commands() - documented_in_cli_reference()
     assert not missing, f"commands missing from docs/cli.md: {sorted(missing)}"

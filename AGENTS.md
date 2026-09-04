@@ -235,21 +235,13 @@ not edited to match the present.
 
 - Version: v0.11.0 released. v0.12 in progress.
 - Schema: version 9.
-- Commands (42): `paths`, `ingest`, `activity`, `notes`, `web`, `build`, `report`,
+- Commands (43): `paths`, `ingest`, `activity`, `notes`, `web`, `build`, `report`,
   `profile`, `caption`, `singles`, `screens`, `subjects`, `themes`,
   `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
   `compare`, `drift`, `places`, `trips`, `suggest`, `correct`,
-  `corrections`, `cost`, `map`, `llm`, `privacy`, `export`, `forget`,
+  `corrections`, `settings`, `cost`, `map`, `llm`, `privacy`, `export`, `forget`,
   `algorithms`, `retention`, `doctor`, `reread`, `retry`, `refresh`,
   `demo`, `serve`, `view`.
-
-- Commands (40): `paths`, `ingest`, `activity`, `notes`, `web`, `build`,
-  `report`, `profile`, `caption`, `singles`, `screens`, `subjects`,
-  `themes`, `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`,
-  `discover`, `compare`, `drift`, `places`, `trips`, `suggest`,
-  `correct`, `corrections`, `cost`, `llm`, `privacy`, `export`, `forget`,
-  `retention`, `doctor`, `reread`, `retry`, `refresh`, `demo`,
-  `serve`, `view`.
 - The real library it is developed against: 4,950 photographs, 360
   stay captions, 1,244 single captions, 297 screen readings, 1,604
   subject readings, 46 kept readings, 8 trips.
