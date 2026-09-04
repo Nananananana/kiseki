@@ -515,6 +515,8 @@ and what might become true.
   CSV for QGIS, Leaflet, geopandas and pandas, blurred unless you ask twice
 - [Algorithms](docs/algorithms.md) -- seven ways to decide what a stay is,
   what each one costs, and how to change which one runs
+- [Thresholds](docs/thresholds.md) -- the ten numbers that decide what a stay
+  is, which four were measured, and how to change any of them
 - [Architecture decisions](docs/adr) -- 87 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)

@@ -39,6 +39,7 @@ uv run kiseki report --json
 | `map` | Write stops, outings or anchors as GeoJSON or CSV, blurred unless told twice |
 | `algorithms` | Which algorithm each derivation uses, and what else is available |
 | `cost` | What the model work still to do will take, measured on this machine |
+| `settings` | Every threshold in force, and where each value came from |
 | `llm` | Where the model is, whether it is allowed, and whether it answers |
 | `privacy` | How the owner's data is treated, in counts |
 | `forget` | Remove photographs and everything said about them |

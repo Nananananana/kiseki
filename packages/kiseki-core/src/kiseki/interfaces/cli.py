@@ -71,6 +71,12 @@ from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
 from kiseki.config.algorithm import AlgorithmSettings, resolve_algorithm_settings
+from kiseki.config.derivation import KNOWN as KNOWN_DERIVATION
+from kiseki.config.derivation import (
+    DerivationSettings,
+    in_force,
+    resolve_derivation_settings,
+)
 from kiseki.config.model import ModelSettings, resolve_model_settings
 from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
@@ -274,6 +280,21 @@ def _algorithms(args: argparse.Namespace | None = None) -> AlgorithmSettings:
     return resolve_algorithm_settings({"stops": given} if given else {}, dotenv=DOTENV)
 
 
+def _derivation(args: argparse.Namespace | None = None) -> DerivationSettings:
+    """The thresholds, from the same layers as everything else.
+
+    Until #387 there was no way to change any of them: `kiseki build`
+    listed one option and it was `--help`. The numbers are good and
+    four of them were measured -- against one photo library, one
+    person, one way of living."""
+    given: dict[str, str] = {}
+    for name in KNOWN_DERIVATION:
+        value = getattr(args, f"set_{name}", None) if args is not None else None
+        if value:
+            given[name] = str(value)
+    return resolve_derivation_settings(given, dotenv=DOTENV)
+
+
 def _pipeline_settings(args: argparse.Namespace | None = None) -> PipelineSettings:
     """Resolution happens **here** and not in the pipeline.
 
@@ -283,7 +304,11 @@ def _pipeline_settings(args: argparse.Namespace | None = None) -> PipelineSettin
     refuses it. So the interface resolves and hands down the callable
     it resolved, with the name beside it for the build report."""
     algorithms = _algorithms(args)
+    derivation = _derivation(args)
     return PipelineSettings(
+        stops=derivation.stops,
+        outings=derivation.outings,
+        anchors=derivation.anchors,
         stop_detector=algorithms.stop_detector,
         stop_detector_name=algorithms.stops,
     )
@@ -1507,6 +1532,38 @@ def _command_cost(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_settings(args: argparse.Namespace) -> int:
+    """What every threshold is, and where each value came from.
+
+    A reader whose answers look wrong needs to know whether it is
+    their data or their configuration, and until #387 there was no way
+    to ask -- nor any way to have changed a threshold in the first
+    place.
+
+    The provenance column is the other half. Four of these ten were
+    measured against one photo library (ADR-0006); six were chosen. A
+    reader arguing with a number should know which kind it is.
+    """
+    try:
+        settings = _derivation(args)
+    except ValueError as error:
+        print(f"{error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+
+    print(RULE)
+    print("  thresholds in force")
+    print()
+    for name, value, source, note in in_force(settings):
+        print(f"  {name:<22} {value:>8}   {source:<12} {note}")
+    print()
+    print("  change one with KISEKI_DERIVATION_<NAME>, or in kiseki.toml:")
+    print("      [derivation]")
+    print("      stay_radius_m = 500")
+    print()
+    print("  see docs/thresholds.md for what each one decides")
+    return EXIT_OK
+
+
 def _command_llm(args: argparse.Namespace) -> int:
     """Where the model is, whether it is allowed, and whether it answers.
 
@@ -2710,6 +2767,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="count the work without timing a call, when the model is not to be disturbed",
     )
     cost.set_defaults(run=_command_cost)
+
+    settings_command = commands.add_parser(
+        "settings", help="every threshold in force, and where each value came from"
+    )
+    settings_command.set_defaults(run=_command_settings)
 
     llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
     llm.add_argument("--check", action="store_true", help="ask the model whether it is there")
