@@ -8,6 +8,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from kiseki.application.captioning import DEFAULT_IMAGES_PER_STOP, representative_photo_ids
+from kiseki.application.estimating import UNKNOWN, Stage
 from kiseki.domain.analytics.analytics import (
     OutingHabits,
     PlacePreference,
@@ -17,6 +19,7 @@ from kiseki.domain.analytics.analytics import (
     summarise_rhythm,
 )
 from kiseki.domain.anchor.anchor import Anchor
+from kiseki.domain.caption.caption import CaptionKey
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.correction import active_exclusions
 from kiseki.domain.discovery import DiscoveryFeed
@@ -289,6 +292,80 @@ class Pipeline:
     def _kept_history(self) -> tuple[Profile, ...]:
         history = self._profiles.history() if self._profiles is not None else ()
         return tuple(self._corrected(profile) for profile in history)
+
+    def outstanding_model_work(self) -> tuple[Stage, ...]:
+        """How many items each model stage still has to look at.
+
+        Counted from storage rather than estimated: every stage here
+        already knows how to skip what is done, and this asks the same
+        question without doing the work.
+
+        A stage whose repository is absent is `UNKNOWN` and not zero.
+        A library with no caption repository has not finished
+        captioning; it cannot caption at all, and reporting nothing
+        left to do would be a confident lie.
+        """
+        photos = self._photos.all()
+        outings = self._outings.all()
+
+        if self._captions is None:
+            stays = UNKNOWN
+        else:
+            referenced = {
+                item.photo_id
+                for item in photos
+                if item.thumbnail_ref and item.may_inform_preferences
+            }
+            stays = 0
+            for outing in outings:
+                for stop in outing.stops:
+                    eligible = [one for one in stop.photo_ids if one in referenced]
+                    if not eligible:
+                        continue
+                    selected = representative_photo_ids(eligible, DEFAULT_IMAGES_PER_STOP)
+                    if self._captions.get(CaptionKey.of(selected)) is None:
+                        stays += 1
+
+        in_a_stop = {
+            photo for outing in outings for stop in outing.stops for photo in stop.photo_ids
+        }
+        if self._singles is None:
+            singles = UNKNOWN
+        else:
+            singles = sum(
+                1
+                for item in photos
+                if item.photo_id not in in_a_stop
+                and item.thumbnail_ref
+                and item.may_inform_preferences
+                and item.content_kind == "photo"
+                and self._singles.get(item.photo_id) is None
+            )
+
+        if self._screens is None:
+            screens = UNKNOWN
+        else:
+            screens = sum(
+                1
+                for item in photos
+                if item.content_kind == "screenshot"
+                and item.thumbnail_ref
+                and self._screens.get(item.photo_id) is None
+            )
+
+        if self._subjects is None or self._captions is None:
+            subjects = UNKNOWN
+        else:
+            subjects = sum(
+                1 for caption in self._captions.all() if self._subjects.get(caption.key) is None
+            )
+
+        return (
+            Stage("stay captions", stays, None, "a stay, described from its photographs"),
+            Stage("single captions", singles, None, "a photograph outside every stay"),
+            Stage("screen readings", screens, None, "a screenshot, as category and labels"),
+            Stage("subject readings", subjects, None, "a caption, read for its subjects"),
+        )
 
     def privacy(self) -> PrivacyReport:
         """How the owner's data is treated, counted from storage.
