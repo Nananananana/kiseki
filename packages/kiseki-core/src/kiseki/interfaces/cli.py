@@ -54,7 +54,7 @@ from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
 from kiseki.application.narrative import narrative_facts, tell
-from kiseki.application.pipeline import Pipeline, Report
+from kiseki.application.pipeline import Pipeline, PipelineSettings, Report
 from kiseki.application.retention import (
     RetentionPolicy,
     apply_retention,
@@ -68,6 +68,7 @@ from kiseki.application.single_captioning import (
 from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
+from kiseki.config.algorithm import AlgorithmSettings, resolve_algorithm_settings
 from kiseki.config.model import ModelSettings, resolve_model_settings
 from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
@@ -263,7 +264,30 @@ def _paths_for(args: argparse.Namespace) -> StoragePaths:
     return resolve_paths(overrides, dotenv=DOTENV)
 
 
-def _pipeline_from(db_path: Path) -> Pipeline:
+def _algorithms(args: argparse.Namespace | None = None) -> AlgorithmSettings:
+    """Which algorithm each derivation uses, from the same layers as
+    every other setting: defaults, kiseki.toml, .env, environment,
+    command line. `docs/algorithms.md` has the choices."""
+    given = getattr(args, "stop_detector", None) if args is not None else None
+    return resolve_algorithm_settings({"stops": given} if given else {}, dotenv=DOTENV)
+
+
+def _pipeline_settings(args: argparse.Namespace | None = None) -> PipelineSettings:
+    """Resolution happens **here** and not in the pipeline.
+
+    The accelerated detectors live in the adapters layer, which sits
+    above the application; an application that reached up to resolve a
+    name would invert the dependency, and the architecture check
+    refuses it. So the interface resolves and hands down the callable
+    it resolved, with the name beside it for the build report."""
+    algorithms = _algorithms(args)
+    return PipelineSettings(
+        stop_detector=algorithms.stop_detector,
+        stop_detector_name=algorithms.stops,
+    )
+
+
+def _pipeline_from(db_path: Path, args: argparse.Namespace | None = None) -> Pipeline:
     connection = connect(db_path)
     return Pipeline(
         SqlitePhotoRepository(connection),
@@ -279,11 +303,12 @@ def _pipeline_from(db_path: Path) -> Pipeline:
         activity=SqliteDailyActivityRepository(connection),
         pages=SqlitePageReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
+        settings=_pipeline_settings(args),
     )
 
 
 def _pipeline_for(args: argparse.Namespace) -> Pipeline:
-    return _pipeline_from(_paths_for(args).db_path)
+    return _pipeline_from(_paths_for(args).db_path, args)
 
 
 def _command_paths(args: argparse.Namespace) -> int:
@@ -535,6 +560,7 @@ def _command_build(args: argparse.Namespace) -> int:
     print(f"  anchors       {result.anchors}")
     print(f"  in transit    {result.in_transit}")
     print(f"  unlocated     {result.unlocated}")
+    print(f"  detector      {result.detector}")
     return EXIT_OK
 
 
@@ -1337,6 +1363,42 @@ def _command_map(args: argparse.Namespace) -> int:
         print(f"  coordinates   {precision}")
         return EXIT_OK
     write_text_document(text)
+    return EXIT_OK
+
+
+def _command_algorithms(args: argparse.Namespace) -> int:
+    """What is chosen, what else exists, and what it would cost.
+
+    Printed rather than only documented, because a reader debugging an
+    answer needs to know which algorithm made it without reading the
+    configuration files themselves.
+    """
+    from kiseki.adapters.clustering import ACCELERATED, EXTRA, is_available
+    from kiseki.domain.services.detectors import DETECTORS
+
+    try:
+        chosen = _algorithms(args).stops
+    except ValueError as error:
+        print(f"{error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+
+    print(RULE)
+    print("  stops -- separating stays from journeys")
+    print()
+    for name in DETECTORS:
+        mark = "*" if name == chosen else " "
+        print(f"   {mark} {name:16} no dependency")
+    for name in ACCELERATED:
+        mark = "*" if name == chosen else " "
+        state = "available" if is_available() else f"needs the '{EXTRA}' extra"
+        print(f"   {mark} {name:16} {state}")
+    print()
+    print(f"  chosen  {chosen}")
+    print("  set it with KISEKI_ALGORITHM_STOPS, [algorithm] stops in kiseki.toml,")
+    print("  or --stop-detector. See docs/algorithms.md for what each one decides.")
+    if not is_available():
+        print()
+        print(f'  install the rest with `pip install "kiseki[{EXTRA}]"`')
     return EXIT_OK
 
 
@@ -2282,6 +2344,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--data-root", default=None, help="override where everything is stored")
     parser.add_argument(
+        "--stop-detector",
+        default=None,
+        help="which algorithm separates stays from journeys (see `kiseki algorithms`)",
+    )
+    parser.add_argument(
         "--model-host",
         dest="model_host",
         default=None,
@@ -2524,6 +2591,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="exact coordinates; without it they are blurred to about a kilometre",
     )
     interchange_command.set_defaults(run=_command_map)
+
+    algorithms = commands.add_parser(
+        "algorithms", help="which algorithm each derivation uses, and what else is available"
+    )
+    algorithms.set_defaults(run=_command_algorithms)
 
     llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
     llm.add_argument("--check", action="store_true", help="ask the model whether it is there")
