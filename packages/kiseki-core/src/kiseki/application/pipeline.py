@@ -6,10 +6,21 @@ against fakes in milliseconds. That property is why the ports exist.
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from kiseki.application.captioning import DEFAULT_IMAGES_PER_STOP, representative_photo_ids
 from kiseki.application.estimating import UNKNOWN, Stage
+from kiseki.application.limits import (
+    ACTIVITY,
+    NOTES,
+    PAGES,
+    PHOTOGRAPHS,
+    SCREENS,
+    LimitsReport,
+    Source,
+    Span,
+    limits_of,
+)
 from kiseki.domain.analytics.analytics import (
     OutingHabits,
     PlacePreference,
@@ -48,6 +59,7 @@ from kiseki.domain.services.screen_interest_derivation import (
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS, derive_trend
+from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
@@ -410,6 +422,75 @@ class Pipeline:
             kept_profiles=len(history),
             corrections=len(corrections),
             active_exclusions=len(active_exclusions(corrections)),
+        )
+
+    def limits(self) -> LimitsReport:
+        """What this installation cannot answer, from its own counts.
+
+        Reads storage only; recomputes nothing and calls no model, as
+        `privacy` does. The vocabulary limit is derived from the same
+        `compare` this library prints, so the two can never disagree.
+        """
+
+        def span_of(days: Sequence[date]) -> Span | None:
+            return Span(first=min(days), last=max(days)) if days else None
+
+        photos = self._photos.all()
+        notes = self._notes.all() if self._notes is not None else ()
+        pages = self._pages.all() if self._pages is not None else ()
+        activity = self._activity.all() if self._activity is not None else ()
+        screens = self._screens.all() if self._screens is not None else ()
+
+        sources = (
+            Source(
+                name=PHOTOGRAPHS,
+                count=len(photos),
+                span=span_of([photo.captured_at.date() for photo in photos]),
+            ),
+            Source(
+                name=NOTES,
+                count=len(notes),
+                span=span_of([reading.day for reading in notes]),
+            ),
+            Source(
+                name=PAGES,
+                count=len(pages),
+                span=span_of([reading.day for reading in pages]),
+            ),
+            Source(
+                name=ACTIVITY,
+                count=len(activity),
+                span=span_of([day.day for day in activity]),
+            ),
+            Source(
+                name=SCREENS,
+                count=len(screens),
+                span=span_of([reading.created_at.date() for reading in screens]),
+            ),
+        )
+
+        captions = self._captions.all() if self._captions is not None else ()
+        singles = self._singles.all() if self._singles is not None else ()
+        refusals = sum(1 for one in captions if one.refused is not None)
+        refusals += sum(1 for one in singles if one.refused is not None)
+        label_silent = sum(1 for one in screens if one.refused is None and not one.labels)
+        label_silent += sum(1 for one in notes if one.refused is None and not one.labels)
+        label_silent += sum(1 for one in pages if one.refused is None and not one.labels)
+
+        comparison = self.compare()
+        overlap = (
+            overlap_of(
+                (entry.strength_before, entry.strength_after) for entry in comparison.entries
+            )
+            if comparison is not None
+            else None
+        )
+
+        return limits_of(
+            sources,
+            overlap=overlap,
+            refusals=refusals,
+            label_silent=label_silent,
         )
 
     def compare(

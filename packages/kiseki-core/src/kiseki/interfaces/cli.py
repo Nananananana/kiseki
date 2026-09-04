@@ -11,6 +11,7 @@ import io
 import json
 import sqlite3
 import sys
+import textwrap
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -118,6 +119,7 @@ from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.claims import (
     BLURRED_BY_DEFAULT,
     NEVER_STORED,
+    UNSEEABLE,
     outbound_lines,
 )
 from kiseki.interfaces.interchange import FORMATS, SUBJECTS
@@ -128,6 +130,7 @@ from kiseki.interfaces.payloads import (
     discovery_payload,
     insights_payload,
     lifecycle_payload,
+    limits_payload,
     privacy_payload,
     profile_payload,
     report_payload,
@@ -1666,6 +1669,62 @@ def _command_llm(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _reason(text: str, width: int = 66) -> None:
+    """A reason, wrapped and indented under what it explains.
+
+    Wrapped here rather than at the source so the sentence stays one
+    sentence in the JSON and in the tests. A terminal is the only
+    reader that needs it broken.
+    """
+    for line in textwrap.wrap(text, width=width):
+        print(f"      {line}")
+
+
+def _command_limits(args: argparse.Namespace) -> int:
+    """What this installation cannot tell you, from its own counts.
+
+    Printed even when nothing bites, because a report that appears
+    only on a poor library teaches the reader that silence means
+    *no limits* -- and the unseeable three are always in force.
+    """
+    report = _pipeline_from(_paths_for(args).db_path).limits()
+    if args.json:
+        write_document(limits_payload(report))
+        return EXIT_OK
+    print(RULE)
+    span = report.span
+    if span is None:
+        print("  nothing has been read yet, so every question is out of reach")
+        print("  `kiseki ingest` gives it something to be limited by")
+    else:
+        print(f"  your evidence covers {span.days} days, {span}")
+    print()
+    for source in report.sources:
+        if source.span is None:
+            print(f"    {source.name:<14}{source.count:>6}")
+            continue
+        print(f"    {source.name:<14}{source.count:>6}{source.span.days:>7} days   {source.span}")
+
+    print()
+    print("  what that puts out of reach")
+    if not report.limits:
+        print("    nothing countable. Every source is present and the")
+        print("    vocabulary has settled; the three below still hold")
+    for limit in report.limits:
+        print(f"    {limit.subject:<22}{limit.reading}")
+        _reason(limit.because)
+
+    print()
+    print("  what no count can reach")
+    for subject, reason, _test in UNSEEABLE:
+        print(f"    {subject}")
+        _reason(reason)
+    print()
+    print("  These are not counted and never will be. A library cannot")
+    print("  notice the shape of what it was never given.")
+    return EXIT_OK
+
+
 def _command_privacy(args: argparse.Namespace) -> int:
     report = _pipeline_from(_paths_for(args).db_path).privacy()
     if args.json:
@@ -2839,6 +2898,12 @@ def build_parser() -> argparse.ArgumentParser:
     llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
     llm.add_argument("--check", action="store_true", help="ask the model whether it is there")
     llm.set_defaults(run=_command_llm)
+    limits = commands.add_parser(
+        "limits", help="what this library cannot tell you, from your own counts"
+    )
+    limits.add_argument("--json", action="store_true", help="machine readable output")
+    limits.set_defaults(run=_command_limits)
+
     privacy = commands.add_parser("privacy", help="how the owner's data is treated, in counts")
     privacy.add_argument("--json", action="store_true", help="machine readable output")
     privacy.set_defaults(run=_command_privacy)
