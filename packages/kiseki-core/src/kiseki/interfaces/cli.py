@@ -102,12 +102,14 @@ from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.domain.web.reading import PageReading
+from kiseki.interfaces import interchange
 from kiseki.interfaces.api import DEFAULT_HOST, DEFAULT_PORT, serve
 from kiseki.interfaces.claims import (
     BLURRED_BY_DEFAULT,
     NEVER_STORED,
     outbound_lines,
 )
+from kiseki.interfaces.interchange import FORMATS, SUBJECTS
 from kiseki.interfaces.naming import fold_by_name, folded_note, place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
@@ -152,7 +154,16 @@ def write_document(payload: Any, stream: TextIO | None = None) -> None:
     the command -- which is what makes a hash over a document mean
     anything.
     """
-    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    write_text_document(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", stream)
+
+
+def write_text_document(text: str, stream: TextIO | None = None) -> None:
+    """The same guarantee for a document that is already rendered.
+
+    GeoJSON and CSV arrive as text rather than as an object, and they
+    are documents a program reads, so they take the same path: UTF-8
+    bytes whatever the console is.
+    """
     target = sys.stdout if stream is None else stream
     buffer = getattr(target, "buffer", None)
     if buffer is None:
@@ -1296,6 +1307,36 @@ def _command_compare(args: argparse.Namespace) -> int:
     else:
         print("\n  nothing moved between the two readings")
     print(f"\n  steady        {len(comparison.entries) - len(moved)} topics")
+    return EXIT_OK
+
+
+def _command_map(args: argparse.Namespace) -> int:
+    """Write what other people's tools can read.
+
+    A file the owner asks for, on their own machine. Blurred unless
+    they say otherwise, and the file records which it got -- a file
+    that does not say how precise it is gets assumed precise by
+    whoever finds it later.
+    """
+    report = _pipeline_for(args).report()
+    stops = tuple(stop for outing in report.outings for stop in outing.stops)
+    try:
+        text = interchange.write(
+            args.subject, args.format, stops, report.outings, report.anchors, args.precise
+        )
+    except ValueError as error:
+        print(f"{error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+
+    if args.out is not None:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        print(f"  wrote {args.subject} as {args.format} to {target}")
+        precision = "precise" if args.precise else "blurred to about a kilometre"
+        print(f"  coordinates   {precision}")
+        return EXIT_OK
+    write_text_document(text)
     return EXIT_OK
 
 
@@ -2466,6 +2507,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="show every reading apart, without folding a family into one",
     )
     compare.set_defaults(run=_command_compare)
+
+    interchange_command = commands.add_parser(
+        "map", help="write stops, outings or anchors in a format other tools read"
+    )
+    interchange_command.add_argument("subject", choices=sorted(SUBJECTS), help="what to write")
+    interchange_command.add_argument(
+        "--format", default="geojson", choices=sorted(FORMATS), help="which format"
+    )
+    interchange_command.add_argument(
+        "--out", default=None, help="write to this file instead of stdout"
+    )
+    interchange_command.add_argument(
+        "--precise",
+        action="store_true",
+        help="exact coordinates; without it they are blurred to about a kilometre",
+    )
+    interchange_command.set_defaults(run=_command_map)
 
     llm = commands.add_parser("llm", help="where the model is, and whether it is allowed")
     llm.add_argument("--check", action="store_true", help="ask the model whether it is there")

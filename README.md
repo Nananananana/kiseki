@@ -509,6 +509,8 @@ and what might become true.
 - [PhotoRecord v1](docs/photo-record.md),
   [kiseki-interest-export v1](docs/interest-export.md) and the
   [conformance kit](docs/conformance.md)
+- [Getting your journeys into other tools](docs/interchange.md) -- GeoJSON and
+  CSV for QGIS, Leaflet, geopandas and pandas, blurred unless you ask twice
 - [Architecture decisions](docs/adr) -- 86 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
