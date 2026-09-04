@@ -185,6 +185,52 @@ def test_refusals_and_silent_readings_are_limits() -> None:
     assert subjects["label-silent readings"] == "7"
 
 
+def test_a_withheld_reading_is_not_a_failed_one() -> None:
+    """The two are never added together, and they never were the same.
+
+    Measured on the real library: all 80 readings the report called
+    "label-silent" were sensitive ones -- 32 chat, 31 auth, 17 finance,
+    and not one model failure. Summing them described a privacy
+    guarantee working correctly as a shortcoming of the library.
+    """
+    report = limits_of(full(), label_silent=3, withheld=80)
+    by_subject = {limit.subject: limit for limit in report.limits}
+    assert by_subject["label-silent readings"].reading == "3"
+    assert by_subject["withheld by category"].reading == "80"
+    assert "working rather than failing" in by_subject["withheld by category"].because
+
+
+def test_a_withheld_reading_is_still_a_limit() -> None:
+    """It narrows an answer exactly as much as an empty reading does.
+    Being deliberate is a reason, not an exemption."""
+    assert limits_of(full(), withheld=80).limits
+
+
+def test_a_sensitive_reading_is_counted_as_withheld_not_as_silent() -> None:
+    """The split, through the pipeline rather than through a keyword.
+
+    A `chat` screen reading carries no labels because
+    `ScreenshotReading.__post_init__` forbids it, not because the model
+    came back empty.
+    """
+    photograph = PhotoObservation(PhotoId("shot"), datetime(2026, 5, 1, tzinfo=JST))
+    sensitive = ScreenshotReading(
+        photo_id=PhotoId("shot"),
+        category="chat",
+        labels=(),
+        model="a model",
+        created_at=datetime(2026, 5, 2, tzinfo=JST),
+    )
+    pipeline = _pipeline(screens=_Screens([sensitive]))
+    pipeline.ingest([photograph])
+
+    subjects = {limit.subject for limit in pipeline.limits().limits}
+    assert "withheld by category" in subjects
+    assert "label-silent readings" not in subjects, (
+        "a category this library refuses to label was reported as a reading that yielded nothing"
+    )
+
+
 def test_nothing_is_reported_when_nothing_is_wrong() -> None:
     """The honest zero. If this ever cannot happen, the command has
     started manufacturing limits to look thorough."""
@@ -250,8 +296,9 @@ def every_limit() -> LimitsReport:
         overlap=Overlap(before=190, after=695, shared=98),
         refusals=1,
         label_silent=1,
+        withheld=1,
     )
-    assert len(report.limits) == len(EVERY_SOURCE) + 3, "not every limit is under test"
+    assert len(report.limits) == len(EVERY_SOURCE) + 4, "not every limit is under test"
     return report
 
 

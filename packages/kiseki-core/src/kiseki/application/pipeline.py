@@ -37,8 +37,10 @@ from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
+from kiseki.domain.note.reading import SENSITIVE_CATEGORIES as NOTE_SENSITIVE
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
+from kiseki.domain.screen.reading import SENSITIVE_CATEGORIES as SCREEN_SENSITIVE
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
@@ -64,6 +66,7 @@ from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
+from kiseki.domain.web.reading import UNLABELLED_CATEGORIES as PAGE_UNLABELLED
 from kiseki.ports.activity import DailyActivityRepository
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.corrections import CorrectionRepository
@@ -488,9 +491,20 @@ class Pipeline:
         singles = self._singles.all() if self._singles is not None else ()
         refusals = sum(1 for one in captions if one.refused is not None)
         refusals += sum(1 for one in singles if one.refused is not None)
-        label_silent = sum(1 for one in screens if one.refused is None and not one.labels)
-        label_silent += sum(1 for one in notes if one.refused is None and not one.labels)
-        label_silent += sum(1 for one in pages if one.refused is None and not one.labels)
+        withheld = 0
+        label_silent = 0
+        for readings, never_labelled in (
+            (screens, SCREEN_SENSITIVE),
+            (notes, NOTE_SENSITIVE),
+            (pages, PAGE_UNLABELLED),
+        ):
+            for one in readings:
+                if one.refused is not None or one.labels:
+                    continue
+                if one.category in never_labelled:
+                    withheld += 1
+                else:
+                    label_silent += 1
 
         comparison = self.compare()
         overlap = (
@@ -506,6 +520,7 @@ class Pipeline:
             overlap=overlap,
             refusals=refusals,
             label_silent=label_silent,
+            withheld=withheld,
         )
 
     def compare(

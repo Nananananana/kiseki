@@ -176,13 +176,26 @@ def limits_of(
     overlap: Overlap | None = None,
     refusals: int = 0,
     label_silent: int = 0,
+    withheld: int = 0,
 ) -> LimitsReport:
     """Every limit that follows from these counts, and no others.
 
-    `refusals` are captions the model declined, and `label_silent` are
-    readings that produced no labels. Both are stays and readings that
-    exist, are stored, and cannot be reached by a word -- which is a
-    limit a reader would otherwise have to infer from two commands.
+    `refusals` are captions the model declined and `label_silent` are
+    readings that came back with nothing. Both are things that exist,
+    are stored, and cannot be reached by a word -- a limit a reader
+    would otherwise have to infer from two commands.
+
+    `withheld` is separate and is **not a failure**. A reading in a
+    sensitive category is recorded so the producer does not read it
+    again and deliberately never labelled: what somebody talks about,
+    logs into or pays for is not interest evidence. It limits an
+    answer exactly as much as an empty reading does, and it limits it
+    for the opposite reason, so the two are never added together.
+
+    They were, at first. On the real library all 80 "label-silent"
+    readings were sensitive ones -- 32 chat, 31 auth, 17 finance, and
+    not one model failure -- so the report described a privacy
+    guarantee working correctly as a shortcoming of the library.
     """
     found: list[Limit] = []
 
@@ -213,7 +226,23 @@ def limits_of(
             Limit(
                 subject="label-silent readings",
                 reading=str(label_silent),
-                because=("these were read and yielded no labels, so they count toward no interest"),
+                because=(
+                    "these were read and came back with nothing, so they count toward no interest"
+                ),
+            )
+        )
+
+    if withheld:
+        found.append(
+            Limit(
+                subject="withheld by category",
+                reading=str(withheld),
+                because=(
+                    "deliberately never labelled: what you talk about, log"
+                    " into or pay for is not interest evidence. This narrows"
+                    " an answer, and it is the library working rather than"
+                    " failing"
+                ),
             )
         )
 
