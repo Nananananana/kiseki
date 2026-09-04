@@ -13,7 +13,7 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import datetime
 
-from kiseki.application.grounding import Grounding, numbered
+from kiseki.application.grounding import Grounding, mean_confidence, numbered
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
 from kiseki.domain.insight import Insight, InsightReport
 from kiseki.domain.services.time_expressions import read_time_window
@@ -82,19 +82,29 @@ class Answer:
         return not self.evidence and bool(self.grounding)
 
 
-GROUNDED_CONFIDENCE = 0.5
-"""What an answer built on patterns alone is worth.
+UNSCORED_GROUNDING = 0.4
+"""What patterns are worth when none of them carries a confidence.
 
-Not 1.0, and not 0.0. A pattern is a real derivation over all of the
-owner's data -- *twelve visits, about every seven days* is a stronger
-claim about a habit than three matching captions -- but it is a claim
-about a habit, and a question may have been about an occasion.
+Reached only when every offered pattern was built by a derivation that
+computes none -- today, the rhythm fact from `kiseki report`, which is
+a count rather than an estimate. A count is real and is not an
+opinion, so this is below the middle rather than at it.
 
-Half is a floor, not a measurement, and the only honest thing to say
-about it is that: it says *this answer came from what the library
-knows rather than from anything it found*, and no more. Retrieval's
-confidence is derived; this one is chosen, and the difference is the
-kind of number it is."""
+Chosen, not measured, and the docstring is where that is said. Every
+other path below uses a number some derivation computed."""
+
+PATTERN_CEILING = 0.75
+"""The most an answer from patterns alone may be worth.
+
+A pattern is a real derivation over all of the owner's data, and an
+`Anchor` with twelve visits can carry a confidence of 1.0. That is
+1.0 about *the anchor*, not about the question somebody asked -- the
+question may have been about an occasion, and no pattern speaks to an
+occasion however certain it is of a habit.
+
+So a derived confidence is scaled into this ceiling rather than used
+raw. The number is chosen; what it is chosen *about* is the gap
+between "this habit is certain" and "this answers what you asked"."""
 
 
 def derive_confidence(
@@ -106,14 +116,24 @@ def derive_confidence(
     grows with the number of evidence pieces. The model never touches
     this number.
 
-    With no retrieval but some grounding, the answer is worth
-    `GROUNDED_CONFIDENCE` -- a floor rather than a measurement, and the
-    docstring above says which. With both, retrieval decides and the
-    grounding cannot raise it: a pattern must not make a claim about
-    an occasion more certain than the occasion's own evidence.
+    With no retrieval but some grounding, it is the mean of the
+    confidences the derivations already computed, scaled into
+    `PATTERN_CEILING`. That replaces a flat 0.5 that this module's own
+    docstring called *a floor, not a measurement* (#390): an anchor
+    with twelve visits and one with two now reach an answer as
+    different-sized facts, which they always were.
+
+    With both, retrieval decides and the grounding cannot raise it: a
+    pattern must not make a claim about an occasion more certain than
+    the occasion's own evidence.
     """
     if not results:
-        return GROUNDED_CONFIDENCE if grounding else 0.0
+        if not grounding:
+            return 0.0
+        derived = mean_confidence(grounding)
+        if derived is None:
+            return UNSCORED_GROUNDING
+        return derived * PATTERN_CEILING
     strength = min(1.0, results[0].score * (RRF_K + 1) / 2)
     coverage = len(results) / (len(results) + CONFIDENCE_HALF_FACTS)
     return strength * coverage

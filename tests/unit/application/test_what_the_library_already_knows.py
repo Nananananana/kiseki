@@ -30,10 +30,12 @@ from kiseki.application.grounding import (
     INTEREST,
     KINDS,
     PLACE,
+    RHYTHM,
     Grounding,
     from_anchors,
     from_outings,
     from_profile,
+    mean_confidence,
     numbered,
 )
 from kiseki.domain.anchor.anchor import Anchor
@@ -208,3 +210,64 @@ class TestTheClosedList:
 
     def test_an_empty_list_is_an_empty_string(self) -> None:
         assert numbered([]) == ""
+
+
+class TestAFactCarriesWhatItsDerivationBelieved:
+    """The half of #390 that needed no new numbers.
+
+    An `Anchor` carries `Confidence(value, sample_size)` and an
+    `Interest` carries a confidence. For a week this module took the
+    text and dropped both, so twelve visits over eighty-four days and
+    two visits over three days reached an answer as the same kind of
+    fact.
+    """
+
+    def test_an_anchors_confidence_travels(self) -> None:
+        assert from_anchors([an_anchor()])[0].confidence == pytest.approx(0.9)
+
+    def test_an_interests_confidence_travels(self) -> None:
+        profile = Profile(generated_at=WHEN, interests=(an_interest("ramen"),))
+        assert from_profile(profile)[0].confidence == pytest.approx(0.8)
+
+    def test_a_count_carries_none_rather_than_zero(self) -> None:
+        """`kiseki report`'s rhythm fact is a count, and a derivation
+        that computed no confidence is not a derivation that computed
+        zero. The difference decides whether it may be averaged."""
+        assert from_outings([an_outing(1)])[0].confidence is None
+
+    def test_a_confidence_outside_the_unit_interval_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="not in"):
+            Grounding(PLACE, "somewhere", "kiseki places", confidence=1.4)
+
+    def test_the_model_is_shown_the_number(self) -> None:
+        """A model told to prefer patterns also needs to tell a strong
+        one from a weak one."""
+        assert "[confidence 0.90]" in numbered(from_anchors([an_anchor()]))
+
+    def test_a_fact_with_no_confidence_shows_none(self) -> None:
+        assert "confidence" not in numbered(from_outings([an_outing(1)]))
+
+
+class TestTheMeanOfWhatWasOffered:
+    def test_it_averages_only_the_facts_that_carry_one(self) -> None:
+        facts = [
+            Grounding(PLACE, "a", "kiseki places", confidence=1.0),
+            Grounding(PLACE, "b", "kiseki places", confidence=0.0),
+            Grounding(RHYTHM, "c", "kiseki report"),
+        ]
+        assert mean_confidence(facts) == pytest.approx(0.5)
+
+    def test_nothing_scored_is_none_rather_than_zero(self) -> None:
+        assert mean_confidence([Grounding(RHYTHM, "c", "kiseki report")]) is None
+
+    def test_no_facts_at_all_is_none(self) -> None:
+        assert mean_confidence([]) is None
+
+    def test_it_reads_what_was_offered_not_what_was_cited(self) -> None:
+        """Reading the citations would let a model raise its own
+        confidence by citing more, and confidence in this library
+        comes from the evidence and never from the model. Pinned
+        because the signature makes the other choice easy."""
+        import inspect
+
+        assert list(inspect.signature(mean_confidence).parameters) == ["facts"]
