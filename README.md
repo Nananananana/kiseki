@@ -1,20 +1,87 @@
 # KISEKI
 
-**A local-first personal context engine: it turns the traces you already
-leave -- your photographs, your notes, the pages you open, the days you
-move -- into evidence-backed insights about your journeys, your
-interests, and how they change over time.**
+**A local-first personal context engine.** It turns the traces you
+already leave -- photographs, notes, web pages, days of activity --
+into evidence-backed insights about your journeys, your interests, and
+how they change.
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-brightgreen)
 
-**No account. No upload. No network required.**
+**No account. No upload. Nothing leaves your machine unless you ask it
+to, and a command tells you exactly what would.**
 
-*Kiseki* means "trail" in Japanese: the line your days draw on a map. This
-library reads that line -- on your machine, for you alone.
+*Kiseki* means "trail" in Japanese: the line your days draw on a map.
 
-Four kinds of evidence arrive, each through a written contract
-([docs/records.md](docs/records.md)), and **any of them may be absent**:
+---
+
+## What it looks like
+
+Two years of an ordinary phone, read on the machine that holds it.
+
+```text
+$ kiseki suggest
+  from your own evidence, the most overdue first
+
+    go back    Umeda (JP)          every ~25d, 627 days since   confidence 1.00
+    go back    Toyonaka (JP)       every ~4d, 77 days since     confidence 1.00
+    day trip   Kyoto (JP)          35 km out, last seen 766 days ago
+    day trip   Nara-shi (JP)       29 km out, last seen 745 days ago
+
+  8 in 10 of your outings cover under 49 km; a day trip is measured against that
+```
+
+```text
+$ kiseki ask "what did you eat in Seoul?" --near "37.56,126.98"
+Fried chicken, dumplings, and a Korean BBQ spread of grilled meats and
+side dishes around a tabletop grill [F1][F5].
+
+  confidence    0.79
+  time range    2026-03-19 to 2026-03-21
+  evidence      8
+```
+
+Every answer cites what it was derived from, and says "I don't know"
+when nothing supports one.
+
+---
+
+## Try it in two minutes
+
+```bash
+git clone https://github.com/Nananananana/kiseki && cd kiseki
+uv sync --all-packages
+
+# the whole engine on invented data, touching nothing of yours
+uv run kiseki demo
+```
+
+Then, on your own photographs:
+
+```bash
+# a folder of photographs -> a PhotoRecord document
+uv run kiseki-ingest ~/Pictures ~/kiseki-data --owner me --default-offset +09:00
+
+uv run kiseki ingest ~/kiseki-data/photo-records.json
+uv run kiseki build       # stops, outings, anchors -- no model needed
+uv run kiseki report      # what it measured
+uv run kiseki refresh     # the whole routine, idempotent
+```
+
+`build`, `report`, `places`, `trips` and `privacy` need **no model at
+all**. Captioning and everything above it needs
+[Ollama](https://ollama.com) on your own machine, or on one you name
+([docs/models.md](docs/models.md)).
+
+---
+
+## What it reads
+
+Four kinds of evidence, each through a written contract
+([docs/records.md](docs/records.md)), and **any of them may be absent** --
+a test matrix removes each in turn and fails the build if a derivation
+comes to require one.
 
 | | what it reads | what reaches this library |
 |---|---|---|
@@ -33,48 +100,18 @@ library could not show you a note you wrote if you asked it to.
 Nothing here reads EXIF, opens a browser, or fetches a page. Producers
 do that, and hand over a document.
 
----
+## What it writes
 
-## Where this sits
-
-KISEKI is one of six libraries built on the same idea: your own
-material, read on your own machine, with whatever crosses a boundary
-written down as a contract. **It needs none of the other five.**
-Nothing in this repository imports a sibling, and everything below is
-true with all of them absent.
-
-```text
-     your exports, your folders            your photo library
-                 |                                 |
-            [ musubi ]                        [ KISEKI ]  <- you are here
-       documents/ + traces/            kiseki-interest-export/1
-                 |                                 |
-                 +----------------+----------------+
-                                  |
-                            [ tsumugi ]
-                     tsumugi.context-package/1
-                                  |
-                           [ iriguchi ]
-                 +----------------+----------------+
-                 |                |                |
-             REFUSED       local model         ESCALATED
-            nothing runs   on this machine          |
-                                               [ mamori ]
-                                          protected on the way out,
-                                          restored on the way back
-                                                    |
-                                            ( external model )
-                                                    |
-                                              [ akashi ]
-                                        akashi.audit-report/1
+```bash
+kiseki export      # kiseki-interest-export v1, the only document that leaves
+kiseki serve       # a local HTTP API
+kiseki view        # a single HTML page, written to disk
 ```
 
-The only thing that ever leaves is
-[kiseki-interest-export v1](docs/interest-export.md): a versioned
-document, written by a command you run on purpose, carrying no place,
-no identifier and no exact time. `tsumugi` reads it today. This
-library does not know that and must not -- a published contract says
-the most that may ever leave, never who is listening (ADR-0047).
+The export is the one thing prepared for the world outside this
+machine, and it carries **no place, no identifier and no exact time**
+([docs/interest-export.md](docs/interest-export.md)). What is served
+locally is blurred to about a kilometre.
 
 ---
 
@@ -114,84 +151,6 @@ flowchart LR
     one -.->|"what was in<br/>front of them"| F["a subject"]
     many -.->|"how they spend<br/>a day"| G["a person"]
 ```
-
----
-
-## What it says about a real library
-
-Two years of an ordinary phone, read on the machine that holds it:
-
-```text
-$ kiseki suggest
-  from your own evidence, the most overdue first
-
-    go back    Umeda (JP)          every ~25d, 627 days since   confidence 1.00
-    go back    Toyonaka (JP)       every ~4d, 77 days since     confidence 1.00
-    day trip   Kyoto (JP)          35 km out, last seen 766 days ago
-    day trip   Nara-shi (JP)       29 km out, last seen 745 days ago
-
-  8 in 10 of your outings cover under 49 km; a day trip is measured against that
-```
-
-```text
-$ kiseki ask "what did you eat in Seoul?" --near "37.56,126.98"
-Fried chicken, dumplings, and a Korean BBQ spread of grilled meats and
-side dishes around a tabletop grill [F1][F5].
-
-  confidence    0.79
-  time range    2026-03-19 to 2026-03-21
-  evidence      8
-```
-
-```text
-$ kiseki drift
-  what moved with what
-    photographs    and outings      no shared movement   (+0.34)  over 26 months
-    outings        and screens      no shared movement   (-0.01)  over 26 months
-
-  moving together is not causing: nothing here says one made the other happen
-```
-
-Every number came from that library. Nothing was configured: the day-trip
-radius is the distance those outings actually cover, and the places are
-ones already visited.
-
----
-
-## Quick start
-
-```bash
-git clone https://github.com/Nananananana/kiseki
-cd kiseki
-uv sync --all-packages
-
-# see the whole engine on invented data, touching nothing of yours
-uv run kiseki demo
-
-# turn a folder of photographs into the input contract
-uv run kiseki-ingest ~/photos ~/kiseki-data \
-  --owner me --platform ios --default-offset +09:00
-
-# read them, build, and see what they say
-uv run kiseki ingest ~/kiseki-data/photo-records.json
-uv run kiseki activity ~/kiseki-data/activity-records.json
-uv run kiseki build
-uv run kiseki report
-```
-
-`kiseki demo` is the fastest way to see what the library does: it builds a
-synthetic library in a sandbox, runs every derivation against it, and
-sweeps up. It calls no model and reads no configuration.
-
-After that, one command keeps everything current:
-
-```bash
-uv run kiseki refresh    # build, read, index, profile, then the doctor
-```
-
-Place names need a one-time download
-([docs/gazetteer.md](docs/gazetteer.md)); the weekly routine is in
-[docs/runbook.md](docs/runbook.md).
 
 ---
 
@@ -294,6 +253,49 @@ flowchart LR
     SC --> IX
     IX --> AS["ask -- answers with evidence"]
 ```
+
+---
+
+## Where this sits
+
+KISEKI is one of six libraries built on the same idea: your own
+material, read on your own machine, with whatever crosses a boundary
+written down as a contract. **It needs none of the other five.**
+Nothing in this repository imports a sibling, and everything below is
+true with all of them absent.
+
+```text
+     your exports, your folders            your photo library
+                 |                                 |
+            [ musubi ]                        [ KISEKI ]  <- you are here
+       documents/ + traces/            kiseki-interest-export/1
+                 |                                 |
+                 +----------------+----------------+
+                                  |
+                            [ tsumugi ]
+                     tsumugi.context-package/1
+                                  |
+                           [ iriguchi ]
+                 +----------------+----------------+
+                 |                |                |
+             REFUSED       local model         ESCALATED
+            nothing runs   on this machine          |
+                                               [ mamori ]
+                                          protected on the way out,
+                                          restored on the way back
+                                                    |
+                                            ( external model )
+                                                    |
+                                              [ akashi ]
+                                        akashi.audit-report/1
+```
+
+The only thing that ever leaves is
+[kiseki-interest-export v1](docs/interest-export.md): a versioned
+document, written by a command you run on purpose, carrying no place,
+no identifier and no exact time. `tsumugi` reads it today. This
+library does not know that and must not -- a published contract says
+the most that may ever leave, never who is listening (ADR-0047).
 
 ---
 
