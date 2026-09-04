@@ -3,8 +3,18 @@ data/
 cache/
 exports/
 thumbs/
-records/
 quarantine/
+
+# `records/` used to be here, unanchored, and a gitignore pattern with
+# no slash matches a directory of that name **at any depth**. It
+# silently swallowed `packages/kiseki-core/src/kiseki/adapters/records/`
+# -- the whole point of the pull request that added it -- and every
+# test passed locally because the file was on disk. A fresh clone would
+# have failed to import. Anchored to where a producer actually writes,
+# and `tests/unit/test_the_source_is_all_here.py` now checks that no
+# source file is ignored.
+/records/
+kiseki-data/records/
 *.heic
 *.HEIC
 *.jpg
