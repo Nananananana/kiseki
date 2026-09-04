@@ -39,7 +39,12 @@ IMPORT_NAMES = {
 by the first and unpacked to the second, and a check that assumed they
 matched would pass on four of these five."""
 
-CONFORMANCE_SCHEMAS = ("photo-record-v1.json", "interest-export-v1.json")
+CONFORMANCE_SCHEMAS = (
+    "photo-record-v1.json",
+    "interest-export-v1.json",
+    "note-record-v1.json",
+    "web-record-v1.json",
+)
 """Every schema the kit reads at runtime. Absent from the wheel, the package
 imports cleanly and fails on first use, in somebody else's program."""
 
@@ -50,7 +55,12 @@ import json
 from pathlib import Path
 
 import pytest
-from kiseki_conformance import InterestExportConformance, PhotoRecordConformance
+from kiseki_conformance import (
+    InterestExportConformance,
+    NoteRecordConformance,
+    PhotoRecordConformance,
+    WebRecordConformance,
+)
 
 
 class TestExportFromAWheel(InterestExportConformance):
@@ -63,6 +73,18 @@ class TestPhotoRecordFromAWheel(PhotoRecordConformance):
     @pytest.fixture
     def document(self):
         return json.loads(Path("photo-record.json").read_text(encoding="utf-8"))
+
+
+class TestNoteRecordFromAWheel(NoteRecordConformance):
+    @pytest.fixture
+    def document(self):
+        return json.loads(Path("note-record.json").read_text(encoding="utf-8"))
+
+
+class TestWebRecordFromAWheel(WebRecordConformance):
+    @pytest.fixture
+    def document(self):
+        return json.loads(Path("web-record.json").read_text(encoding="utf-8"))
 '''
 
 
@@ -191,6 +213,22 @@ def use_from_outside(artefacts: list[Path], workspace: Path) -> None:
         REPO_ROOT / "tests" / "fixtures" / "photo_record" / "valid_full.json",
         probe / "photo-record.json",
     )
+    for name, category in (("note-record.json", "study"), ("web-record.json", "reading")):
+        (probe / name).write_text(
+            json.dumps(
+                [
+                    {
+                        "owner": "me",
+                        "platform": "a producer",
+                        "day": "2026-08-30",
+                        "reference": "x:9f7630c78bfc0a11",
+                        "category": category,
+                        "labels": ["raft"],
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
     (probe / "test_from_a_wheel.py").write_text(PROBE_TEST, encoding="utf-8")
 
     titles = (
@@ -212,6 +250,23 @@ def use_from_outside(artefacts: list[Path], workspace: Path) -> None:
         if result.returncode != 0:
             fail(f"the installed command line refuses {document}", result)
         print(f"  {result.stdout.strip()}")
+    for document, option in (
+        ("note-record.json", "note-record"),
+        ("web-record.json", "web-record"),
+    ):
+        # These two cannot name themselves, so the option is not
+        # optional -- and the refusal without it is part of the
+        # contract, so both halves are checked from the wheel.
+        result = run([str(cli), document, "--contract", option], cwd=probe)
+        if result.returncode != 0:
+            fail(f"the installed command line refuses {document}", result)
+        print(f"  {result.stdout.strip()}")
+        result = run([str(cli), document], cwd=probe)
+        if result.returncode == 0:
+            fail(f"the installed command line guessed at {document} instead of asking")
+        if "--contract" not in result.stderr:
+            fail(f"the refusal of {document} does not say how to answer it", result)
+    print("  and asks which contract when a document cannot name itself")
 
     result = run([str(python), "-m", "pytest", "-q", "test_from_a_wheel.py"], cwd=probe)
     if result.returncode != 0:

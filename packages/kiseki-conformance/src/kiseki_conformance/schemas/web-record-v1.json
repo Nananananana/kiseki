@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nananananana/kiseki/schemas/web-record-v1.json",
+  "title": "WebRecord v1",
+  "description": "What the owner opened, as a category and some labels. No address, no title, no host, no time of day: there is nowhere in this shape to put one. additionalProperties is true on purpose -- rule two of docs/records.md.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/record"
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "owner",
+        "platform",
+        "day",
+        "reference",
+        "category",
+        "labels"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "day": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "reading",
+            "study",
+            "work",
+            "project",
+            "reference",
+            "recipe",
+            "travel",
+            "video",
+            "health",
+            "money",
+            "people",
+            "credential",
+            "shopping",
+            "news",
+            "private",
+            "other"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "model": {
+          "type": "string"
+        },
+        "refused": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nananananana/kiseki/schemas/noterecord-record-v1.json",
+  "title": "NoteRecord v1",
+  "description": "What the owner wrote, as a category and some labels. The text never travels: a producer reads a folder, classifies locally, and discards. additionalProperties is true on purpose -- rule two of docs/records.md is that a reader passes over what it does not know.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/record"
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "owner",
+        "platform",
+        "day",
+        "reference",
+        "category",
+        "labels"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "day": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "note",
+            "reading",
+            "study",
+            "work",
+            "project",
+            "recipe",
+            "travel",
+            "journal",
+            "health",
+            "money",
+            "people",
+            "credential",
+            "other"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "model": {
+          "type": "string"
+        },
+        "refused": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

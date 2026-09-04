@@ -6,7 +6,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from kiseki_conformance.contracts import BY_OPTION, CONTRACTS, identify
+from kiseki_conformance.contracts import BY_OPTION, CONTRACTS, UNNAMEABLE, identify
 
 EXIT_OK = 0
 EXIT_VIOLATIONS = 1
@@ -33,6 +33,35 @@ They are the least able to diagnose it and the most likely to run this
 command, and until this was written they got a Python stack trace. The
 document read by this kit is the document some other program will read
 too, so the failure is not this tool's."""
+SHARED_SHAPE = (
+    "is a bare array, and {names} are both bare arrays of the same six "
+    "field names. Neither has a field that says which it is, and the "
+    "reference prefix is not one: the contract promises only that a "
+    "reference is stable and opaque, so matching on 'note:' would couple "
+    "this kit to a coincidence. Say which you meant: {options}."
+)
+"""Why this refusal is not the one above.
+
+A message saying only *names no contract* sends a producer looking for
+a field to add, and there is no such field to add. Guessing from the
+categories would be right most of the time, which is the worst of the
+three options: the document that happens to use only the eleven shared
+categories would be mislabelled in silence."""
+
+
+def why_it_cannot_be_identified(document: object) -> str:
+    """Two refusals, and telling them apart is the point.
+
+    A malformed document has no contract. A bare array has two, and
+    the producer of one needs to be told which question they are being
+    asked -- otherwise they go looking for a field to add.
+    """
+    if isinstance(document, list):
+        return SHARED_SHAPE.format(
+            names=" and ".join(contract.name for contract in UNNAMEABLE),
+            options=" or ".join(f"--contract {c.option}" for c in UNNAMEABLE),
+        )
+    return UNNAMED
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -70,7 +99,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     contract = BY_OPTION[args.contract] if args.contract != AUTO else identify(document)
     if contract is None:
         if not args.quiet:
-            print(f"{args.path}: {UNNAMED}", file=sys.stderr)
+            print(f"{args.path}: {why_it_cannot_be_identified(document)}", file=sys.stderr)
         return EXIT_VIOLATIONS
 
     violations = contract.violations(document)
