@@ -436,6 +436,15 @@ class Pipeline:
             return Span(first=min(days), last=max(days)) if days else None
 
         photos = self._photos.all()
+        taken = {photo.photo_id: photo.captured_at for photo in photos}
+        """A screen reading is dated by the screenshot, never by itself.
+
+        `ScreenshotReading.created_at` is when the model read it, so a
+        captioning run that took four days made 297 readings look like
+        four days of evidence. Measured on the real library: the
+        readings sat inside 2026-08-15..19 while the screenshots they
+        describe span 2024-07-10..2026-08-09 -- 5 days reported
+        against 761 actual."""
         notes = self._notes.all() if self._notes is not None else ()
         pages = self._pages.all() if self._pages is not None else ()
         activity = self._activity.all() if self._activity is not None else ()
@@ -465,7 +474,13 @@ class Pipeline:
             Source(
                 name=SCREENS,
                 count=len(screens),
-                span=span_of([reading.created_at.date() for reading in screens]),
+                span=span_of(
+                    [
+                        taken[reading.photo_id].date()
+                        for reading in screens
+                        if reading.photo_id in taken
+                    ]
+                ),
             ),
         )
 

@@ -40,6 +40,7 @@ from kiseki.application.limits import (
 from kiseki.application.pipeline import Pipeline
 from kiseki.domain.note.reading import NoteReading
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
+from kiseki.domain.screen.reading import ScreenshotReading
 from kiseki.domain.services.vocabulary import Overlap
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 
@@ -125,10 +126,10 @@ def test_the_span_is_every_source_together() -> None:
 def test_each_source_keeps_its_own_span_inside_the_library_s() -> None:
     """The reading that made this worth printing.
 
-    Measured on the real library: 4,950 photographs over 776 days, and
-    297 screen readings over 5. Both sit under one heading that says
-    778 days, and a reader who saw only that heading would ask what
-    they had open last year and be answered from five days in August.
+    Measured on the real library: 4,950 photographs over 776 days and
+    3 days of movement. Both sit under one heading that says 778 days,
+    and a reader who saw only that heading would ask how their year
+    was spent and be answered from three days in August.
 
     So each source states its own span, and the arithmetic that would
     hide it -- rolling every source into the library's -- is what this
@@ -136,15 +137,15 @@ def test_each_source_keeps_its_own_span_inside_the_library_s() -> None:
     """
     sources = [
         Source(PHOTOGRAPHS, 4950, Span(date(2024, 7, 3), date(2026, 8, 17))),
-        Source(SCREENS, 297, Span(date(2026, 8, 15), date(2026, 8, 19))),
+        Source(ACTIVITY, 3, Span(date(2026, 8, 17), date(2026, 8, 19))),
+        Source(SCREENS, 0),
         Source(NOTES, 0),
         Source(PAGES, 0),
-        Source(ACTIVITY, 0),
     ]
     report = limits_of(sources)
     assert report.span.days == 778
     by_name = {source.name: source.span for source in report.sources}
-    assert by_name[SCREENS].days == 5
+    assert by_name[ACTIVITY].days == 3
     assert by_name[PHOTOGRAPHS].days == 776
     assert by_name[NOTES] is None
 
@@ -252,6 +253,48 @@ def every_limit() -> LimitsReport:
     )
     assert len(report.limits) == len(EVERY_SOURCE) + 3, "not every limit is under test"
     return report
+
+
+class _Screens:
+    """A wired screenshot-reading repository."""
+
+    def __init__(self, readings: Sequence[object] = ()) -> None:
+        self._readings = tuple(readings)
+
+    def all(self) -> tuple[object, ...]:
+        return self._readings
+
+
+def test_a_screen_reading_is_dated_by_the_screenshot_not_by_itself() -> None:
+    """The defect this test exists for, found on the real library.
+
+    `ScreenshotReading.created_at` is when the *model* read it. A
+    captioning run that took five days produced 297 readings, and
+    dating them by themselves reported five days of screen evidence
+    for screenshots that actually span 2024-07-10 to 2026-08-09 --
+    761 days told as 5.
+
+    That is the precise failure `limits` exists to prevent: a number
+    that is confidently wrong about its own reach, in the direction
+    that makes the library look narrower than it is.
+    """
+    long_ago = datetime(2025, 1, 2, tzinfo=JST)
+    photograph = PhotoObservation(PhotoId("shot"), long_ago)
+    reading = ScreenshotReading(
+        photo_id=PhotoId("shot"),
+        category="other",
+        labels=("a label",),
+        model="a model",
+        created_at=datetime(2026, 8, 17, tzinfo=JST),
+    )
+    pipeline = _pipeline(screens=_Screens([reading]))
+    pipeline.ingest([photograph])
+
+    spans = {source.name: source.span for source in pipeline.limits().sources}
+    assert spans[SCREENS] == Span(date(2025, 1, 2), date(2025, 1, 2)), (
+        "the screen reading was dated by when the model read it, which "
+        "is a fact about a captioning run and not about the owner"
+    )
 
 
 def _shipped_reasons() -> list[str]:
