@@ -93,6 +93,20 @@ class Grounding:
     """When, where the fact has a when. `None` where it is about a
     pattern rather than a moment."""
 
+    confidence: float | None = None
+    """How much the derivation that produced this believed it.
+
+    `None` where the derivation computed none -- not zero, because a
+    fact nobody scored and a fact scored zero are different things and
+    the difference decides whether it may be averaged.
+
+    **This was discarded for a week.** An `Anchor` carries
+    `Confidence(value, sample_size)` and an `Interest` carries a
+    confidence; the first version of this module took the text and
+    dropped both on the floor, so twelve visits over eighty-four days
+    and two visits over three days arrived at an answer as the same
+    kind of fact (#390)."""
+
     def __post_init__(self) -> None:
         if self.kind not in KINDS:
             raise ValueError(f"{self.kind!r} is not a kind of grounding")
@@ -100,6 +114,8 @@ class Grounding:
             raise ValueError("a grounding fact with no text says nothing")
         if not self.source.strip():
             raise ValueError("a grounding fact that cannot name its source is a bug")
+        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
+            raise ValueError(f"a confidence of {self.confidence} is not in [0, 1]")
 
 
 def _cadence(anchor: Anchor) -> str:
@@ -123,6 +139,7 @@ def from_anchors(anchors: Sequence[Anchor], limit: int = 5) -> list[Grounding]:
             ),
             source="kiseki places",
             observed_at=anchor.period.end,
+            confidence=anchor.confidence.value,
         )
         for index, anchor in enumerate(ordered[:limit], start=1)
     ]
@@ -171,6 +188,7 @@ def from_profile(profile: Profile | None, limit: int = 8) -> list[Grounding]:
             ),
             source="kiseki profile",
             observed_at=interest.last_seen,
+            confidence=interest.confidence,
         )
         for interest in ordered[:limit]
     ]
@@ -189,6 +207,7 @@ def from_trends(trends: TrendReport | None, limit: int = 6) -> list[Grounding]:
                 f"{trend.baseline:.2f}."
             ),
             source="kiseki trend",
+            confidence=min(1.0, max(0.0, trend.strength)),
         )
         for trend in [one for one in trends.trends if not one.topic.startswith(PLACE_PREFIX)][
             :limit
@@ -224,7 +243,26 @@ def from_outings(outings: Sequence[Outing]) -> list[Grounding]:
 
 
 def numbered(facts: Sequence[Grounding], start: int = 1) -> str:
-    """The closed list a model may use, as [G1], [G2]..."""
-    return "\n".join(
-        f"[G{index}] ({fact.kind}) {fact.text}" for index, fact in enumerate(facts, start=start)
-    )
+    """The closed list a model may use, as [G1], [G2]...
+
+    The confidence travels with the fact, so a model asked to prefer
+    patterns can also tell a strong one from a weak one. It is a
+    number the derivation computed, not one the model may adjust.
+    """
+    lines = []
+    for index, fact in enumerate(facts, start=start):
+        strength = "" if fact.confidence is None else f" [confidence {fact.confidence:.2f}]"
+        lines.append(f"[G{index}] ({fact.kind}){strength} {fact.text}")
+    return "\n".join(lines)
+
+
+def mean_confidence(facts: Sequence[Grounding]) -> float | None:
+    """The average of the facts that carry one, or None if none do.
+
+    Of the facts **offered**, not the facts the answer happened to
+    cite. Reading the citations would let the model raise its own
+    confidence by citing more, and the rule this library keeps is that
+    confidence comes from the evidence and the model never touches it.
+    """
+    scored = [fact.confidence for fact in facts if fact.confidence is not None]
+    return sum(scored) / len(scored) if scored else None

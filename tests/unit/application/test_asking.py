@@ -6,7 +6,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from kiseki.adapters.fake.models import FakeLanguageModel
 from kiseki.adapters.fake.search import FakeSearchIndex
-from kiseki.application.asking import ask
+from kiseki.application.asking import (
+    PATTERN_CEILING,
+    UNSCORED_GROUNDING,
+    ask,
+    derive_confidence,
+)
+from kiseki.application.grounding import Grounding
 from kiseki.ports.models import Completion, ModelRefusedError, Usage
 from kiseki.ports.search import SearchDocument
 
@@ -116,3 +122,59 @@ def test_english_is_asked_for_in_english():
 def test_model_errors_propagate():
     with pytest.raises(ModelRefusedError):
         _ask(language_model=RefusingLanguageModel())
+
+
+class TestConfidenceFromPatternsAlone:
+    """#390: a flat 0.5 replaced by what the derivations computed.
+
+    The docstring on the constant it replaced called it *a floor, not
+    a measurement*, which was honest and was a placeholder. An anchor
+    with twelve visits and one with two now reach an answer as
+    different-sized facts, which they always were.
+    """
+
+    def a_pattern(self, confidence: float | None) -> Grounding:
+        return Grounding(
+            kind="place",
+            text="Place 1: returned to on some days.",
+            source="kiseki places",
+            confidence=confidence,
+        )
+
+    def test_a_strong_pattern_is_worth_more_than_a_weak_one(self) -> None:
+        strong = derive_confidence((), (self.a_pattern(0.95),))
+        weak = derive_confidence((), (self.a_pattern(0.20),))
+        assert strong > weak, "the two patterns produced the same confidence"
+
+    def test_it_never_reaches_certainty(self) -> None:
+        """1.0 about an anchor is not 1.0 about the question somebody
+        asked: no pattern speaks to an occasion, however certain it is
+        of a habit."""
+        assert derive_confidence((), (self.a_pattern(1.0),)) <= PATTERN_CEILING
+
+    def test_unscored_patterns_fall_back_and_say_so(self) -> None:
+        assert derive_confidence((), (self.a_pattern(None),)) == UNSCORED_GROUNDING
+
+    def test_nothing_at_all_is_zero(self) -> None:
+        assert derive_confidence((), ()) == 0.0
+
+    def test_retrieval_decides_when_it_found_anything(self) -> None:
+        """A pattern must not make a claim about an occasion more
+        certain than the occasion's own evidence."""
+        with_patterns = derive_confidence(_evidence(2), (self.a_pattern(1.0),))
+        without = derive_confidence(_evidence(2), ())
+        assert with_patterns == without
+
+
+def _evidence(count: int) -> tuple:  # type: ignore[type-arg]
+    """Retrievals strong enough that retrieval decides."""
+    from kiseki.application.retrieval import Retrieval
+
+    return tuple(
+        Retrieval(
+            SearchDocument(f"stay:{index}", "stay", "a bowl of ramen", WHEN),
+            1.0 / (index + 1),
+            ("words",),
+        )
+        for index in range(count)
+    )
