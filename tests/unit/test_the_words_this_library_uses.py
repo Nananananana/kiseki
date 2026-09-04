@@ -116,3 +116,41 @@ def test_the_four_that_are_confused_are_all_defined() -> None:
     nothing to separate them."""
     missing = [word for word in ("stay", "stop", "outing", "anchor") if word not in defined()]
     assert not missing, f"the glossary no longer separates: {missing}"
+
+
+TENS = {"twenty": 20, "thirty": 30, "forty": 40}
+UNITS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+}
+
+
+def counted_in_words(word: str) -> int:
+    """`Twenty-six` as 26. Only the range a glossary plausibly holds."""
+    tens, _, units = word.lower().partition("-")
+    assert tens in TENS, f"{word!r} is not a number this understands"
+    return TENS[tens] + (UNITS[units] if units else 0)
+
+
+def test_the_count_the_page_claims_is_the_count_it_defines() -> None:
+    """The page opened with `Twenty-six terms` while defining
+    twenty-five, and every test here passed.
+
+    A glossary exists so a reader can trust what it says about words.
+    A page that cannot count its own rows is the same failure as a
+    definition for a word that was renamed: it reads exactly like a
+    page that is right.
+    """
+    text = GLOSSARY.read_text(encoding="utf-8")
+    claimed = re.search(r"^([A-Za-z]+(?:-[a-z]+)?) terms", text, re.MULTILINE)
+    assert claimed, "the page no longer opens by saying how many terms it defines"
+    assert counted_in_words(claimed.group(1)) == len(defined()), (
+        f"the page says {claimed.group(1)} and defines {len(defined())}"
+    )

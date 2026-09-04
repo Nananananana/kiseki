@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from kiseki.application.asking import Answer
+from kiseki.application.limits import LimitsReport
 from kiseki.application.pipeline import PrivacyReport, Report
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
@@ -19,7 +20,7 @@ from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.trends import TrendReport
-from kiseki.interfaces.claims import NEVER_STORED
+from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 
 BLUR_DECIMALS = 2
 """Decimal places kept when blurring: roughly a kilometre grid,
@@ -167,6 +168,43 @@ def privacy_payload(report: PrivacyReport) -> dict[str, Any]:
         "active_exclusions": report.active_exclusions,
         "never_stored": [name for name, _reason, _test in NEVER_STORED],
         "blurred_by_default": True,
+    }
+
+
+def limits_payload(report: LimitsReport) -> dict[str, Any]:
+    """The report as a document, for a tool that acts on it.
+
+    `unseeable` carries the subject and the reason and not the test
+    name: a consumer cannot run this repository's tests, and a claim
+    is not more true for naming one to a stranger.
+    """
+    span = report.span
+    return {
+        "span": None
+        if span is None
+        else {
+            "first": span.first.isoformat(),
+            "last": span.last.isoformat(),
+            "days": span.days,
+        },
+        "sources": [
+            {
+                "name": source.name,
+                "count": source.count,
+                "first": None if source.span is None else source.span.first.isoformat(),
+                "last": None if source.span is None else source.span.last.isoformat(),
+                "days": None if source.span is None else source.span.days,
+            }
+            for source in report.sources
+        ],
+        "limits": [
+            {"subject": limit.subject, "reading": limit.reading, "because": limit.because}
+            for limit in report.limits
+        ],
+        "unseeable": [
+            {"subject": subject, "because": reason} for subject, reason, _test in UNSEEABLE
+        ],
+        "empty": report.empty,
     }
 
 

@@ -55,6 +55,46 @@ NEVER_STORED: tuple[Claim, ...] = (
     ),
 )
 
+LIMITS_TESTS = "tests/unit/test_what_this_cannot_tell_you.py"
+
+UNSEEABLE: tuple[Claim, ...] = (
+    (
+        "an interest you never photographed",
+        "invisible here, and no count is short -- the library cannot miss"
+        " what it was never given (ADR-0063)",
+        f"{LIMITS_TESTS}::test_nothing_here_claims_to_know_what_is_missing",
+    ),
+    (
+        "why you go somewhere",
+        "an anchor is described by its shares and never named or explained (ADR-0040)",
+        f"{LIMITS_TESTS}::test_no_limit_explains_the_owner",
+    ),
+    (
+        "what caused what",
+        "topics that move together are reported as moving together, never"
+        " as one causing the other (ADR-0049)",
+        f"{LIMITS_TESTS}::test_no_limit_claims_a_cause",
+    ),
+)
+"""The limits that no count on disk implies.
+
+`application/limits.py` computes what can be counted -- a source that
+is absent, a span, a vocabulary that has not settled. These three
+cannot be counted at all, and they are the sharpest of the set: the
+first is a hole whose size is unknowable, because a library that was
+never given a thing has no way to notice its shape.
+
+They sit here rather than in the application layer because this file
+already has the discipline they need. Every line carries the name of
+the test that fails if it stops being true, which is the only
+difference between a limit and a disclaimer.
+
+The split is structural, so neither list can quietly absorb the
+other: a limit that becomes computable moves out of this tuple, and
+one that cannot be computed can never be smuggled into a report as
+though it had been measured."""
+
+
 BLURRED_BY_DEFAULT = (
     "served and written coordinates are rounded to about a kilometre"
     " unless raw output is asked for explicitly (ADR-0026)"

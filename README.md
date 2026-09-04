@@ -519,7 +519,7 @@ and what might become true.
   is, which four were measured, and how to change any of them
 - [The words this library uses](docs/glossary.md) -- stay, stop, outing and
   anchor are four different things, and moment and pattern are two
-- [Architecture decisions](docs/adr) -- 87 ADRs, including the ones later
+- [Architecture decisions](docs/adr) -- 88 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 

@@ -84,7 +84,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 87.
+Read the ADRs that cover what you are changing. There are 88.
 
 When you write one: a consequence that could stop being true names
 what would end it, and a consequence that cannot says so. Most of them
@@ -235,12 +235,12 @@ not edited to match the present.
 
 - Version: v0.11.0 released. v0.12 in progress.
 - Schema: version 9.
-- Commands (43): `paths`, `ingest`, `activity`, `notes`, `web`, `build`, `report`,
+- Commands (44): `paths`, `ingest`, `activity`, `notes`, `web`, `build`, `report`,
   `profile`, `caption`, `singles`, `screens`, `subjects`, `themes`,
   `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
   `compare`, `drift`, `places`, `trips`, `suggest`, `correct`,
   `corrections`, `settings`, `cost`, `map`, `llm`, `privacy`, `export`, `forget`,
-  `algorithms`, `retention`, `doctor`, `reread`, `retry`, `refresh`,
+  `algorithms`, `limits`, `retention`, `doctor`, `reread`, `retry`, `refresh`,
   `demo`, `serve`, `view`.
 - The real library it is developed against: 4,950 photographs, 360
   stay captions, 1,244 single captions, 297 screen readings, 1,604

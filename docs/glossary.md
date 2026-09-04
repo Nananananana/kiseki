@@ -76,6 +76,7 @@ carefully.
 | **pattern** | one derivation over all the data — a place's cadence, an interest, a trend. Cited `[G1]` |
 | **grounding** | the patterns offered to an answer, each naming the command that produced it |
 | **confidence** | how much the evidence supports the claim. Never the model's opinion — it is computed from the evidence and the model never touches it |
+| **limit** | something an answer here cannot reach. Counted from your own data where a count exists, and otherwise claimed in a list that names the test keeping it true ([ADR-0088](adr/0088-a-limit-is-counted-or-it-is-claimed.md)) |
 
 A moment says *this happened once*. A pattern says *this keeps
 happening*. An answer that cannot tell you which it used is an answer

@@ -42,6 +42,7 @@ uv run kiseki report --json
 | `settings` | Every threshold in force, and where each value came from |
 | `llm` | Where the model is, whether it is allowed, and whether it answers |
 | `privacy` | How the owner's data is treated, in counts |
+| `limits` | What this library cannot tell you, from your own counts |
 | `forget` | Remove photographs and everything said about them |
 | `retention` | What a decade should look like, as rules |
 | `export` | The interest export: a one-way abstraction |
