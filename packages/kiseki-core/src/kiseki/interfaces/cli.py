@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
+from kiseki.adapters import records as records_adapter
 from kiseki.adapters.filesystem.gazetteer import FileGazetteer
 from kiseki.adapters.filesystem.thumbnails import FilesystemThumbnailSource
 from kiseki.adapters.ollama.models import (
@@ -319,18 +320,43 @@ def _command_paths(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+INGEST_BATCH = 5_000
+"""How many records to hold before storing them.
+
+The point of streaming is that the whole document is never in memory,
+which a reader that collected every record into a list would undo.
+Five thousand is small enough that the peak stays flat and large
+enough that the store is not the bottleneck."""
+
+
 def _command_ingest(args: argparse.Namespace) -> int:
     try:
-        records = _read_records(args.records)
+        records, which = records_adapter.reader(args.records)
     except OSError as error:
         print(f"cannot read {args.records}: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT
-    except (json.JSONDecodeError, ValueError) as error:
+
+    pipeline = _pipeline_for(args)
+    stored = 0
+    batch: list[dict[str, Any]] = []
+    try:
+        for record in records:
+            batch.append(record)
+            if len(batch) >= INGEST_BATCH:
+                stored += pipeline.ingest(_to_observations(batch))
+                batch.clear()
+        if batch:
+            stored += pipeline.ingest(_to_observations(batch))
+    except OSError as error:
+        print(f"cannot read {args.records}: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    except (json.JSONDecodeError, ValueError, KeyError) as error:
         print(f"{args.records}: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT
 
-    stored = _pipeline_for(args).ingest(_to_observations(records))
     print(f"{stored} photograph(s) taken in")
+    if which == records_adapter.STREAMING:
+        print("  read a record at a time")
     return EXIT_OK
 
 

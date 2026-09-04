@@ -122,6 +122,35 @@ listed here because a checklist nobody can find is not a gate.
 A contract that cannot answer question three is not ready, whatever
 else it can answer.
 
+## Reading a large document
+
+A `PhotoRecord` document is read whole by default, which costs about
+**4.7 times the file in memory** -- fine for the libraries most people
+have, and about 2.7 GB for the million-record documents a long
+location history reaches.
+
+```bash
+pip install "kiseki[streaming]"
+```
+
+installs `ijson`, and the document is then read a record at a time.
+Measured through the whole ingest path -- reading, converting,
+batching -- on a 116 MB, 200,000-record document:
+
+| | peak memory | time |
+|---|---|---|
+| whole | 545.8 MB | 12.2 s |
+| streaming | **19.8 MB** | 20.6 s |
+
+The 19.8 MB is the batch rather than the document, so it does not grow
+with the file. `kiseki ingest` says which reader ran.
+
+**It also changes what a broken document tells you.** Read whole, a
+file that stops being valid at record 900,000 costs minutes and
+gigabytes to report a column number. Read a record at a time, it says
+*the document stops being readable at record 900,000*, having already
+handled the ones before it.
+
 ## Why the core reads documents rather than devices
 
 Because a device is a moving target and a document is not. Apple

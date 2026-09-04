@@ -10,10 +10,12 @@ dependencies = []
 # that it needs nothing to run; a wheel check enforces that against
 # `Requires-Dist`, which is why these are extras and not dependencies.
 # Everything under `kiseki.domain` works without any of them -- the
-# extras buy speed and two algorithms the standard library cannot
-# reach, in the adapters layer, where a dependency belongs.
+# clustering extra buys speed and two algorithms the standard library
+# cannot reach, in the adapters layer, where a dependency belongs, and
+# the streaming extra buys a thousandfold less memory on a large import.
 [project.optional-dependencies]
 clustering = ["scikit-learn>=1.3", "numpy>=1.24"]
+streaming = ["ijson>=3.2"]
 
 [project.scripts]
 kiseki = "kiseki.interfaces.cli:main"
