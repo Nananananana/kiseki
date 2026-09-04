@@ -33,6 +33,7 @@ dev = [
     "pillow",
     "piexif",
     "pyyaml",
+    "cosmic-ray>=8.7.0",
 ]
 
 [tool.ruff]
