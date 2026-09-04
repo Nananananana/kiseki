@@ -6,6 +6,7 @@ what it needs.
 """
 
 import argparse
+import contextlib
 import io
 import json
 import sqlite3
@@ -47,7 +48,7 @@ from kiseki.adapters.sqlite.store import (
     count_outdated,
     count_recoverable,
 )
-from kiseki.application import estimating
+from kiseki.application import estimating, grounding
 from kiseki.application.answer_validation import validate_answer
 from kiseki.application.asking import Answer, ask
 from kiseki.application.captioning import CAPTION_PROMPT_VERSION, run_captioning
@@ -1068,6 +1069,32 @@ def _parse_moment(text: str, end_of_day: bool = False) -> datetime:
     return moment
 
 
+def _what_the_library_knows(args: argparse.Namespace) -> list[grounding.Grounding]:
+    """Every derivation already run, as facts an answer may cite.
+
+    Measured before this existed: *where do I keep going back to?* was
+    answered with "a place with an outdoor bath", from a caption,
+    while `kiseki places` held twelve visits about every seven days.
+    The answer was in a different table from the one that was
+    searched.
+
+    Assembled here rather than inside `ask` because reaching storage
+    is the interface's job, and because a caller with no library --
+    the API, a test -- should be able to ask without one.
+    """
+    pipeline = _pipeline_for(args)
+    report = pipeline.report()
+    facts: list[grounding.Grounding] = []
+    facts += grounding.from_anchors(report.anchors)
+    facts += grounding.from_outings(report.outings)
+    facts += grounding.from_profile(pipeline.profile(keep=False))
+    # Not enough history to compare two halves is a state rather than
+    # a fault, and the other facts still stand.
+    with contextlib.suppress(ValueError):
+        facts += grounding.from_trends(pipeline.trend())
+    return facts
+
+
 def _command_ask(args: argparse.Namespace) -> int:
     try:
         since = _parse_moment(args.since) if args.since else None
@@ -1095,6 +1122,7 @@ def _command_ask(args: argparse.Namespace) -> int:
             locations=(
                 _document_locations(_paths_for(args).db_path) if args.near is not None else None
             ),
+            grounding=_what_the_library_knows(args),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -1104,7 +1132,11 @@ def _command_ask(args: argparse.Namespace) -> int:
         return EXIT_OK
     print(RULE)
     if not answer.answered:
-        print("  no evidence found for this question")
+        print("  nothing in this library bears on that question")
+        print("  -- no moment matched it and no pattern has been derived yet.")
+        print("     `kiseki build` finds places and outings; `kiseki refresh`")
+        print("     adds captions and interests, and `kiseki cost` says what")
+        print("     that will take.")
         return EXIT_OK
     print(answer.answer)
     print()
@@ -1115,7 +1147,12 @@ def _command_ask(args: argparse.Namespace) -> int:
         print(f"  window        {left} to {right}")
     if answer.first_seen is not None and answer.last_seen is not None:
         print(f"  time range    {answer.first_seen:%Y-%m-%d} to {answer.last_seen:%Y-%m-%d}")
-    print(f"  evidence      {len(answer.evidence)}")
+    if answer.grounded_only:
+        print("  from            what this library knows, not what it found")
+    print(f"  evidence      {len(answer.evidence)} moment(s), {len(answer.grounding)} pattern(s)")
+    if answer.grounding:
+        kinds = sorted({fact.source for fact in answer.grounding})
+        print(f"  derived from  {', '.join(kinds)}")
     if answer.supporting_insights:
         print("\n  related findings")
         for item in answer.supporting_insights:

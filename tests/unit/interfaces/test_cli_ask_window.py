@@ -29,7 +29,13 @@ class TestAskWindow:
             ]
         )
         assert code == EXIT_OK
-        assert "no evidence" in capsys.readouterr().out
+        # The wording changed when `ask` gained a second source of
+        # facts. What is asserted is the state -- an empty library
+        # bears on nothing -- and that the reader is told what to run,
+        # rather than the sentence that used to say it.
+        printed = capsys.readouterr().out
+        assert "bears on that question" in printed
+        assert "kiseki build" in printed
 
     def test_a_bad_date_is_refused(self, tmp_path: Path) -> None:
         code = main(["--data-root", str(tmp_path), "ask", "--since", "not-a-date", "ramen"])

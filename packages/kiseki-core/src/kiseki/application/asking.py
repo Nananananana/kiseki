@@ -8,26 +8,36 @@ cannot make an answer more certain than the evidence is. With no
 evidence there is no model call at all. See ADR-0038.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.grounding import Grounding, numbered
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
 from kiseki.domain.insight import Insight, InsightReport
 from kiseki.domain.services.time_expressions import read_time_window
 from kiseki.domain.shared.geo import Distance, GeoPoint
+from kiseki.domain.shared.moment import naive
 from kiseki.ports.models import LanguageModel, TextEmbedder
 from kiseki.ports.search import SearchIndex
 
 LANGUAGE_NAMES = {"ja": "Japanese", "en": "English"}
 
 ASK_SYSTEM = (
-    "You answer one question about the person's own photo history,"
-    " from a closed list of numbered facts. Use only these facts; if"
-    " they do not answer the question, say so briefly. After each"
-    " claim, cite the fact it rests on, like [F3]. Never mention any"
-    " coordinates. Answer in {language}, in one short paragraph."
+    "You answer one question about the person's own history, from a"
+    " closed list of numbered facts. Two kinds appear. [F...] are"
+    " single moments -- one photograph, one note, one page. [G...] are"
+    " patterns the library derived from all of the data: places"
+    " returned to, interests, trends, how often they go out."
+    " Use only these facts. Prefer [G...] for questions about habits,"
+    " patterns and change, and [F...] for questions about particular"
+    " occasions. After each claim, cite the fact it rests on, like"
+    " [F3] or [G2]. If the facts only partly answer the question, say"
+    " what they do support and what they do not, rather than refusing:"
+    " a partial answer that names its limits is useful and a refusal"
+    " is not. Never invent a fact and never mention coordinates."
+    " Answer in {language}, in one short paragraph."
 )
 
 CONFIDENCE_HALF_FACTS = 2
@@ -54,20 +64,56 @@ class Answer:
     until: datetime | None = None
     supporting_insights: tuple[Insight, ...] = ()
 
+    grounding: tuple[Grounding, ...] = ()
+    """What the library already knew, as against what was retrieved.
+
+    Carried separately from `evidence` so a reader can see which kind
+    of thing an answer rested on. An answer from patterns alone is a
+    different claim from one built on three photographs, and the two
+    were indistinguishable while only one of them existed."""
+
     @property
     def answered(self) -> bool:
-        return bool(self.evidence)
+        return bool(self.evidence) or bool(self.grounding)
+
+    @property
+    def grounded_only(self) -> bool:
+        """No moment matched; the answer came from patterns alone."""
+        return not self.evidence and bool(self.grounding)
 
 
-def derive_confidence(results: tuple[Retrieval, ...]) -> float:
-    """From the retrieval alone: how strongly, and how much, it found.
+GROUNDED_CONFIDENCE = 0.5
+"""What an answer built on patterns alone is worth.
+
+Not 1.0, and not 0.0. A pattern is a real derivation over all of the
+owner's data -- *twelve visits, about every seven days* is a stronger
+claim about a habit than three matching captions -- but it is a claim
+about a habit, and a question may have been about an occasion.
+
+Half is a floor, not a measurement, and the only honest thing to say
+about it is that: it says *this answer came from what the library
+knows rather than from anything it found*, and no more. Retrieval's
+confidence is derived; this one is chosen, and the difference is the
+kind of number it is."""
+
+
+def derive_confidence(
+    results: tuple[Retrieval, ...], grounding: tuple[Grounding, ...] = ()
+) -> float:
+    """How strongly, and how much, the answer rests on.
 
     Strength is 1.0 when the best document led both channels; coverage
     grows with the number of evidence pieces. The model never touches
     this number.
+
+    With no retrieval but some grounding, the answer is worth
+    `GROUNDED_CONFIDENCE` -- a floor rather than a measurement, and the
+    docstring above says which. With both, retrieval decides and the
+    grounding cannot raise it: a pattern must not make a claim about
+    an occasion more certain than the occasion's own evidence.
     """
     if not results:
-        return 0.0
+        return GROUNDED_CONFIDENCE if grounding else 0.0
     strength = min(1.0, results[0].score * (RRF_K + 1) / 2)
     coverage = len(results) / (len(results) + CONFIDENCE_HALF_FACTS)
     return strength * coverage
@@ -143,6 +189,7 @@ def ask(
     within: Distance = DEFAULT_REACH,
     locations: Mapping[str, GeoPoint] | None = None,
     insights: InsightReport | None = None,
+    grounding: Sequence[Grounding] | None = None,
     now: Callable[[], datetime] = _local_now,
 ) -> Answer:
     """One answer. Model errors propagate to the caller.
@@ -177,22 +224,46 @@ def ask(
     banned = excluded_doc_keys(excluded)
     if banned:
         results = tuple(item for item in results if item.document.doc_key not in banned)
-    if not results:
+    patterns = tuple(grounding or ())
+    if not results and not patterns:
         return Answer(question, "", 0.0, None, None, (), "", since=since, until=until)
 
+    parts = []
+    if results:
+        parts.append("Moments:\n" + numbered_facts(results))
+    if patterns:
+        parts.append("Patterns:\n" + numbered(patterns))
+
+    # Compared in one shape, returned in the shape it was stored in.
+    #
+    # Retrieval's documents carry naive moments; a grounding fact
+    # carries whatever the derivation stored, which for an anchor
+    # period is aware. Mixed, `min()` raises "can't compare
+    # offset-naive and offset-aware datetimes" -- precisely the defect
+    # ADR-0064 was written about, reached again by a path that did not
+    # exist when it was written.
+    #
+    # The fix is the one that ADR already prescribes, and the first
+    # attempt here got it half right: comparing with `naive()` and
+    # then *returning* the naive value stripped the offset from
+    # `first_seen`, which the API and the view print. So the key is
+    # naive and the value is not.
     observed = [item.document.observed_at for item in results]
+    observed += [fact.observed_at for fact in patterns if fact.observed_at is not None]
+
     system = ASK_SYSTEM.format(language=LANGUAGE_NAMES.get(language, "English"))
-    prompt = f"Question: {question}\n\nFacts:\n{numbered_facts(results)}"
+    prompt = f"Question: {question}\n\n" + "\n\n".join(parts)
     completion = language_model.complete(system, [prompt])[0]
     return Answer(
         question=question,
         answer=completion.text,
-        confidence=derive_confidence(results),
-        first_seen=min(observed),
-        last_seen=max(observed),
+        confidence=derive_confidence(results, patterns),
+        first_seen=min(observed, key=naive) if observed else None,
+        last_seen=max(observed, key=naive) if observed else None,
         evidence=results,
         model=completion.model,
         since=since,
         until=until,
         supporting_insights=_supporting(insights, question, results),
+        grounding=patterns,
     )
