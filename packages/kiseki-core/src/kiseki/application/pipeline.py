@@ -521,6 +521,7 @@ class Pipeline:
             refusals=refusals,
             label_silent=label_silent,
             withheld=withheld,
+            unlocated=sum(1 for photo in photos if not photo.is_located),
         )
 
     def compare(
