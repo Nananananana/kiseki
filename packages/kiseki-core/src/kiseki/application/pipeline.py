@@ -37,8 +37,10 @@ from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
+from kiseki.domain.note.reading import SENSITIVE_CATEGORIES as NOTE_SENSITIVE
 from kiseki.domain.outing.outing import Outing
 from kiseki.domain.photo.observation import PhotoObservation
+from kiseki.domain.screen.reading import SENSITIVE_CATEGORIES as SCREEN_SENSITIVE
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
@@ -64,6 +66,7 @@ from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
+from kiseki.domain.web.reading import UNLABELLED_CATEGORIES as PAGE_UNLABELLED
 from kiseki.ports.activity import DailyActivityRepository
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.corrections import CorrectionRepository
@@ -436,6 +439,15 @@ class Pipeline:
             return Span(first=min(days), last=max(days)) if days else None
 
         photos = self._photos.all()
+        taken = {photo.photo_id: photo.captured_at for photo in photos}
+        """A screen reading is dated by the screenshot, never by itself.
+
+        `ScreenshotReading.created_at` is when the model read it, so a
+        captioning run that took four days made 297 readings look like
+        four days of evidence. Measured on the real library: the
+        readings sat inside 2026-08-15..19 while the screenshots they
+        describe span 2024-07-10..2026-08-09 -- 5 days reported
+        against 761 actual."""
         notes = self._notes.all() if self._notes is not None else ()
         pages = self._pages.all() if self._pages is not None else ()
         activity = self._activity.all() if self._activity is not None else ()
@@ -465,7 +477,13 @@ class Pipeline:
             Source(
                 name=SCREENS,
                 count=len(screens),
-                span=span_of([reading.created_at.date() for reading in screens]),
+                span=span_of(
+                    [
+                        taken[reading.photo_id].date()
+                        for reading in screens
+                        if reading.photo_id in taken
+                    ]
+                ),
             ),
         )
 
@@ -473,9 +491,20 @@ class Pipeline:
         singles = self._singles.all() if self._singles is not None else ()
         refusals = sum(1 for one in captions if one.refused is not None)
         refusals += sum(1 for one in singles if one.refused is not None)
-        label_silent = sum(1 for one in screens if one.refused is None and not one.labels)
-        label_silent += sum(1 for one in notes if one.refused is None and not one.labels)
-        label_silent += sum(1 for one in pages if one.refused is None and not one.labels)
+        withheld = 0
+        label_silent = 0
+        for readings, never_labelled in (
+            (screens, SCREEN_SENSITIVE),
+            (notes, NOTE_SENSITIVE),
+            (pages, PAGE_UNLABELLED),
+        ):
+            for one in readings:
+                if one.refused is not None or one.labels:
+                    continue
+                if one.category in never_labelled:
+                    withheld += 1
+                else:
+                    label_silent += 1
 
         comparison = self.compare()
         overlap = (
@@ -491,6 +520,7 @@ class Pipeline:
             overlap=overlap,
             refusals=refusals,
             label_silent=label_silent,
+            withheld=withheld,
         )
 
     def compare(
