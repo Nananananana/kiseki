@@ -49,3 +49,46 @@ def test_ask_requires_a_question():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def _answer_naming_a_place() -> Answer:
+    from datetime import UTC, datetime
+
+    from kiseki.domain.insight import Insight, InsightDirection, InsightKind
+
+    now = datetime(2026, 9, 5, tzinfo=UTC)
+    insight = Insight(
+        topic="place:35.68123,139.76543",
+        kind=next(iter(InsightKind)),
+        direction=next(iter(InsightDirection)),
+        magnitude=1.0,
+        first_seen=now,
+        last_seen=now,
+        confidence=0.9,
+        evidence=("place:35.68123,139.76543",),
+        novelty=0.5,
+        derived_from=("kiseki insights",),
+    )
+    return Answer("q", "a", 0.5, None, None, (), "m", supporting_insights=(insight,))
+
+
+def test_ask_serves_a_place_topic_blurred():
+    """`/ask` was the one route in `_answer` that did not pass `blur`
+    on, so `?raw=true` and its absence served the same coordinate."""
+    server = _serving(lambda question, language, since, until: _answer_naming_a_place())
+    try:
+        _status, payload = _get(server.server_address[1], "/ask?q=q")
+        assert payload["supporting_insights"][0]["topic"] == "place:35.68,139.77"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_ask_raw_true_keeps_the_coordinates():
+    server = _serving(lambda question, language, since, until: _answer_naming_a_place())
+    try:
+        _status, payload = _get(server.server_address[1], "/ask?q=q&raw=true")
+        assert payload["supporting_insights"][0]["topic"] == "place:35.68123,139.76543"
+    finally:
+        server.shutdown()
+        server.server_close()

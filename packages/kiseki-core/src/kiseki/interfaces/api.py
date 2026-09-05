@@ -193,7 +193,10 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(400, {"error": "since/until must be ISO dates"})
                 return
             self._send(
-                200, answer_payload(self.server.ask_factory(question, language, since, until))
+                200,
+                answer_payload(
+                    self.server.ask_factory(question, language, since, until), blur=blur
+                ),
             )
         else:
             self._send(404, {"error": "not found"})

@@ -36,3 +36,17 @@ class TestAskCommand:
         out = capsys.readouterr().out
         assert '"question"' in out
         assert '"confidence"' in out
+
+
+class TestAskBlursLikeEverythingElse:
+    """`ask --json` had no `--raw`, and passed no `blur` on: the one
+    written payload that could carry a coordinate was the one that
+    never blurred it."""
+
+    def test_raw_is_accepted_and_off_by_default(self) -> None:
+        from kiseki.interfaces.cli import build_parser
+
+        blurred = build_parser().parse_args(["ask", "--json", "ramen"])
+        raw = build_parser().parse_args(["ask", "--json", "--raw", "ramen"])
+        assert blurred.raw is False
+        assert raw.raw is True
