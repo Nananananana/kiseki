@@ -8,7 +8,7 @@ reproducible in a few rows.
 """
 
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -202,3 +202,66 @@ class TestThePlan:
 
     def test_a_profile_that_is_not_one_is_refused(self, tmp_path: Path) -> None:
         assert main(["plan", str(tmp_path)]) == EXIT_BAD_INPUT
+
+
+class TestADayIsLocalInBothBrowsers:
+    """The contract says `day` is local. Firefox went through
+    `fromtimestamp` and was; Chromium added microseconds to a naive
+    1601 and stayed in UTC, so the same instant fell on different days
+    depending on which browser recorded it.
+
+    Measured on a JST machine before the fix, for one local day:
+
+        00:00 .. 08:00 JST   firefox 09-01   chromium 08-31
+        09:00 .. 23:00 JST   firefox 09-01   chromium 09-01
+
+    Nine hours of every day, on the wrong day, for one browser only.
+    The existing fixtures used 10:00 and never crossed a midnight, so
+    they were green about nothing. The zone is passed explicitly here
+    so this fails on a UTC runner too, where the old code happened to
+    agree with itself.
+    """
+
+    JST = timezone(timedelta(hours=9))
+    EARLY = datetime(2026, 9, 1, 3, 0, tzinfo=JST)
+    """Three in the morning, local: the previous day in UTC."""
+
+    def test_chromium_lands_on_the_local_day(self, tmp_path: Path) -> None:
+        utc_naive = self.EARLY.astimezone(UTC).replace(tzinfo=None)
+        database = chromium(tmp_path / "c", [(1, utc_naive, timedelta(seconds=30))])
+        plan = read_window(database, date(2026, 9, 1), date(2026, 9, 1), zone=self.JST)
+        assert [visit.day for visit in plan.visits] == [date(2026, 9, 1)], (
+            "the visit was dated in UTC; the contract says local"
+        )
+
+    def test_firefox_still_lands_on_the_local_day(self, tmp_path: Path) -> None:
+        database = firefox(tmp_path / "f", [(1, self.EARLY)])
+        plan = read_window(database, date(2026, 9, 1), date(2026, 9, 1), zone=self.JST)
+        assert [visit.day for visit in plan.visits] == [date(2026, 9, 1)]
+
+    def test_the_same_instant_is_the_same_moment_in_both(self, tmp_path: Path) -> None:
+        """Not only the day: the wall-clock time both browsers report
+        for one instant must be identical, or dwell arithmetic across
+        a switch of browser would be off by the zone offset."""
+        utc_naive = self.EARLY.astimezone(UTC).replace(tzinfo=None)
+        from_firefox = (
+            read_window(
+                firefox(tmp_path / "f", [(1, self.EARLY)]),
+                date(2026, 9, 1),
+                date(2026, 9, 1),
+                zone=self.JST,
+            )
+            .visits[0]
+            .at
+        )
+        from_chromium = (
+            read_window(
+                chromium(tmp_path / "c", [(1, utc_naive, timedelta(seconds=30))]),
+                date(2026, 9, 1),
+                date(2026, 9, 1),
+                zone=self.JST,
+            )
+            .visits[0]
+            .at
+        )
+        assert from_firefox == from_chromium == datetime(2026, 9, 1, 3, 0)

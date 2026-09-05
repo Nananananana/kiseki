@@ -36,7 +36,7 @@ import sqlite3
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 
 FIREFOX = "places.sqlite"
@@ -118,7 +118,27 @@ def history_in(profile: Path) -> Path:
     )
 
 
-def read_window(database: Path, since: date, until: date) -> Plan:
+WINDOWS_EPOCH_OFFSET_SECONDS = 11_644_473_600
+"""Seconds from 1601-01-01 to 1970-01-01. Chromium counts from the
+first, as Windows FILETIME does; everything else counts from the
+second."""
+
+
+def _local(seconds: float, zone: tzinfo | None) -> datetime:
+    """An instant as a naive wall-clock time in `zone`, or the machine's.
+
+    Both browsers store UTC. The contract says `day` is local, so the
+    conversion happens here, once, for both -- Firefox already went
+    through `fromtimestamp` and was right; Chromium added microseconds
+    to a naive 1601 and stayed in UTC, so for a JST reader every visit
+    between midnight and nine in the morning landed on the day before.
+    Naive rather than aware because that is what `fromtimestamp` gave
+    and what everything downstream expects (ADR-0064).
+    """
+    return datetime.fromtimestamp(seconds, tz=zone).replace(tzinfo=None)
+
+
+def read_window(database: Path, since: date, until: date, zone: tzinfo | None = None) -> Plan:
     """Every visit in the window, with the ones that were not attention.
 
     The database is copied first. It is locked while the browser runs,
@@ -128,7 +148,7 @@ def read_window(database: Path, since: date, until: date) -> Plan:
         copy = Path(raw) / database.name
         shutil.copy2(database, copy)
         _also_copy_journals(database, copy)
-        visits = _visits_from(copy, since, until)
+        visits = _visits_from(copy, since, until, zone)
     kept = tuple(visit for visit in visits if visit.attended)
     return Plan(visits=visits, kept=kept, pages=len({visit.page for visit in kept}))
 
@@ -146,14 +166,16 @@ def _also_copy_journals(database: Path, copy: Path) -> None:
             shutil.copy2(journal, copy.with_name(copy.name + suffix))
 
 
-def _visits_from(copy: Path, since: date, until: date) -> tuple[Visit, ...]:
+def _visits_from(
+    copy: Path, since: date, until: date, zone: tzinfo | None = None
+) -> tuple[Visit, ...]:
     connection = sqlite3.connect(f"file:{copy}?mode=ro", uri=True)
     try:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master")}
         if "moz_historyvisits" in tables:
-            rows = _firefox_rows(connection)
+            rows = _firefox_rows(connection, zone)
         elif "visits" in tables:
-            rows = _chromium_rows(connection)
+            rows = _chromium_rows(connection, zone)
         else:
             raise UnreadableHistoryError(f"{copy.name} is not a Firefox or Chromium history")
     finally:
@@ -161,26 +183,27 @@ def _visits_from(copy: Path, since: date, until: date) -> tuple[Visit, ...]:
     return _within(rows, since, until)
 
 
-def _firefox_rows(connection: sqlite3.Connection) -> list[tuple[int, datetime, float | None]]:
+def _firefox_rows(
+    connection: sqlite3.Connection, zone: tzinfo | None
+) -> list[tuple[int, datetime, float | None]]:
     """Firefox records microseconds since the epoch and no duration."""
     found = connection.execute(
         "SELECT place_id, visit_date FROM moz_historyvisits ORDER BY visit_date"
     ).fetchall()
-    return [
-        (int(page), datetime.fromtimestamp(int(when) / 1_000_000), None) for page, when in found
-    ]
+    return [(int(page), _local(int(when) / 1_000_000, zone), None) for page, when in found]
 
 
-def _chromium_rows(connection: sqlite3.Connection) -> list[tuple[int, datetime, float | None]]:
+def _chromium_rows(
+    connection: sqlite3.Connection, zone: tzinfo | None
+) -> list[tuple[int, datetime, float | None]]:
     """Chromium counts microseconds from 1601 and records a duration."""
-    epoch = datetime(1601, 1, 1)
     found = connection.execute(
         "SELECT url, visit_time, visit_duration FROM visits ORDER BY visit_time"
     ).fetchall()
     return [
         (
             int(page),
-            epoch + timedelta(microseconds=int(when)),
+            _local(int(when) / 1_000_000 - WINDOWS_EPOCH_OFFSET_SECONDS, zone),
             None if duration is None else float(duration),
         )
         for page, when, duration in found
