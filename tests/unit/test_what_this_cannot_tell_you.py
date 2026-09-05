@@ -231,6 +231,33 @@ def test_a_sensitive_reading_is_counted_as_withheld_not_as_silent() -> None:
     )
 
 
+def test_a_photograph_without_a_place_is_a_limit() -> None:
+    """The same shape as a refused caption: stored, and unable to answer
+    one kind of question. Measured on the real library, 417 of 4,950 --
+    which the photographs row alone reported as 4,950 places somebody
+    stood (#397)."""
+    report = limits_of(full(), unlocated=417)
+    by_subject = {limit.subject: limit for limit in report.limits}
+    assert by_subject["photographs without a place"].reading == "417"
+    assert "where" in by_subject["photographs without a place"].because
+
+
+def test_an_unlocated_photograph_is_counted_through_the_pipeline() -> None:
+    from kiseki.domain.shared.geo import GeoPoint
+
+    pipeline = _pipeline()
+    pipeline.ingest(
+        [
+            PhotoObservation(
+                PhotoId("placed"), datetime(2026, 5, 1, tzinfo=JST), GeoPoint(35.0, 135.0)
+            ),
+            PhotoObservation(PhotoId("unplaced"), datetime(2026, 5, 2, tzinfo=JST)),
+        ]
+    )
+    by_subject = {limit.subject: limit for limit in pipeline.limits().limits}
+    assert by_subject["photographs without a place"].reading == "1"
+
+
 def test_nothing_is_reported_when_nothing_is_wrong() -> None:
     """The honest zero. If this ever cannot happen, the command has
     started manufacturing limits to look thorough."""
@@ -297,8 +324,9 @@ def every_limit() -> LimitsReport:
         refusals=1,
         label_silent=1,
         withheld=1,
+        unlocated=1,
     )
-    assert len(report.limits) == len(EVERY_SOURCE) + 4, "not every limit is under test"
+    assert len(report.limits) == len(EVERY_SOURCE) + 5, "not every limit is under test"
     return report
 
 

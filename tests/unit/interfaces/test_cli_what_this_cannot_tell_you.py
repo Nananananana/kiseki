@@ -53,7 +53,7 @@ def printed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> str:
     return capsys.readouterr().out
 
 
-def document(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> dict:
+def document_of(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> dict:
     assert main(["--data-root", str(tmp_path), "limits", "--json"]) == EXIT_OK
     raw = capsys.readouterr().out
     return json.loads(raw[raw.index("{") :])
@@ -112,7 +112,7 @@ def test_the_document_carries_the_counts_and_no_test_names(
 ) -> None:
     """A consumer cannot run this repository's tests, and a claim is
     not more true for naming one to a stranger."""
-    payload = document(a_library(tmp_path), capsys)
+    payload = document_of(a_library(tmp_path), capsys)
     assert payload["span"] == {"first": "2025-05-01", "last": "2025-05-02", "days": 2}
     counts = {source["name"]: source["count"] for source in payload["sources"]}
     assert counts == {
@@ -135,9 +135,36 @@ def test_no_coordinate_reaches_the_report(
     path leaked one the first time it was written (ADR-0047)."""
     library = a_library(tmp_path)
     printed_out = printed(library, capsys)
-    payload_text = json.dumps(document(library, capsys))
+    payload_text = json.dumps(document_of(library, capsys))
     for surface in (printed_out, payload_text):
         assert "35.0094" not in surface
         assert "135.6669" not in surface
         assert "35.00" not in surface
         assert "135.66" not in surface
+
+
+def test_a_photograph_with_no_coordinate_is_said_out_loud(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Ingested with a time and no location -- which the contract allows --
+    and reported as a limit rather than folded into the photographs row."""
+    records = [
+        {
+            "id": f"sha256:{9:064d}",
+            "captured_at": "2025-05-03T10:00:00+09:00",
+            "media_type": "image",
+            "content_kind": "photo",
+            "thumbnail_ref": "2025/05/9999.jpg",
+            "owner": {"id": "me", "device": "a phone"},
+            "consent": {"granted": True, "scope": ["preferences"]},
+        }
+    ]
+    document = tmp_path / "unplaced.json"
+    document.write_text(json.dumps({"schema_version": "1.0", "records": records}), encoding="utf-8")
+    library = a_library(tmp_path)
+    assert main(["--data-root", str(library), "ingest", str(document)]) == EXIT_OK
+    out = printed(library, capsys)
+    assert "photographs without a place 1" in out or "photographs without a place" in out
+    payload = document_of(library, capsys)
+    subjects = {one["subject"]: one["reading"] for one in payload["limits"]}
+    assert subjects["photographs without a place"] == "1"

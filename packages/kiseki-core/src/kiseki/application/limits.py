@@ -177,6 +177,7 @@ def limits_of(
     refusals: int = 0,
     label_silent: int = 0,
     withheld: int = 0,
+    unlocated: int = 0,
 ) -> LimitsReport:
     """Every limit that follows from these counts, and no others.
 
@@ -196,6 +197,12 @@ def limits_of(
     readings were sensitive ones -- 32 chat, 31 auth, 17 finance, and
     not one model failure -- so the report described a privacy
     guarantee working correctly as a shortcoming of the library.
+
+    `unlocated` photographs are the same shape as a refused caption:
+    stored, with a time and perhaps a caption, and unable to answer
+    one kind of question -- here, *where*. Measured on the real
+    library: 417 of 4,950, which the photographs row alone would
+    have reported as 4,950 places somebody stood (#397).
     """
     found: list[Limit] = []
 
@@ -242,6 +249,18 @@ def limits_of(
                     " into or pay for is not interest evidence. This narrows"
                     " an answer, and it is the library working rather than"
                     " failing"
+                ),
+            )
+        )
+
+    if unlocated:
+        found.append(
+            Limit(
+                subject="photographs without a place",
+                reading=str(unlocated),
+                because=(
+                    "these are stored with a time and carry no coordinate, so no"
+                    " question about where reaches them"
                 ),
             )
         )
