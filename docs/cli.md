@@ -282,6 +282,19 @@ configured (ADR-0073). It touches the network only when asked:
 it answered. Everything it prints without `--check` is read from
 configuration.
 
+`parallel` is the number of model calls `caption`, `singles` and
+`screens` keep in flight at once. It defaults to one -- a plain loop --
+and is set like every other model setting: `KISEKI_MODEL_PARALLEL=4`,
+`parallel = 4` under `[model]` in `kiseki.toml`, or `--parallel 4` on
+the command line, which `refresh` passes on to each stage. Set it from
+your server's `OLLAMA_NUM_PARALLEL`, not above it: the server queues
+what it cannot run. Measured on one machine (`qwen3-vl:8b`, twelve
+stays): one at a time 97 s, two in flight 77 s, four in flight no
+faster and two answers came back empty -- so the default stays at
+one, and two is the number to try first. Each call still keeps its own fate -- a refusal is
+recorded against that item, an unavailable model pauses the run after
+the window it was in, and nothing that completed is lost.
+
 ## Privacy
 
 `kiseki privacy` reports how the library treats the owner's data,

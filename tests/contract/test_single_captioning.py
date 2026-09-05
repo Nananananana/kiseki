@@ -220,3 +220,16 @@ def test_the_oldest_photograph_comes_first():
     )
     assert singles.get(PhotoId("old")) is not None
     assert singles.get(PhotoId("new")) is None
+
+
+def test_an_empty_answer_is_a_refusal_and_not_a_crash() -> None:
+    """The same hole as the stay loop had: SingleCaption refuses empty
+    text, and nothing caught the ValueError."""
+    from kiseki.adapters.fake.models import FakeImageCaptioner as _Silent
+
+    photos = [_photo("lone", thumb="thumb")]
+    report, kept = _run(photos, images={"thumb": b"img"}, captioner=_Silent(describe=lambda r: ""))
+    assert report.empty == 1
+    assert report.refused == 0
+    assert report.captioned == 0
+    assert kept.all() == ()

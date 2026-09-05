@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import base64
 import json
+import threading
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
@@ -133,6 +134,13 @@ class _ChatAdapter:
         self._keep_alive = keep_alive
         self._post = post
         self._usage = Usage()
+        self._counting = threading.Lock()
+        """`_usage` is replaced, not mutated, and the replacement is a
+        read-modify-write. One thread at a time was the assumption until
+        `application.scheduling` started sending several one-element
+        calls at once; without this, two threads finishing together
+        would each read the same old usage and one call would go
+        uncounted."""
 
     def _ask(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         payload = {
@@ -144,7 +152,8 @@ class _ChatAdapter:
         try:
             return self._post("/api/chat", payload)
         except (ModelUnavailableError, ModelRefusedError):
-            self._usage = self._usage.record_failure()
+            with self._counting:
+                self._usage = self._usage.record_failure()
             raise
 
     def _record(self, document: dict[str, Any]) -> Completion:
@@ -154,7 +163,8 @@ class _ChatAdapter:
             input_tokens=int(document.get("prompt_eval_count", 0)),
             output_tokens=int(document.get("eval_count", 0)),
         )
-        self._usage = self._usage.record(completion)
+        with self._counting:
+            self._usage = self._usage.record(completion)
         return completion
 
     @property

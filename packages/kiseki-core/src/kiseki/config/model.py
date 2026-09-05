@@ -28,6 +28,10 @@ from kiseki.domain.trust import TrustBoundary, Verdict, judge
 
 ENV_PREFIX = "KISEKI_MODEL_"
 
+DEFAULT_PARALLEL = 1
+"""One call at a time. Measured on this machine before the setting
+existed; the number to raise it to is the server's, not this file's."""
+
 DEFAULT_HOST = "http://localhost:11434"
 DEFAULT_CAPTIONING_MODEL = "qwen3-vl:8b"
 DEFAULT_LANGUAGE_MODEL = "qwen2.5:14b-instruct-q4_K_M"
@@ -40,6 +44,7 @@ KNOWN = (
     "captioning_model",
     "language_model",
     "embedding_model",
+    "parallel",
 )
 
 
@@ -53,6 +58,15 @@ class ModelSettings:
     captioning_model: str = DEFAULT_CAPTIONING_MODEL
     language_model: str = DEFAULT_LANGUAGE_MODEL
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
+    parallel: int = DEFAULT_PARALLEL
+    """How many one-element model calls the captioning loops keep in
+    flight at once. One is a plain loop. Set from OLLAMA_NUM_PARALLEL's
+    value on the server, not above it: the server queues what it
+    cannot run, and the wall-clock gain stops there."""
+
+    def __post_init__(self) -> None:
+        if self.parallel < 1:
+            raise ValueError(f"parallel must be at least 1, not {self.parallel}")
 
     @property
     def verdict(self) -> Verdict:
@@ -125,6 +139,16 @@ def resolve_model_settings(
     trusted = tuple(
         name.strip().lower() for name in layers.get("trusted_hosts", "").split(",") if name.strip()
     )
+    parallel = DEFAULT_PARALLEL
+    if "parallel" in layers:
+        try:
+            parallel = int(layers["parallel"].strip())
+        except ValueError:
+            raise ValueError(
+                f"'{layers['parallel']}' is not a number of calls to keep in flight"
+            ) from None
+        if parallel < 1:
+            raise ValueError(f"parallel must be at least 1, not {parallel}")
     return ModelSettings(
         host=layers.get("host", DEFAULT_HOST),
         boundary=boundary,
@@ -132,4 +156,5 @@ def resolve_model_settings(
         captioning_model=layers.get("captioning_model", DEFAULT_CAPTIONING_MODEL),
         language_model=layers.get("language_model", DEFAULT_LANGUAGE_MODEL),
         embedding_model=layers.get("embedding_model", DEFAULT_EMBEDDING_MODEL),
+        parallel=parallel,
     )

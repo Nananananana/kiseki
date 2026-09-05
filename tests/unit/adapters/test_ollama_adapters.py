@@ -19,8 +19,10 @@ from kiseki.adapters.ollama.models import (
 )
 from kiseki.ports.models import (
     CaptionRequest,
+    Completion,
     ModelRefusedError,
     ModelUnavailableError,
+    Usage,
 )
 
 CHAT_ANSWER: dict[str, Any] = {
@@ -168,3 +170,52 @@ class TestOllamaTextEmbedder:
         post = RecordingPost({"embeddings": []})
         assert OllamaTextEmbedder(dimensions=2, post=post).embed([]) == []
         assert post.calls == []
+
+
+class TestUsageUnderConcurrency:
+    def test_every_call_is_counted_when_several_finish_together(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`_usage` is replaced by a read-modify-write. Without a lock,
+        two threads finishing together each read the same old value and
+        one call goes uncounted.
+
+        The first version of this test released sixteen threads at a
+        barrier and passed five times out of five with the lock
+        removed: under the GIL the window between read and write is a
+        few bytecodes and never got interrupted. So the window is held
+        open here -- `record` yields the interpreter before it returns
+        -- which turns a rare interleaving into a certain one. With the
+        lock the sixteen serialise and all are counted; without it they
+        all read zero and the count collapses.
+        """
+        import threading
+        import time
+
+        real_record = Usage.record
+
+        def slow_record(self: Usage, completion: Completion) -> Usage:
+            fresh = real_record(self, completion)
+            time.sleep(0.002)
+            return fresh
+
+        monkeypatch.setattr(Usage, "record", slow_record)
+        gate = threading.Barrier(16, timeout=5.0)
+
+        class GatedPost(RecordingPost):
+            def __call__(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+                gate.wait()
+                return super().__call__(path, payload)
+
+        captioner = OllamaImageCaptioner(
+            post=GatedPost(
+                {"message": {"content": "a scene"}, "prompt_eval_count": 3, "eval_count": 2}
+            )
+        )
+        request = CaptionRequest((b"pixels",), "describe")
+        threads = [threading.Thread(target=lambda: captioner.caption([request])) for _ in range(16)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert captioner.usage.calls == 16

@@ -14,13 +14,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.scheduling import fan_out
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.ports.models import (
     CaptionRequest,
     ImageCaptioner,
-    ModelRefusedError,
-    ModelUnavailableError,
 )
 from kiseki.ports.repositories import OutingRepository, PhotoRepository
 from kiseki.ports.singles import SingleCaptionRepository
@@ -53,6 +52,19 @@ class SingleCaptionRunReport:
     """True when the model became unavailable and the run stopped early.
     Running again continues from where it paused."""
 
+    empty: int = 0
+    """Photographs the model answered with no text. Nothing is saved, so
+    the next run asks again; see CaptionRunReport.empty."""
+
+
+@dataclass(frozen=True)
+class _Job:
+    """One lone photograph, ready to be asked about."""
+
+    photo_id: PhotoId
+    request: CaptionRequest
+    when: datetime
+
 
 def run_single_captioning(
     photos: PhotoRepository,
@@ -62,6 +74,7 @@ def run_single_captioning(
     captioner: ImageCaptioner,
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
+    parallel: int = 1,
 ) -> SingleCaptionRunReport:
     """Caption every eligible lone photograph, oldest first."""
     in_stays = {
@@ -70,11 +83,45 @@ def run_single_captioning(
         for stop in outing.stops
         for identifier in stop.photo_ids
     }
-    captioned = already = refused = unreferenced = 0
+    captioned = already = refused = unreferenced = empty = 0
     paused = False
 
+    pending: list[_Job] = []
+
+    def flush() -> None:
+        nonlocal captioned, refused, paused, pending, empty
+        outcomes = fan_out(pending, lambda job: captioner.caption([job.request])[0], parallel)
+        for outcome in outcomes:
+            job = outcome.item
+            if outcome.unavailable is not None:
+                paused = True
+                continue
+            if outcome.refused is not None:
+                singles.save(_refusal(job.photo_id, str(outcome.refused), job.when))
+                refused += 1
+                continue
+            completion = outcome.completed
+            assert completion is not None
+            if not completion.text.strip():
+                # Neither a refusal nor an outage, and SingleCaption
+                # refuses to hold it. Nothing is saved, so the next run
+                # asks again; see CaptionRunReport.empty for why.
+                empty += 1
+                continue
+            singles.save(
+                SingleCaption(
+                    photo_id=job.photo_id,
+                    text=completion.text,
+                    model=completion.model,
+                    created_at=job.when,
+                    prompt_version=SINGLE_CAPTION_PROMPT_VERSION,
+                )
+            )
+            captioned += 1
+        pending = []
+
     for item in photos.all():
-        if limit is not None and captioned + refused >= limit:
+        if limit is not None and captioned + refused + len(pending) >= limit:
             break
         if item.photo_id in in_stays:
             continue
@@ -98,29 +145,18 @@ def run_single_captioning(
             continue
 
         context = f"Taken around {item.captured_at:%Y-%m-%d %H:%M}."
-        request = CaptionRequest((image,), SINGLE_CAPTION_PROMPT, context)
-        try:
-            completion = captioner.caption([request])[0]
-        except ModelRefusedError as error:
-            singles.save(_refusal(item.photo_id, str(error), when))
-            refused += 1
-            continue
-        except ModelUnavailableError:
-            paused = True
-            break
-
-        singles.save(
-            SingleCaption(
-                photo_id=item.photo_id,
-                text=completion.text,
-                model=completion.model,
-                created_at=when,
-                prompt_version=SINGLE_CAPTION_PROMPT_VERSION,
-            )
+        pending.append(
+            _Job(item.photo_id, CaptionRequest((image,), SINGLE_CAPTION_PROMPT, context), when)
         )
-        captioned += 1
+        if len(pending) >= parallel:
+            flush()
+            if paused:
+                break
 
-    return SingleCaptionRunReport(captioned, already, refused, unreferenced, paused)
+    if pending and not paused:
+        flush()
+
+    return SingleCaptionRunReport(captioned, already, refused, unreferenced, paused, empty)
 
 
 def _refusal(photo_id: PhotoId, reason: str, when: datetime) -> SingleCaption:
