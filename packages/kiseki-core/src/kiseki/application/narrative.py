@@ -61,8 +61,10 @@ def narrative_facts(
     """The closed list: measures, then named places, then subjects."""
     facts = [
         f"{report.photographs} photographs and {len(report.outings)} outings were measured.",
-        f"{len(report.places.places)} distinct places were visited;"
-        f" {report.places.one_time_rate:.0%} were never returned to.",
+        (
+            f"{len(report.places.places)} distinct places were visited;"
+            f" {report.places.one_time_rate:.0%} were never returned to."
+        ),
         f"{report.rhythm.weekend_share:.0%} of outings happened on weekends.",
     ]
     facts.extend(_place_facts(profile, names or {}, singles, photos))

@@ -49,15 +49,15 @@ def _many(label: str, count: int, category: str = "product") -> list[ScreenshotR
 
 class TestDeriveScreenInterests:
     def test_nothing_from_nothing(self) -> None:
-        assert derive_screen_interests((), at=AT) == ()
+        assert derive_screen_interests(()) == ()
 
     def test_a_single_appearance_is_not_yet_an_interest(self) -> None:
         assert MIN_SCREEN_LABEL_COUNT == 2
-        interests = derive_screen_interests(tuple(_many("camera", 1)), at=AT)
+        interests = derive_screen_interests(tuple(_many("camera", 1)))
         assert interests == ()
 
     def test_a_repeated_label_becomes_an_interest(self) -> None:
-        interests = derive_screen_interests(tuple(_many("camera", 2)), at=AT)
+        interests = derive_screen_interests(tuple(_many("camera", 2)))
         (interest,) = interests
         assert interest.topic == "camera"
         assert all(e.kind is EvidenceKind.SCREENSHOT for e in interest.evidence)
@@ -68,20 +68,20 @@ class TestDeriveScreenInterests:
             _many("wifi", 3, category="settings")
             + [_reading(f"c{i}", "chat", (), days=i) for i in range(3)]
         )
-        assert derive_screen_interests(readings, at=AT) == ()
+        assert derive_screen_interests(readings) == ()
 
     def test_refusals_contribute_nothing(self) -> None:
         readings = tuple(_reading(f"r{index}", "other", (), refused="bad") for index in range(3))
-        assert derive_screen_interests(readings, at=AT) == ()
+        assert derive_screen_interests(readings) == ()
 
     def test_the_most_seen_label_scores_highest(self) -> None:
         readings = tuple(_many("camera", 4) + _many("ramen", 2, category="food"))
-        interests = {i.topic: i for i in derive_screen_interests(readings, at=AT)}
+        interests = {i.topic: i for i in derive_screen_interests(readings)}
         assert interests["camera"].score > interests["ramen"].score
         assert interests["camera"].score == pytest.approx(1.0)
 
     def test_the_evidence_is_capped_but_counted(self) -> None:
-        interests = derive_screen_interests(tuple(_many("camera", 9)), at=AT)
+        interests = derive_screen_interests(tuple(_many("camera", 9)))
         (interest,) = interests
         assert len(interest.evidence) <= 5
         assert interest.first_seen == AT

@@ -50,7 +50,7 @@ DEFAULT_MODEL = "qwen2.5:14b-instruct-q4_K_M"
 
 
 def _window(args: argparse.Namespace) -> tuple[date, date]:
-    until = date.fromisoformat(args.until) if args.until else date.today()
+    until = date.fromisoformat(args.until) if args.until else date.today()  # noqa: DTZ011 -- a window ending today is today where the owner is
     since = (
         date.fromisoformat(args.since)
         if args.since

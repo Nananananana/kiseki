@@ -83,7 +83,7 @@ class FakeLanguageModel:
         model: str = "fake-language-model",
     ) -> None:
         self._answer = (
-            answer if answer is not None else (lambda system, prompt: f"echo: {prompt[:40]}")
+            answer if answer is not None else (lambda _system, prompt: f"echo: {prompt[:40]}")
         )
         self._fail_on = fail_on if fail_on is not None else (lambda _: False)
         self._model = model

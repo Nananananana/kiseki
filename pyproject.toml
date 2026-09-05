@@ -46,7 +46,22 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ARG", "ISC", "BLE", "DTZ"]
+# ARG, ISC, BLE and DTZ were added after one week found, by hand, an
+# ignored `blur` parameter serving raw coordinates (#398), a Chromium day
+# computed in UTC (#399), and a kept profile stamped without its offset
+# (#402). Each is the class of defect one of these rules exists for.
+
+[tool.ruff.lint.per-file-ignores]
+# The command line compares a naive `now()` against stored moments it has
+# already stripped to naive (ADR-0064): ages in days, for a reader. Making
+# it aware is the other half of #402, not a lint fix.
+"packages/kiseki-core/src/kiseki/interfaces/cli.py" = ["DTZ005", "DTZ011"]
+# Tests stub protocols with fakes that ignore arguments, build fixtures
+# with naive datetimes on purpose, and catch broadly to assert on the
+# message. The rules exist for shipped source, which is where every
+# defect they were added for lived.
+"tests/**/*.py" = ["ARG", "DTZ", "BLE"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -2378,13 +2378,13 @@ def _command_demo(args: argparse.Namespace) -> int:
     pipeline.rebuild()
 
     if args.full:
-        lines = _walk_the_tour(TOUR, root, db_path)
+        lines = _walk_the_tour(TOUR, root)
         for line in lines:
             print(line)
         if destination is not None:
             document = destination
             document.parent.mkdir(parents=True, exist_ok=True)
-            document.write_text(_as_markdown(TOUR, root, db_path), encoding="utf-8")
+            document.write_text(_as_markdown(TOUR, root), encoding="utf-8")
             print(f"\n  written to {document}")
         del pipeline
         gc.collect()
@@ -2525,7 +2525,7 @@ def _run_quietly(command: str, root: Path) -> str:
             code = parsed.run(parsed)
     except SystemExit as stop:
         return f"(the command refused its arguments: {stop})"
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 -- the tour reports a stop's crash, it does not become one
         return f"({type(error).__name__}: {error})"
     finally:
         # Both were set aside and neither was ever put back: `kept` was
@@ -2542,7 +2542,7 @@ def _run_quietly(command: str, root: Path) -> str:
     return said or "(said nothing)"
 
 
-def _walk_the_tour(tour: tuple[Any, ...], root: Path, db_path: Path) -> list[str]:
+def _walk_the_tour(tour: tuple[Any, ...], root: Path) -> list[str]:
     """Every stop, in order, as lines for a terminal."""
     lines = [RULE, "  a guided run through everything the library can say", ""]
     for stop in tour:
@@ -2560,7 +2560,7 @@ def _walk_the_tour(tour: tuple[Any, ...], root: Path, db_path: Path) -> list[str
     return lines
 
 
-def _as_markdown(tour: tuple[Any, ...], root: Path, db_path: Path) -> str:
+def _as_markdown(tour: tuple[Any, ...], root: Path) -> str:
     """The same tour, as a document somebody could read first."""
     parts = [
         "# A tour of KISEKI",
