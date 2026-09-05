@@ -2509,7 +2509,7 @@ def _run_quietly(command: str, root: Path) -> str:
 
     buffer = _io.StringIO()
     parser = build_parser()
-    Path.cwd()
+    before = Path.cwd()
     kept = {name: value for name, value in _os.environ.items() if name.startswith("KISEKI_")}
     try:
         # The sandbox becomes the working directory and KISEKI_* is set
@@ -2527,6 +2527,15 @@ def _run_quietly(command: str, root: Path) -> str:
         return f"(the command refused its arguments: {stop})"
     except Exception as error:
         return f"({type(error).__name__}: {error})"
+    finally:
+        # Both were set aside and neither was ever put back: `kept` was
+        # computed and unused, and `Path.cwd()` was called and thrown
+        # away. So after a tour the process sat inside a sandbox that
+        # was about to be deleted -- which is what the rmtree retry
+        # loop in _sweep exists to survive -- with the owner's KISEKI_*
+        # gone for the rest of the run.
+        _os.chdir(before)
+        _os.environ.update(kept)
     said = buffer.getvalue().strip()
     if code != EXIT_OK:
         said = f"{said}\n(exit {code})".strip()
