@@ -121,3 +121,42 @@ def test_a_word_is_not_a_number_of_calls(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("KISEKI_MODEL_PARALLEL", "four")
     with pytest.raises(ValueError, match="not a number"):
         resolve_model_settings()
+
+
+def test_keep_alive_and_timeout_default_to_what_the_adapters_assume() -> None:
+    """Two places hold the same two numbers on purpose -- config may not
+    import adapters' defaults without saying every adapter is Ollama --
+    so this is what keeps them from drifting."""
+    from kiseki.adapters.ollama.models import DEFAULT_KEEP_ALIVE, DEFAULT_TIMEOUT_SECONDS
+
+    settings = resolve_model_settings()
+    assert settings.keep_alive == DEFAULT_KEEP_ALIVE
+    assert settings.timeout_seconds == DEFAULT_TIMEOUT_SECONDS
+
+
+def test_keep_alive_comes_through_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_KEEP_ALIVE", "0")
+    assert resolve_model_settings().keep_alive == "0"
+
+
+def test_timeout_comes_through_toml(tmp_path: Path) -> None:
+    (tmp_path / "kiseki.toml").write_text("[model]\ntimeout_seconds = 30\n", encoding="utf-8")
+    assert resolve_model_settings(dotenv=tmp_path / ".env").timeout_seconds == 30.0
+
+
+def test_a_timeout_that_is_not_a_number_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_TIMEOUT_SECONDS", "soon")
+    with pytest.raises(ValueError, match="not a number"):
+        resolve_model_settings()
+
+
+def test_a_timeout_of_nothing_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_TIMEOUT_SECONDS", "0")
+    with pytest.raises(ValueError, match="positive"):
+        resolve_model_settings()
+
+
+def test_a_blank_keep_alive_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_KEEP_ALIVE", "   ")
+    with pytest.raises(ValueError, match="blank"):
+        resolve_model_settings()

@@ -275,6 +275,27 @@ before each date. Over HTTP: `GET /compare`.
 
 ## Where the model is
 
+Every model setting is read the same way the storage paths are --
+defaults, `kiseki.toml` under `[model]`, `.env`, the environment, then
+the command line -- and an unknown key is refused rather than ignored.
+An orchestrator that runs one stage per process sets these in the
+child's environment and touches no file.
+
+| Setting | Default | What it is |
+|---|---|---|
+| `KISEKI_MODEL_HOST` | `http://localhost:11434` | where Ollama is; `--model-host` overrides it once |
+| `KISEKI_MODEL_BOUNDARY` | `same_host` | how far away a model may be (ADR-0073) |
+| `KISEKI_MODEL_TRUSTED_HOSTS` | (none) | hosts admitted by name, comma-separated |
+| `KISEKI_MODEL_CAPTIONING_MODEL` | `qwen3-vl:8b` | stays, lone photographs, screenshots |
+| `KISEKI_MODEL_LANGUAGE_MODEL` | `qwen2.5:7b-instruct` | `tell`, `ask`, subjects |
+| `KISEKI_MODEL_EMBEDDING_MODEL` | `bge-m3` | `index` |
+| `KISEKI_MODEL_PARALLEL` | `1` | calls in flight at once; `--parallel` overrides it once |
+| `KISEKI_MODEL_KEEP_ALIVE` | `5m` | how long the server keeps the model loaded; `0` unloads on return |
+| `KISEKI_MODEL_TIMEOUT_SECONDS` | `300` | how long one call may take before it counts as unavailable |
+
+The boundary is judged on the host, so a second Ollama on
+`127.0.0.1:11435` is still `same_host`.
+
 `kiseki llm` says which host the models are on, whether that host is
 inside the trust boundary and why, and which three models are
 configured (ADR-0073). It touches the network only when asked:
