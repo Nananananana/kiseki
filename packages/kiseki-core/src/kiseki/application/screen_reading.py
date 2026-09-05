@@ -9,9 +9,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.scheduling import fan_out
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.domain.screen.reading import ScreenshotReading
-from kiseki.ports.models import ModelRefusedError, ModelUnavailableError
 from kiseki.ports.repositories import PhotoRepository
 from kiseki.ports.screens import ScreenshotReader, ScreenshotReadingRepository
 from kiseki.ports.thumbnails import ThumbnailMissingError, ThumbnailSource
@@ -32,6 +32,15 @@ class ScreenRunReport:
     withheld: int = 0
 
 
+@dataclass(frozen=True)
+class _Job:
+    """One screenshot, read from disk and not yet from the model."""
+
+    photo_id: PhotoId
+    image: bytes
+    when: datetime
+
+
 def run_screen_reading(
     photos: PhotoRepository,
     readings: ScreenshotReadingRepository,
@@ -39,10 +48,40 @@ def run_screen_reading(
     reader: ScreenshotReader,
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
+    parallel: int = 1,
 ) -> ScreenRunReport:
     """Read every unread screenshot, oldest first."""
     read = already = refused = unreferenced = withheld = 0
     paused = False
+
+    pending: list[_Job] = []
+
+    def flush() -> None:
+        nonlocal read, refused, paused, pending
+        outcomes = fan_out(pending, lambda job: reader.read([job.image])[0], parallel)
+        for outcome in outcomes:
+            job = outcome.item
+            if outcome.unavailable is not None:
+                paused = True
+                continue
+            if outcome.refused is not None:
+                readings.save(_refusal(job.photo_id, str(outcome.refused), job.when))
+                refused += 1
+                continue
+            result = outcome.completed
+            assert result is not None
+            readings.save(
+                ScreenshotReading(
+                    photo_id=job.photo_id,
+                    category=result.category,
+                    labels=result.labels,
+                    model=result.model,
+                    created_at=job.when,
+                    prompt_version=SCREEN_PROMPT_VERSION,
+                )
+            )
+            read += 1
+        pending = []
 
     for photo in photos.all():
         if photo.content_kind != SCREENSHOT:
@@ -50,7 +89,7 @@ def run_screen_reading(
         if not photo.may_inform_preferences:
             withheld += 1
             continue
-        if limit is not None and read + refused >= limit:
+        if limit is not None and read + refused + len(pending) >= limit:
             break
         if photo.thumbnail_ref is None:
             unreferenced += 1
@@ -67,27 +106,14 @@ def run_screen_reading(
             refused += 1
             continue
 
-        try:
-            result = reader.read([image])[0]
-        except ModelRefusedError as error:
-            readings.save(_refusal(photo.photo_id, str(error), when))
-            refused += 1
-            continue
-        except ModelUnavailableError:
-            paused = True
-            break
+        pending.append(_Job(photo.photo_id, image, when))
+        if len(pending) >= parallel:
+            flush()
+            if paused:
+                break
 
-        readings.save(
-            ScreenshotReading(
-                photo_id=photo.photo_id,
-                category=result.category,
-                labels=result.labels,
-                model=result.model,
-                created_at=when,
-                prompt_version=SCREEN_PROMPT_VERSION,
-            )
-        )
-        read += 1
+    if pending and not paused:
+        flush()
 
     return ScreenRunReport(read, already, refused, unreferenced, paused, withheld)
 

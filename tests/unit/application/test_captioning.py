@@ -200,3 +200,56 @@ class TestCaptioningRun:
         captioner = FakeImageCaptioner()
         world.run(captioner)
         assert "2026-05-03" in captioner.seen[0].context
+
+
+class TestSeveralAtOnce:
+    """The loop keeps every rule it had while several calls are in flight."""
+
+    @staticmethod
+    def _world(count: int) -> World:
+        stops = [_stop([f"p{index}"], 9 + index) for index in range(count)]
+        return World(stops, {f"p{index}": f"thumb{index}" for index in range(count)})
+
+    def test_a_window_saves_everything_in_order(self) -> None:
+        world = self._world(5)
+        report = world.run(FakeImageCaptioner(), parallel=4)
+        assert report.captioned == 5
+        assert len(world.captions.all()) == 5
+
+    def test_the_limit_holds_however_many_are_in_flight(self) -> None:
+        world = self._world(10)
+        report = world.run(FakeImageCaptioner(), limit=3, parallel=4)
+        assert report.captioned == 3
+        assert len(world.captions.all()) == 3
+
+    def test_an_unavailable_model_pauses_after_its_window_and_keeps_the_rest_of_it(
+        self,
+    ) -> None:
+        world = self._world(6)
+        failing = FakeImageCaptioner(fail_on=lambda request: b"pixels-thumb1" in request.images)
+        report = world.run(failing, parallel=3)
+        assert report.paused
+        assert report.captioned == 2, "the two that completed in the window were lost"
+        assert len(world.captions.all()) == 2
+
+    def test_an_empty_answer_is_a_refusal_and_not_a_crash(self) -> None:
+        """Found on the real library: the eighth stay came back with no
+        text, Caption refused to hold it, and the run died with the
+        ValueError. Neither a refusal nor an outage, so nothing caught
+        it.
+
+        And not a refusal either. Measured: none of twelve empty one at
+        a time, two of twelve with four in flight -- an empty answer is
+        the server under load, and recording it as a refusal would have
+        thrown those two stays away for good (ADR-0015 is for answers
+        that will not change). So nothing is saved, and the next run
+        asks again."""
+        world = self._world(2)
+        silent = FakeImageCaptioner(describe=lambda request: "   ")
+        report = world.run(silent)
+        assert report.empty == 2
+        assert report.refused == 0, "an empty answer was recorded as a refusal"
+        assert report.captioned == 0
+        assert world.captions.all() == (), "something was saved for an empty answer"
+        again = world.run(FakeImageCaptioner())
+        assert again.captioned == 2, "an empty answer was not asked again"

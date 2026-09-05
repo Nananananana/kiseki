@@ -225,6 +225,21 @@ class ModelRefusedByBoundaryError(RuntimeError):
     """The model is further away than the owner allowed."""
 
 
+def _model_overrides(args: argparse.Namespace) -> dict[str, str]:
+    """What this invocation said about the models, as the top layer.
+
+    One place, because `llm` used to build its own and only knew about
+    the host: a flag added to `_models_for` alone would be honoured by
+    every command except the one whose job is to say what is in force.
+    """
+    overrides: dict[str, str] = {}
+    if getattr(args, "model_host", None):
+        overrides["host"] = args.model_host
+    if getattr(args, "parallel", None) is not None:
+        overrides["parallel"] = str(args.parallel)
+    return overrides
+
+
 def _models_for(args: argparse.Namespace) -> ModelSettings:
     """Where the models are, having checked that they may be there.
 
@@ -233,8 +248,7 @@ def _models_for(args: argparse.Namespace) -> ModelSettings:
     time. Photographs are sent by captioning, so the question is asked
     before the first one (ADR-0073).
     """
-    given = getattr(args, "model_host", None)
-    settings = resolve_model_settings({"host": given} if given else {}, dotenv=Path(".env"))
+    settings = resolve_model_settings(_model_overrides(args), dotenv=Path(".env"))
     verdict = settings.verdict
     if not verdict.admitted:
         raise ModelRefusedByBoundaryError(
@@ -791,6 +805,7 @@ def _command_caption(args: argparse.Namespace) -> int:
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
         captioner=_captioner(args),
         limit=args.limit,
+        parallel=_models_for(args).parallel,
     )
     print(RULE)
     print(f"  captioned     {report.captioned}")
@@ -798,6 +813,8 @@ def _command_caption(args: argparse.Namespace) -> int:
     print(f"  refused       {report.refused}")
     print(f"  unreferenced  {report.unreferenced}")
     print(f"  withheld      {report.withheld}")
+    if report.empty:
+        print(f"  empty         {report.empty}   answered with no text; asked again next run")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
     return EXIT_OK
@@ -1006,6 +1023,7 @@ def _command_screens(args: argparse.Namespace) -> int:
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
         reader=_screen_reader(args),
         limit=args.limit,
+        parallel=_models_for(args).parallel,
     )
     print(RULE)
     print(f"  read          {report.read}")
@@ -1027,12 +1045,15 @@ def _command_singles(args: argparse.Namespace) -> int:
         thumbnails=FilesystemThumbnailSource(paths.thumbs_dir),
         captioner=_captioner(args),
         limit=args.limit,
+        parallel=_models_for(args).parallel,
     )
     print(RULE)
     print(f"  captioned     {report.captioned}")
     print(f"  already done  {report.already_captioned}")
     print(f"  refused       {report.refused}")
     print(f"  unreferenced  {report.unreferenced}")
+    if report.empty:
+        print(f"  empty         {report.empty}   answered with no text; asked again next run")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
     return EXIT_OK
@@ -1558,6 +1579,12 @@ def _command_cost(args: argparse.Namespace) -> int:
             print("  the model could not be reached, so no rate was measured")
         else:
             print(f"  measured       {rate:.2f}s for one call")
+            parallel = _models_for(args).parallel
+            if parallel > 1:
+                print(
+                    f"  in flight      {parallel} at once; the totals below are one at a time,"
+                    " and the wall clock will be shorter by an amount this does not guess"
+                )
             print()
 
     stages = tuple(
@@ -1637,10 +1664,7 @@ def _command_llm(args: argparse.Namespace) -> int:
     --check it says what is configured and judges it, which needs no
     network at all (ADR-0073).
     """
-    settings = resolve_model_settings(
-        {"host": args.model_host} if getattr(args, "model_host", None) else {},
-        dotenv=Path(".env"),
-    )
+    settings = resolve_model_settings(_model_overrides(args), dotenv=Path(".env"))
     verdict = settings.verdict
     print(RULE)
     print(f"  host            {settings.host}")
@@ -1653,6 +1677,7 @@ def _command_llm(args: argparse.Namespace) -> int:
     print(f"\n  captioning      {settings.captioning_model}")
     print(f"  language        {settings.language_model}")
     print(f"  embedding       {settings.embedding_model}")
+    print(f"  parallel        {settings.parallel} call(s) in flight at once")
     if not verdict.admitted:
         return EXIT_BAD_INPUT
     if not args.check:
@@ -2299,6 +2324,8 @@ def _command_refresh(args: argparse.Namespace) -> int:
         return EXIT_OK
     parser = build_parser()
     base = ["--data-root", args.data_root] if getattr(args, "data_root", None) else []
+    if getattr(args, "parallel", None) is not None:
+        base += ["--parallel", str(args.parallel)]
     for stage in REFRESH_STAGES:
         print(RULE)
         print(f"  {stage}")
@@ -2637,6 +2664,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="model_host",
         default=None,
         help="where the model is, this once",
+    )
+    parser.add_argument(
+        "--parallel",
+        type=int,
+        default=None,
+        help="model calls kept in flight at once by caption, singles and screens (default 1)",
     )
     commands = parser.add_subparsers(dest="command")
 

@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.scheduling import fan_out
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.outing.stop import Stop
 from kiseki.domain.photo.observation import PhotoId
@@ -17,8 +18,6 @@ from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.models import (
     CaptionRequest,
     ImageCaptioner,
-    ModelRefusedError,
-    ModelUnavailableError,
 )
 from kiseki.ports.repositories import OutingRepository, PhotoRepository
 from kiseki.ports.thumbnails import ThumbnailMissingError, ThumbnailSource
@@ -67,6 +66,24 @@ class CaptionRunReport:
     """Stays whose every photograph withheld preference consent
     (ADR-0032); nothing was asked about them. See ADR-0035."""
 
+    empty: int = 0
+    """Stays the model answered with no text. Nothing is saved for them,
+    so the next run asks again. Measured on the real library: none of
+    twelve one at a time, two of twelve with four in flight -- an empty
+    answer is what an overloaded server does, not what a model decides,
+    so it is not a refusal and is not recorded as one (ADR-0015)."""
+
+
+@dataclass(frozen=True)
+class _Job:
+    """One stay, ready to be asked about: everything but the answer."""
+
+    key: CaptionKey
+    selected: tuple[PhotoId, ...]
+    images: tuple[bytes, ...]
+    context: str
+    when: datetime
+
 
 def run_captioning(
     outings: OutingRepository,
@@ -77,6 +94,7 @@ def run_captioning(
     images_per_stop: int = DEFAULT_IMAGES_PER_STOP,
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
+    parallel: int = 1,
 ) -> CaptionRunReport:
     """Caption every stay that has no caption yet, oldest first.
 
@@ -91,11 +109,56 @@ def run_captioning(
         if item.thumbnail_ref and item.may_inform_preferences
     }
     withheld_ids = {item.photo_id for item in observations if not item.may_inform_preferences}
-    captioned = already = refused = unreferenced = withheld = 0
+    captioned = already = refused = unreferenced = withheld = empty = 0
     paused = False
 
+    pending: list[_Job] = []
+
+    def flush() -> None:
+        nonlocal captioned, refused, paused, pending, empty
+        outcomes = fan_out(
+            pending,
+            lambda job: captioner.caption(
+                [CaptionRequest(job.images, CAPTION_PROMPT, job.context)]
+            )[0],
+            parallel,
+        )
+        for outcome in outcomes:
+            job = outcome.item
+            if outcome.unavailable is not None:
+                paused = True
+                continue
+            if outcome.refused is not None:
+                captions.save(_refusal(job.key, job.selected, str(outcome.refused), job.when))
+                refused += 1
+                continue
+            completion = outcome.completed
+            assert completion is not None
+            if not completion.text.strip():
+                # A model that answers with nothing is neither refusing
+                # nor unavailable, and Caption refuses to hold an empty
+                # answer. Left uncaught this killed a run after seven
+                # captions on the real library. It is not recorded as a
+                # refusal either: two of twelve came back empty with
+                # four in flight and none with one, so an empty answer
+                # is the server under load, and asking again works.
+                empty += 1
+                continue
+            captions.save(
+                Caption(
+                    key=job.key,
+                    photo_ids=job.selected,
+                    text=completion.text,
+                    model=completion.model,
+                    created_at=job.when,
+                    prompt_version=CAPTION_PROMPT_VERSION,
+                )
+            )
+            captioned += 1
+        pending = []
+
     for stop in _stops(outings):
-        if limit is not None and captioned + refused >= limit:
+        if limit is not None and captioned + refused + len(pending) >= limit:
             break
 
         eligible = [identifier for identifier in stop.photo_ids if identifier in references]
@@ -121,29 +184,16 @@ def run_captioning(
             continue
 
         context = f"Taken around {stop.time_range.start:%Y-%m-%d %H:%M}."
-        try:
-            completion = captioner.caption([CaptionRequest(images, CAPTION_PROMPT, context)])[0]
-        except ModelRefusedError as error:
-            captions.save(_refusal(key, selected, str(error), when))
-            refused += 1
-            continue
-        except ModelUnavailableError:
-            paused = True
-            break
+        pending.append(_Job(key, selected, images, context, when))
+        if len(pending) >= parallel:
+            flush()
+            if paused:
+                break
 
-        captions.save(
-            Caption(
-                key=key,
-                photo_ids=selected,
-                text=completion.text,
-                model=completion.model,
-                created_at=when,
-                prompt_version=CAPTION_PROMPT_VERSION,
-            )
-        )
-        captioned += 1
+    if pending and not paused:
+        flush()
 
-    return CaptionRunReport(captioned, already, refused, unreferenced, paused, withheld)
+    return CaptionRunReport(captioned, already, refused, unreferenced, paused, withheld, empty)
 
 
 def _stops(outings: OutingRepository) -> Iterator[Stop]:

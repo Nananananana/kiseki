@@ -90,3 +90,34 @@ def test_the_command_line_wins(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_the_settings_can_be_built_directly() -> None:
     settings = ModelSettings(host="http://127.0.0.1:11434")
     assert settings.verdict.admitted
+
+
+def test_parallel_defaults_to_one_call_at_a_time() -> None:
+    assert resolve_model_settings().parallel == 1
+
+
+def test_parallel_comes_through_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_PARALLEL", "4")
+    assert resolve_model_settings().parallel == 4
+
+
+def test_parallel_comes_through_toml(tmp_path: Path) -> None:
+    (tmp_path / "kiseki.toml").write_text("[model]\nparallel = 3\n", encoding="utf-8")
+    assert resolve_model_settings(dotenv=tmp_path / ".env").parallel == 3
+
+
+def test_the_command_line_wins_for_parallel_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_PARALLEL", "2")
+    assert resolve_model_settings({"parallel": "5"}).parallel == 5
+
+
+def test_zero_in_flight_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_PARALLEL", "0")
+    with pytest.raises(ValueError, match="at least 1"):
+        resolve_model_settings()
+
+
+def test_a_word_is_not_a_number_of_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KISEKI_MODEL_PARALLEL", "four")
+    with pytest.raises(ValueError, match="not a number"):
+        resolve_model_settings()
