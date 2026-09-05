@@ -54,8 +54,10 @@ def _check_identifier(record: Mapping[str, Any], index: int, seen: dict[str, int
         return []
     if identifier in seen:
         return [
-            f"records/{index}: duplicate id, already used by record {seen[identifier]}. "
-            "Identifiers are content hashes and must be unique within a document."
+            (
+                f"records/{index}: duplicate id, already used by record {seen[identifier]}. "
+                "Identifiers are content hashes and must be unique within a document."
+            )
         ]
     seen[identifier] = index
     return []
@@ -71,8 +73,10 @@ def _check_timestamp(record: Mapping[str, Any], index: int) -> list[str]:
         return [f"records/{index}: captured_at is not a parseable ISO 8601 timestamp"]
     if moment.tzinfo is None:
         return [
-            f"records/{index}: captured_at has no UTC offset. "
-            "Ordering across devices is impossible without one."
+            (
+                f"records/{index}: captured_at has no UTC offset. "
+                "Ordering across devices is impossible without one."
+            )
         ]
     return []
 
@@ -83,7 +87,9 @@ def _check_location_consistency(record: Mapping[str, Any], index: int) -> list[s
 
     if location is None and source is not None:
         return [
-            f"records/{index}: location_source is set but location is absent. "
-            "Remove the source or supply coordinates."
+            (
+                f"records/{index}: location_source is set but location is absent. "
+                "Remove the source or supply coordinates."
+            )
         ]
     return []

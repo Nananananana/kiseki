@@ -7,7 +7,6 @@ read. See ADR-0031.
 """
 
 from collections.abc import Sequence
-from datetime import datetime
 
 from kiseki.domain.interests import (
     EvidenceKind,
@@ -30,10 +29,7 @@ CONFIDENCE_FULL_COUNT = 8
 """Label count at which confidence saturates."""
 
 
-def derive_screen_interests(
-    readings: Sequence[ScreenshotReading],
-    at: datetime,
-) -> tuple[Interest, ...]:
+def derive_screen_interests(readings: Sequence[ScreenshotReading]) -> tuple[Interest, ...]:
     """Interests from the answered, non-sensitive screen readings."""
     eligible = [
         reading

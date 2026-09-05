@@ -33,7 +33,7 @@ def parse_captured_at(raw: str, offset: str | None, fallback: timezone) -> datet
     requires an offset, so the caller must supply one to fall back on rather
     than letting a naive timestamp through.
     """
-    naive = datetime.strptime(raw.strip(), EXIF_DATETIME_FORMAT)
+    naive = datetime.strptime(raw.strip(), EXIF_DATETIME_FORMAT)  # noqa: DTZ007 -- the zone is attached two lines down
     zone = parse_offset(offset) if offset else fallback
     return naive.replace(tzinfo=zone)
 

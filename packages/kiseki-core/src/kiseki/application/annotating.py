@@ -36,7 +36,7 @@ def annotate_suggestions(
     try:
         returned = list(annotator.annotate(suggestions))
         source = annotator.source
-    except Exception:
+    except Exception:  # noqa: BLE001 -- a provider's fault is never the owner's problem
         return {}
     notes: dict[str, ProviderNote] = {}
     for note in returned:

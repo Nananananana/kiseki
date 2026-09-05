@@ -115,7 +115,7 @@ def find_notes(root: Path) -> tuple[FoundNote, ...]:
             FoundNote(
                 path=path,
                 reference=reference_for(path, root),
-                day=datetime.fromtimestamp(stat.st_mtime).date(),
+                day=datetime.fromtimestamp(stat.st_mtime).date(),  # noqa: DTZ006 -- `day` is local by contract
                 size=stat.st_size,
             )
         )

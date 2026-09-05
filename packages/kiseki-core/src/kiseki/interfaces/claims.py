@@ -60,8 +60,10 @@ LIMITS_TESTS = "tests/unit/test_what_this_cannot_tell_you.py"
 UNSEEABLE: tuple[Claim, ...] = (
     (
         "an interest you never photographed",
-        "invisible here, and no count is short -- the library cannot miss"
-        " what it was never given (ADR-0063)",
+        (
+            "invisible here, and no count is short -- the library cannot miss"
+            " what it was never given (ADR-0063)"
+        ),
         f"{LIMITS_TESTS}::test_nothing_here_claims_to_know_what_is_missing",
     ),
     (
@@ -71,8 +73,10 @@ UNSEEABLE: tuple[Claim, ...] = (
     ),
     (
         "what caused what",
-        "topics that move together are reported as moving together, never"
-        " as one causing the other (ADR-0049)",
+        (
+            "topics that move together are reported as moving together, never"
+            " as one causing the other (ADR-0049)"
+        ),
         f"{LIMITS_TESTS}::test_no_limit_claims_a_cause",
     ),
 )

@@ -74,7 +74,7 @@ def test_a_screen_reading_drops_generics_too() -> None:
         )
         for index in range(MIN_SCREEN_LABEL_COUNT)
     )
-    topics = [interest.topic for interest in derive_screen_interests(readings, BASE)]
+    topics = [interest.topic for interest in derive_screen_interests(readings)]
     assert "route" in topics
     assert "text" not in topics
 

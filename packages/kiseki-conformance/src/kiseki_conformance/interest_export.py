@@ -143,8 +143,10 @@ def _check_order(interests: Sequence[Any]) -> list[str]:
         return []
     first = next(index for index, topic in enumerate(actual) if topic != expected[index])
     return [
-        f"interests/{first}: interests are out of order. They are strongest first, by score "
-        f"times confidence, and {expected[first]!r} belongs before {actual[first]!r}."
+        (
+            f"interests/{first}: interests are out of order. They are strongest first, by score "
+            f"times confidence, and {expected[first]!r} belongs before {actual[first]!r}."
+        )
     ]
 
 

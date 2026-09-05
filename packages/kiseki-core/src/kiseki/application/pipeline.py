@@ -267,7 +267,7 @@ class Pipeline:
         """
         outings = self._outings.all()
         places = summarise_places(outings, self._settings.place_radius)
-        when = generated_at or datetime.now()
+        when = generated_at or datetime.now()  # noqa: DTZ005 -- stamps a kept profile without its offset; see #402
         profile = derive_interests(places, when, anchors=self._anchors.all())
 
         if self._captions is not None and self._subjects is not None:
@@ -287,7 +287,7 @@ class Pipeline:
         if self._screens is not None:
             profile = merge_screen_interests(
                 profile,
-                derive_screen_interests(self._screens.all(), at=profile.generated_at),
+                derive_screen_interests(self._screens.all()),
             )
         if self._notes is not None:
             # Last, and append-only: a photograph of a thing is stronger
