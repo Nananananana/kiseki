@@ -1131,7 +1131,7 @@ def _command_ask(args: argparse.Namespace) -> int:
         print(f"the model could not answer: {error}", file=sys.stderr)
         return EXIT_BAD_INPUT
     if args.json:
-        write_document(answer_payload(answer))
+        write_document(answer_payload(answer, blur=not args.raw))
         return EXIT_OK
     print(RULE)
     if not answer.answered:
@@ -2764,6 +2764,9 @@ def build_parser() -> argparse.ArgumentParser:
     asking.add_argument("--since", default=None, help="ISO date; overrides words like last year")
     asking.add_argument("--until", default=None, help="ISO date, inclusive")
     asking.add_argument("--json", action="store_true", help="machine readable output")
+    asking.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     asking.add_argument(
         "--near", default=None, help="lat,lon; keep evidence within --within-km of it"
     )

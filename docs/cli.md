@@ -30,7 +30,7 @@ uv run kiseki report --json
 | `screens` | Read the screenshots: category and labels only |
 | `singles` | Describe the photographs outside every stay |
 | `index` | Index the readings for search |
-| `ask` | Answer a question from the readings, with evidence |
+| `ask` | Answer a question from the readings, with evidence; `--json` blurred unless `--raw` |
 | `lifecycle` | Where each topic stands in its life |
 | `insights` | The current findings, with evidence |
 | `correct` | Exclude a topic or a reading from every derivation |

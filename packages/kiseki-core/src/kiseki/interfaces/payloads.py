@@ -108,7 +108,17 @@ def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
     }
 
 
-def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
+def answer_payload(answer: Answer, blur: bool = True) -> dict[str, Any]:
+    """The answer as a document, blurred unless raw is asked for.
+
+    Blurred by default, unlike its siblings, because this one accepted
+    `blur` and ignored it: `/ask` over HTTP and `kiseki ask --json`
+    both served `supporting_insights[].topic` raw, and an insight's
+    topic can be `place:lat,lon`. Every other served payload blurs
+    (ADR-0026, docs/cli.md); this one said it did and did not. A
+    default of True means a caller that forgets is safe rather than
+    leaking.
+    """
     return {
         "question": answer.question,
         "answer": answer.answer if answer.answered else None,
@@ -120,7 +130,7 @@ def answer_payload(answer: Answer, blur: bool = False) -> dict[str, Any]:
         "until": answer.until.isoformat() if answer.until else None,
         "supporting_insights": [
             {
-                "topic": item.topic,
+                "topic": _blur_place(item.topic, blur),
                 "kind": item.kind.value,
                 "magnitude": item.magnitude,
                 "confidence": item.confidence,
