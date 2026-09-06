@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.progress import OnProgress
 from kiseki.application.scheduling import fan_out
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.outing.stop import Stop
@@ -95,6 +96,7 @@ def run_captioning(
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
     parallel: int = 1,
+    on_progress: OnProgress | None = None,
 ) -> CaptionRunReport:
     """Caption every stay that has no caption yet, oldest first.
 
@@ -156,6 +158,8 @@ def run_captioning(
             )
             captioned += 1
         pending = []
+        if on_progress is not None:
+            on_progress(captioned + refused + empty, None)
 
     for stop in _stops(outings):
         if limit is not None and captioned + refused + len(pending) >= limit:

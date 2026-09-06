@@ -59,6 +59,7 @@ from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
 from kiseki.application.narrative import narrate
 from kiseki.application.pipeline import Pipeline, PipelineSettings, Report
+from kiseki.application.progress import OnProgress
 from kiseki.application.retention import (
     RetentionPolicy,
     apply_retention,
@@ -133,6 +134,7 @@ from kiseki.interfaces.payloads import (
     suggest_payload,
     trend_payload,
 )
+from kiseki.interfaces.progress import json_lines
 from kiseki.interfaces.view import render_view
 from kiseki.ports.models import (
     CaptionRequest,
@@ -888,6 +890,16 @@ def _command_profile(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _progress(args: argparse.Namespace, stage: str) -> OnProgress | None:
+    """A reporter when --progress asked for one, else nothing.
+
+    The total comes from the same count `kiseki cost` prints, so a
+    bar and an estimate cannot disagree about how much there is."""
+    if getattr(args, "progress", None) != "jsonl":
+        return None
+    return json_lines(stage, _pipeline_for(args).outstanding_model_work())
+
+
 def _command_caption(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     connection = connect(paths.db_path)
@@ -899,6 +911,7 @@ def _command_caption(args: argparse.Namespace) -> int:
         captioner=_captioner(args),
         limit=args.limit,
         parallel=_models_for(args).parallel,
+        on_progress=_progress(args, "caption"),
     )
     print(RULE)
     print(f"  captioned     {report.captioned}")
@@ -922,6 +935,7 @@ def _command_subjects(args: argparse.Namespace) -> int:
         language_model=_language_model(args),
         singles=SqliteSingleCaptionRepository(connection),
         limit=args.limit,
+        on_progress=_progress(args, "subjects"),
     )
     print(RULE)
     print(f"  extracted     {report.extracted}")
@@ -1116,6 +1130,7 @@ def _command_screens(args: argparse.Namespace) -> int:
         reader=_screen_reader(args),
         limit=args.limit,
         parallel=_models_for(args).parallel,
+        on_progress=_progress(args, "screens"),
     )
     print(RULE)
     print(f"  read          {report.read}")
@@ -1139,6 +1154,7 @@ def _command_singles(args: argparse.Namespace) -> int:
         captioner=_captioner(args),
         limit=args.limit,
         parallel=_models_for(args).parallel,
+        on_progress=_progress(args, "singles"),
     )
     print(RULE)
     print(f"  captioned     {report.captioned}")
@@ -1165,6 +1181,7 @@ def _command_index(args: argparse.Namespace) -> int:
             embedder=_embedder(args),
             embedding_model=DEFAULT_EMBEDDING_MODEL,
             limit=args.limit,
+            on_progress=_progress(args, "index"),
         )
     except ModelRefusedError as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
@@ -2385,6 +2402,8 @@ def _command_refresh(args: argparse.Namespace) -> int:
     base = ["--data-root", args.data_root] if getattr(args, "data_root", None) else []
     if getattr(args, "parallel", None) is not None:
         base += ["--parallel", str(args.parallel)]
+    if getattr(args, "progress", None):
+        base += ["--progress", args.progress]
     for stage in REFRESH_STAGES:
         print(RULE)
         print(f"  {stage}")
@@ -2731,6 +2750,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="model_host",
         default=None,
         help="where the model is, this once",
+    )
+    parser.add_argument(
+        "--progress",
+        choices=["jsonl"],
+        default=None,
+        help="one JSON line per window on stderr from caption, singles, screens, subjects, index",
     )
     parser.add_argument(
         "--parallel",

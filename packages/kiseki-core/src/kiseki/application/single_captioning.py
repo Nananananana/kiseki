@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.progress import OnProgress
 from kiseki.application.scheduling import fan_out
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.photo.observation import PhotoId
@@ -75,6 +76,7 @@ def run_single_captioning(
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
     parallel: int = 1,
+    on_progress: OnProgress | None = None,
 ) -> SingleCaptionRunReport:
     """Caption every eligible lone photograph, oldest first."""
     in_stays = {
@@ -119,6 +121,8 @@ def run_single_captioning(
             )
             captioned += 1
         pending = []
+        if on_progress is not None:
+            on_progress(captioned + refused + empty, None)
 
     for item in photos.all():
         if limit is not None and captioned + refused + len(pending) >= limit:

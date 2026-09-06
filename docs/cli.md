@@ -279,6 +279,22 @@ evidence counts on both sides (ADR-0045). By default it compares the
 trend's pair; `--from` / `--to` pick the latest kept profile at or
 before each date. Over HTTP: `GET /compare`.
 
+## Progress for a program
+
+`--progress jsonl` makes `caption`, `singles`, `screens`, `subjects` and
+`index` write one JSON line per window to stderr; stdout stays the
+human report. `refresh` passes it on to each stage.
+
+```text
+{"stage": "caption", "done": 12, "total": 360, "resumable": true}
+```
+
+`total` is the count `kiseki cost` prints for the stage, so a bar and an
+estimate cannot disagree; `resumable` is a fact about every one of
+these loops, stated so a scheduler that stops one mid-run knows to ask
+again. No caption text and no photograph identifier is ever on a
+progress line.
+
 ## Exit codes
 
 A script that cannot tell a refusal from a failure retries forever,
