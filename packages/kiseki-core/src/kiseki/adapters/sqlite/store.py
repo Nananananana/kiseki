@@ -450,6 +450,17 @@ class SqlitePageReadingRepository:
         total: int = row[0]
         return total
 
+    def remove_all(self, keys: Sequence[tuple[str, _date]]) -> int:
+        gone = 0
+        with self._connection:
+            for reference, day in keys:
+                cursor = self._connection.execute(
+                    "DELETE FROM page_readings WHERE reference = ? AND day = ?",
+                    (reference, day.isoformat()),
+                )
+                gone += cursor.rowcount
+        return gone
+
 
 def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
     """The one change from 5 to 6: a table for daily activity.

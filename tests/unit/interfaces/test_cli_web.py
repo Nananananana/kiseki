@@ -154,3 +154,57 @@ class TestADocumentThatSharesNothing:
         second = _document(tmp_path, [_record("page:cccc")])
         assert main(["--data-root", str(tmp_path), "web", str(second)]) == EXIT_OK
         assert len(_held(tmp_path)) == 2
+
+
+class TestWithdrawing:
+    """The file is the unit: what a document put in, the same document
+    takes back. Dry run unless --apply, as `forget` is."""
+
+    def test_a_dry_run_says_and_does_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        document = _document(tmp_path, [_record("a"), _record("b")])
+        main(["--data-root", str(tmp_path), "web", str(document)])
+        assert main(["--data-root", str(tmp_path), "web", "--withdraw", str(document)]) == EXIT_OK
+        out = capsys.readouterr().out
+        assert "would withdraw 2 of 2" in out
+        assert len(_held(tmp_path)) == 2
+
+    def test_apply_removes_exactly_what_the_document_names(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        both = _document(tmp_path, [_record("a"), _record("b")])
+        main(["--data-root", str(tmp_path), "web", str(both)])
+        only_a = tmp_path / "a.json"
+        only_a.write_text(json.dumps([_record("a")]), encoding="utf-8")
+        assert (
+            main(["--data-root", str(tmp_path), "web", "--withdraw", "--apply", str(only_a)])
+            == EXIT_OK
+        )
+        assert "withdrew      1 of 1" in capsys.readouterr().out
+        assert [r.reference for r in _held(tmp_path)] == ["b"]
+
+    def test_a_page_never_taken_in_withdraws_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        document = _document(tmp_path, [_record("never")])
+        assert (
+            main(["--data-root", str(tmp_path), "web", "--withdraw", "--apply", str(document)])
+            == EXIT_OK
+        )
+        assert "withdrew      0 of 1" in capsys.readouterr().out
+
+    def test_the_same_page_on_another_day_is_left_alone(self, tmp_path: Path) -> None:
+        both_days = _document(tmp_path, [_record("a"), _record("a", day="2026-08-31")])
+        main(["--data-root", str(tmp_path), "web", str(both_days)])
+        first_day = tmp_path / "first.json"
+        first_day.write_text(json.dumps([_record("a")]), encoding="utf-8")
+        main(["--data-root", str(tmp_path), "web", "--withdraw", "--apply", str(first_day)])
+        assert [str(r.day) for r in _held(tmp_path)] == ["2026-08-31"]
+
+    def test_apply_without_withdraw_is_refused(self, tmp_path: Path) -> None:
+        document = _document(tmp_path, [_record("a")])
+        assert (
+            main(["--data-root", str(tmp_path), "web", "--apply", str(document)]) == EXIT_BAD_INPUT
+        )
+        assert len(_held(tmp_path)) == 0

@@ -241,6 +241,19 @@ yet. `kiseki web` is what the command will be called.)*
 Re-reading a window is safe: a page whose day has not changed replaces
 its reading, and the same page on a later day adds one.
 
+## Withdrawing one
+
+```bash
+uv run kiseki web --withdraw ~/kiseki-data/web-records.json          # says what it would remove
+uv run kiseki web --withdraw --apply ~/kiseki-data/web-records.json  # removes it
+```
+
+The file is the unit. What a document put in, the same document takes
+back -- exactly the `(reference, day)` readings it names, and nothing
+else. There is no removal by day range: a removal that does not know
+the reference cannot say what it removed. Dry run unless `--apply`,
+as `forget` is.
+
 What the core makes of a trail of them -- which subjects arrive
 together, which were returned to, which faded -- is derivation, and
 lives above this contract.
