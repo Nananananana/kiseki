@@ -259,22 +259,42 @@ def _models_for(args: argparse.Namespace) -> ModelSettings:
 
 def _captioner(args: argparse.Namespace) -> OllamaImageCaptioner:
     settings = _models_for(args)
-    return OllamaImageCaptioner(model=settings.captioning_model, host=settings.host)
+    return OllamaImageCaptioner(
+        model=settings.captioning_model,
+        host=settings.host,
+        keep_alive=settings.keep_alive,
+        timeout=settings.timeout_seconds,
+    )
 
 
 def _language_model(args: argparse.Namespace) -> OllamaLanguageModel:
     settings = _models_for(args)
-    return OllamaLanguageModel(model=settings.language_model, host=settings.host)
+    return OllamaLanguageModel(
+        model=settings.language_model,
+        host=settings.host,
+        keep_alive=settings.keep_alive,
+        timeout=settings.timeout_seconds,
+    )
 
 
 def _embedder(args: argparse.Namespace) -> OllamaTextEmbedder:
     settings = _models_for(args)
-    return OllamaTextEmbedder(model=settings.embedding_model, host=settings.host)
+    return OllamaTextEmbedder(
+        model=settings.embedding_model,
+        host=settings.host,
+        keep_alive=settings.keep_alive,
+        timeout=settings.timeout_seconds,
+    )
 
 
 def _screen_reader(args: argparse.Namespace) -> OllamaScreenshotReader:
     settings = _models_for(args)
-    return OllamaScreenshotReader(model=settings.captioning_model, host=settings.host)
+    return OllamaScreenshotReader(
+        model=settings.captioning_model,
+        host=settings.host,
+        keep_alive=settings.keep_alive,
+        timeout=settings.timeout_seconds,
+    )
 
 
 def _paths_for(args: argparse.Namespace) -> StoragePaths:
@@ -1678,6 +1698,8 @@ def _command_llm(args: argparse.Namespace) -> int:
     print(f"  language        {settings.language_model}")
     print(f"  embedding       {settings.embedding_model}")
     print(f"  parallel        {settings.parallel} call(s) in flight at once")
+    print(f"  keep_alive      {settings.keep_alive}   (0 unloads the model on return)")
+    print(f"  timeout         {settings.timeout_seconds:g}s per call")
     if not verdict.admitted:
         return EXIT_BAD_INPUT
     if not args.check:

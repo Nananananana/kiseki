@@ -48,3 +48,32 @@ def test_the_flag_outranks_the_environment(
     out = capsys.readouterr().out
     assert "11437" in out
     assert "11436" not in out
+
+
+def test_llm_reports_keep_alive_and_timeout_from_this_process(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An orchestrator running one stage per process says `0` on the
+    last job of the night; `llm` must show that it was heard."""
+    monkeypatch.setenv("KISEKI_MODEL_KEEP_ALIVE", "0")
+    monkeypatch.setenv("KISEKI_MODEL_TIMEOUT_SECONDS", "45")
+    assert main(["--data-root", str(tmp_path), "llm"]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "keep_alive      0" in out
+    assert "timeout         45s" in out
+
+
+def test_the_adapters_are_built_with_what_this_process_said(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`llm` printing a value is not the same as a captioner receiving it.
+    The four constructors passed only model and host until the settings
+    grew keep_alive and timeout; this holds the wiring, not the print."""
+    from kiseki.interfaces.cli import _captioner, _embedder, _language_model, _screen_reader
+
+    monkeypatch.setenv("KISEKI_MODEL_KEEP_ALIVE", "0")
+    monkeypatch.setenv("KISEKI_MODEL_TIMEOUT_SECONDS", "45")
+    args = build_parser().parse_args(["llm"])
+    for build in (_captioner, _language_model, _embedder, _screen_reader):
+        adapter = build(args)
+        assert adapter._keep_alive == "0", build.__name__

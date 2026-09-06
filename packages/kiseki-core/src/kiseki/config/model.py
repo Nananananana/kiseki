@@ -29,6 +29,15 @@ from kiseki.domain.trust import TrustBoundary, Verdict, judge
 ENV_PREFIX = "KISEKI_MODEL_"
 
 DEFAULT_PARALLEL = 1
+
+DEFAULT_KEEP_ALIVE = "5m"
+"""How long the server keeps a model loaded after a call. Ollama's own
+syntax: a duration, `0` to unload on return, `-1` to keep forever. An
+orchestrator running one stage per model sets `0` on the last job of
+the night so the next model has the memory."""
+
+DEFAULT_TIMEOUT_SECONDS = 300.0
+"""How long one call may take before it is reported as unavailable."""
 """One call at a time. Measured on this machine before the setting
 existed; the number to raise it to is the server's, not this file's."""
 
@@ -45,6 +54,8 @@ KNOWN = (
     "language_model",
     "embedding_model",
     "parallel",
+    "keep_alive",
+    "timeout_seconds",
 )
 
 
@@ -59,6 +70,8 @@ class ModelSettings:
     language_model: str = DEFAULT_LANGUAGE_MODEL
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
     parallel: int = DEFAULT_PARALLEL
+    keep_alive: str = DEFAULT_KEEP_ALIVE
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     """How many one-element model calls the captioning loops keep in
     flight at once. One is a plain loop. Set from OLLAMA_NUM_PARALLEL's
     value on the server, not above it: the server queues what it
@@ -67,6 +80,10 @@ class ModelSettings:
     def __post_init__(self) -> None:
         if self.parallel < 1:
             raise ValueError(f"parallel must be at least 1, not {self.parallel}")
+        if not self.keep_alive.strip():
+            raise ValueError("keep_alive cannot be blank; use 0 to unload on return")
+        if self.timeout_seconds <= 0:
+            raise ValueError(f"timeout_seconds must be positive, not {self.timeout_seconds}")
 
     @property
     def verdict(self) -> Verdict:
@@ -149,6 +166,14 @@ def resolve_model_settings(
             ) from None
         if parallel < 1:
             raise ValueError(f"parallel must be at least 1, not {parallel}")
+    timeout_seconds = DEFAULT_TIMEOUT_SECONDS
+    if "timeout_seconds" in layers:
+        try:
+            timeout_seconds = float(layers["timeout_seconds"].strip())
+        except ValueError:
+            raise ValueError(
+                f"'{layers['timeout_seconds']}' is not a number of seconds to wait for a call"
+            ) from None
     return ModelSettings(
         host=layers.get("host", DEFAULT_HOST),
         boundary=boundary,
@@ -157,4 +182,6 @@ def resolve_model_settings(
         language_model=layers.get("language_model", DEFAULT_LANGUAGE_MODEL),
         embedding_model=layers.get("embedding_model", DEFAULT_EMBEDDING_MODEL),
         parallel=parallel,
+        keep_alive=layers.get("keep_alive", DEFAULT_KEEP_ALIVE).strip(),
+        timeout_seconds=timeout_seconds,
     )
