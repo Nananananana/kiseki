@@ -102,6 +102,7 @@ from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import (
     derive_place_profiles,
 )
+from kiseki.domain.services.question_routing import COMMAND_FOR as ROUTE_COMMANDS
 from kiseki.domain.services.suggesting import SuggestionKind
 from kiseki.domain.services.theme_families import fold_by_family
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
@@ -1268,6 +1269,14 @@ def _command_ask(args: argparse.Namespace) -> int:
         return EXIT_OK
     print(RULE)
     if not answer.answered:
+        if answer.route.routed:
+            # Understood, and nothing derived yet: a different answer from
+            # "not understood", and the only one the reader can act on.
+            said = ", ".join(sorted(answer.route.kinds))
+            print(f"  read as       a question about {said}, and nothing is derived yet")
+            for command in answer.route.commands:
+                print(f"                  `{command}` is where that would come from")
+            return EXIT_OK
         print("  nothing in this library bears on that question")
         print("  -- no moment matched it and no pattern has been derived yet.")
         print("     `kiseki build` finds places and outings; `kiseki refresh`")
@@ -1286,6 +1295,15 @@ def _command_ask(args: argparse.Namespace) -> int:
     if answer.grounded_only:
         print("  from            what this library knows, not what it found")
     print(f"  evidence      {len(answer.evidence)} moment(s), {len(answer.grounding)} pattern(s)")
+    if answer.route.routed:
+        said = ", ".join(sorted(answer.route.kinds))
+        why = ", ".join(sorted({phrase for _kind, phrase in answer.route.matched}))
+        print(f"  read as       a question about {said}   (from: {why})")
+    for kind in answer.unanswerable:
+        print(
+            f"  nothing yet   this library has derived no {kind}; "
+            f"`{ROUTE_COMMANDS[kind]}` is where it would come from"
+        )
     if answer.grounding:
         kinds = sorted({fact.source for fact in answer.grounding})
         print(f"  derived from  {', '.join(kinds)}")

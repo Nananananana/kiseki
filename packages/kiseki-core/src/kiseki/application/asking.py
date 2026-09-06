@@ -16,6 +16,9 @@ from datetime import datetime
 from kiseki.application.grounding import Grounding, mean_confidence, numbered
 from kiseki.application.retrieval import DEFAULT_LIMIT, RRF_K, Retrieval, retrieve
 from kiseki.domain.insight import Insight, InsightReport
+from kiseki.domain.services.question_routing import KINDS as ROUTE_KINDS
+from kiseki.domain.services.question_routing import NO_ROUTE, Route
+from kiseki.domain.services.question_routing import route as route_question
 from kiseki.domain.services.time_expressions import read_time_window
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.shared.moment import naive
@@ -63,6 +66,18 @@ class Answer:
     since: datetime | None = None
     until: datetime | None = None
     supporting_insights: tuple[Insight, ...] = ()
+
+    route: Route = NO_ROUTE
+    """Which derivations the question was read as being about, and the
+    phrases that said so. Empty when nothing matched, which is the
+    state every question was in before routing existed: the answer is
+    offered every kind of fact and retrieval decides (#360)."""
+
+    unanswerable: tuple[str, ...] = ()
+    """Kinds the question was routed to for which this library holds
+    nothing at all. The honest form of *fits none*: the question was
+    understood, and the derivation that would answer it has no data
+    yet. Named so the reader is told which, and can go and build it."""
 
     grounding: tuple[Grounding, ...] = ()
     """What the library already knew, as against what was retrieved.
@@ -217,6 +232,21 @@ def ask(
     Words like "last year" in the question become the window unless
     an explicit since/until is given (ADR-0039).
     """
+    asked = route_question(question)
+    offered = tuple(grounding or ())
+    unanswerable: tuple[str, ...] = ()
+    if asked.routed:
+        # Narrow, never widen: a routed question is offered the kinds it
+        # is about instead of every kind at once. A kind it was routed to
+        # and has no facts for is named rather than passed over, because
+        # *understood, and nothing derived yet* is a different answer from
+        # *not understood* and the reader can act on it (#360).
+        held = {fact.kind for fact in offered}
+        unanswerable = tuple(kind for kind in ROUTE_KINDS if kind in asked.kinds - held)
+        narrowed = tuple(fact for fact in offered if fact.kind in asked.kinds)
+        if narrowed:
+            offered = narrowed
+    grounding = offered
     if since is None and until is None:
         window = read_time_window(question, now())
         if window is not None:
@@ -246,7 +276,23 @@ def ask(
         results = tuple(item for item in results if item.document.doc_key not in banned)
     patterns = tuple(grounding or ())
     if not results and not patterns:
-        return Answer(question, "", 0.0, None, None, (), "", since=since, until=until)
+        # The route travels even here -- especially here. *Nothing bears
+        # on that question* and *you asked about your rhythm, and no outing
+        # has been recorded* are different answers, and only the second
+        # tells the reader what to go and build (ADR-0090).
+        return Answer(
+            question,
+            "",
+            0.0,
+            None,
+            None,
+            (),
+            "",
+            since=since,
+            until=until,
+            route=asked,
+            unanswerable=unanswerable,
+        )
 
     parts = []
     if results:
@@ -286,4 +332,6 @@ def ask(
         until=until,
         supporting_insights=_supporting(insights, question, results),
         grounding=patterns,
+        route=asked,
+        unanswerable=unanswerable,
     )
