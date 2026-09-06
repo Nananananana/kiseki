@@ -44,6 +44,14 @@ from kiseki.domain.screen.reading import SENSITIVE_CATEGORIES as SCREEN_SENSITIV
 from kiseki.domain.services.anchor_estimation import estimate_anchors
 from kiseki.domain.services.comparing import compare_profiles
 from kiseki.domain.services.correcting import apply_corrections
+from kiseki.domain.services.day_trips import (
+    REGULAR_SPAN_DAYS,
+    REGULAR_VISITS,
+    Reach,
+    derive_day_trips,
+    derive_reach,
+    spread_out,
+)
 from kiseki.domain.services.detectors import DEFAULT_DETECTOR, StopDetector
 from kiseki.domain.services.discovering import derive_discoveries
 from kiseki.domain.services.insight_derivation import derive_insights
@@ -54,15 +62,18 @@ from kiseki.domain.services.note_interest_derivation import (
     merge_note_interests,
 )
 from kiseki.domain.services.outing_assembly import assemble_outings
+from kiseki.domain.services.place_reading import PlaceProfile, derive_place_profiles
 from kiseki.domain.services.screen_interest_derivation import (
     derive_screen_interests,
     merge_screen_interests,
 )
 from kiseki.domain.services.stop_extraction import extract_stops
 from kiseki.domain.services.subject_interest_derivation import derive_subject_interests
+from kiseki.domain.services.suggesting import Suggestion, derive_suggestions
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS, derive_trend
+from kiseki.domain.services.trips import derive_trips
 from kiseki.domain.services.vocabulary import overlap_of
-from kiseki.domain.shared.geo import Distance
+from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
 from kiseki.domain.trends import TrendReport
@@ -177,6 +188,30 @@ def _latest_at_or_before(history: Sequence[Profile], moment: datetime) -> Profil
         if _naive(profile.generated_at) <= _naive(moment):
             chosen = profile
     return chosen
+
+
+@dataclass(frozen=True)
+class SuggestionSet:
+    """What `suggest` says, as one value: somewhere to go back to,
+    somewhere to pick up, and somewhere within reach, each with why
+    now. Built once here so the command line and HTTP cannot drift."""
+
+    suggestions: tuple[Suggestion, ...]
+    day_trips: tuple[Suggestion, ...]
+    reach: Reach | None
+
+
+def _origins_of(places: Sequence[PlaceProfile]) -> list[GeoPoint]:
+    """The places the owner sets out from (ADR-0055)."""
+    regular = [
+        place.centroid
+        for place in places
+        if place.visits >= REGULAR_VISITS
+        and (place.last_seen - place.first_seen).days >= REGULAR_SPAN_DAYS
+    ]
+    if regular:
+        return regular
+    return [max(places, key=lambda place: place.visits).centroid] if places else []
 
 
 class Pipeline:
@@ -523,6 +558,31 @@ class Pipeline:
             withheld=withheld,
             unlocated=sum(1 for photo in photos if not photo.is_located),
         )
+
+    def places(self) -> tuple[PlaceProfile, ...]:
+        """Places, knowing which of their visits happened on a trip.
+
+        Read twice on purpose: the first reading finds the places the
+        owner sets out from, the trips are derived against those, and
+        the second reading knows which visits belong to one (ADR-0060).
+        """
+        outings = self._outings.all()
+        plain = derive_place_profiles(outings)
+        trips = derive_trips(outings, _origins_of(plain))
+        on_trips = {outing.id.value for trip in trips for outing in trip.outings}
+        return derive_place_profiles(outings, on_trips)
+
+    def suggest(self, today: datetime) -> SuggestionSet:
+        """Somewhere to go back to, pick up, or go, from the evidence.
+
+        The command line printed this and nothing served it, so a thin
+        client had to fake the card. One derivation, two readers.
+        """
+        places = self.places()
+        suggestions = spread_out(derive_suggestions(places, self.lifecycle(), today))
+        reach = derive_reach(self._outings.all())
+        trips = spread_out(derive_day_trips(places, reach, today)) if reach else ()
+        return SuggestionSet(suggestions=suggestions, day_trips=trips, reach=reach)
 
     def compare(
         self,

@@ -12,13 +12,14 @@ from typing import Any
 
 from kiseki.application.asking import Answer
 from kiseki.application.limits import LimitsReport
-from kiseki.application.pipeline import PrivacyReport, Report
+from kiseki.application.pipeline import PrivacyReport, Report, SuggestionSet
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.services.mixing import derive_mixed
+from kiseki.domain.services.suggesting import Suggestion
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 
@@ -29,83 +30,107 @@ enough to say "around here" without saying "this doorstep"."""
 PLACE_PREFIX = "place:"
 
 
+SERVED_VERSION = 1
+"""Every served document carries its contract name and this version, in
+the export's shape (ADR-0081). A reader that refuses unknown names can
+list these; a reader that pins a version notices when one moves."""
+
+
+def named(endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """A served or written document, naming itself.
+
+    `schema` first and `version` second, before the body's own keys, so
+    a reader glancing at the first line knows what it is holding.
+    """
+    return {"schema": f"kiseki-{endpoint}", "version": SERVED_VERSION, **body}
+
+
 def report_payload(report: Report, blur: bool = False) -> dict[str, Any]:
     habits = report.habits
-    return {
-        "photographs": report.photographs,
-        "outings": len(report.outings),
-        "anchors": [
-            {
-                "latitude": _blur_value(anchor.area.center.latitude, blur),
-                "longitude": _blur_value(anchor.area.center.longitude, blur),
-                "visit_days": anchor.visit_days,
-                "night_share": anchor.night_share,
-                "weekday_share": anchor.weekday_share,
-                "daytime_share": anchor.daytime_share,
-                "photograph_count": anchor.photograph_count,
-            }
-            for anchor in report.anchors
-        ],
-        "places": {
-            "distinct": len(report.places.places),
-            "return_rate": report.places.return_rate,
-            "one_time_rate": report.places.one_time_rate,
+    return named(
+        "report",
+        {
+            "photographs": report.photographs,
+            "outings": len(report.outings),
+            "anchors": [
+                {
+                    "latitude": _blur_value(anchor.area.center.latitude, blur),
+                    "longitude": _blur_value(anchor.area.center.longitude, blur),
+                    "visit_days": anchor.visit_days,
+                    "night_share": anchor.night_share,
+                    "weekday_share": anchor.weekday_share,
+                    "daytime_share": anchor.daytime_share,
+                    "photograph_count": anchor.photograph_count,
+                }
+                for anchor in report.anchors
+            ],
+            "places": {
+                "distinct": len(report.places.places),
+                "return_rate": report.places.return_rate,
+                "one_time_rate": report.places.one_time_rate,
+            },
+            "habits": None
+            if habits is None
+            else {
+                "travel_km_median": habits.travel_km.median,
+                "duration_hours_median": habits.duration_hours.median,
+                "stops_per_outing_median": habits.stops_per_outing.median,
+                "stay_minutes_median": habits.stay_minutes.median,
+            },
+            "rhythm": {
+                "weekend_share": report.rhythm.weekend_share,
+                "early_start_share": report.rhythm.early_start_share,
+                "by_weekday": report.rhythm.by_weekday,
+                "by_month": report.rhythm.by_month,
+            },
         },
-        "habits": None
-        if habits is None
-        else {
-            "travel_km_median": habits.travel_km.median,
-            "duration_hours_median": habits.duration_hours.median,
-            "stops_per_outing_median": habits.stops_per_outing.median,
-            "stay_minutes_median": habits.stay_minutes.median,
-        },
-        "rhythm": {
-            "weekend_share": report.rhythm.weekend_share,
-            "early_start_share": report.rhythm.early_start_share,
-            "by_weekday": report.rhythm.by_weekday,
-            "by_month": report.rhythm.by_month,
-        },
-    }
+    )
 
 
 def profile_payload(profile: Profile, blur: bool = False) -> dict[str, Any]:
-    return {
-        "generated_at": profile.generated_at.isoformat(),
-        "interests": [
-            {
-                "topic": _blur_place(interest.topic, blur),
-                "score": interest.score,
-                "confidence": interest.confidence,
-                "first_seen": interest.first_seen.isoformat(),
-                "last_seen": interest.last_seen.isoformat(),
-                "evidence": [
-                    {
-                        "kind": evidence.kind.value,
-                        "reference": _blur_place(evidence.reference, blur),
-                        "observed_at": evidence.observed_at.isoformat(),
-                    }
-                    for evidence in interest.evidence
-                ],
-            }
-            for interest in profile.ranked()
-        ],
-    }
+    return named(
+        "profile",
+        {
+            "generated_at": profile.generated_at.isoformat(),
+            "interests": [
+                {
+                    "topic": _blur_place(interest.topic, blur),
+                    "score": interest.score,
+                    "confidence": interest.confidence,
+                    "first_seen": interest.first_seen.isoformat(),
+                    "last_seen": interest.last_seen.isoformat(),
+                    "evidence": [
+                        {
+                            "kind": evidence.kind.value,
+                            "reference": _blur_place(evidence.reference, blur),
+                            "observed_at": evidence.observed_at.isoformat(),
+                        }
+                        for evidence in interest.evidence
+                    ],
+                }
+                for interest in profile.ranked()
+            ],
+        },
+    )
 
 
 def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
-    return {
-        "baseline_at": report.baseline_at.isoformat(),
-        "latest_at": report.latest_at.isoformat(),
-        "trends": [
-            {
-                "topic": _blur_place(trend.topic, blur),
-                "direction": trend.direction.value,
-                "strength": trend.strength,
-                "baseline": trend.baseline,
-            }
-            for trend in report.trends
-        ],
-    }
+    return named(
+        "trend",
+        {
+            "baseline_at": report.baseline_at.isoformat(),
+            "latest_at": report.latest_at.isoformat(),
+            "trends": [
+                {
+                    "topic": _blur_place(trend.topic, blur),
+                    "direction": trend.direction.value,
+                    "strength": trend.strength,
+                    "baseline": trend.baseline,
+                }
+                for trend in report.trends
+            ],
+        },
+    )
 
 
 def answer_payload(answer: Answer, blur: bool = True) -> dict[str, Any]:
@@ -119,35 +144,38 @@ def answer_payload(answer: Answer, blur: bool = True) -> dict[str, Any]:
     default of True means a caller that forgets is safe rather than
     leaking.
     """
-    return {
-        "question": answer.question,
-        "answer": answer.answer if answer.answered else None,
-        "confidence": answer.confidence,
-        "first_seen": answer.first_seen.isoformat() if answer.first_seen else None,
-        "last_seen": answer.last_seen.isoformat() if answer.last_seen else None,
-        "model": answer.model,
-        "since": answer.since.isoformat() if answer.since else None,
-        "until": answer.until.isoformat() if answer.until else None,
-        "supporting_insights": [
-            {
-                "topic": _blur_place(item.topic, blur),
-                "kind": item.kind.value,
-                "magnitude": item.magnitude,
-                "confidence": item.confidence,
-            }
-            for item in answer.supporting_insights
-        ],
-        "evidence": [
-            {
-                "doc_key": item.document.doc_key,
-                "kind": item.document.kind,
-                "observed_at": item.document.observed_at.isoformat(),
-                "text": item.document.text,
-                "score": item.score,
-            }
-            for item in answer.evidence
-        ],
-    }
+    return named(
+        "ask",
+        {
+            "question": answer.question,
+            "answer": answer.answer if answer.answered else None,
+            "confidence": answer.confidence,
+            "first_seen": answer.first_seen.isoformat() if answer.first_seen else None,
+            "last_seen": answer.last_seen.isoformat() if answer.last_seen else None,
+            "model": answer.model,
+            "since": answer.since.isoformat() if answer.since else None,
+            "until": answer.until.isoformat() if answer.until else None,
+            "supporting_insights": [
+                {
+                    "topic": _blur_place(item.topic, blur),
+                    "kind": item.kind.value,
+                    "magnitude": item.magnitude,
+                    "confidence": item.confidence,
+                }
+                for item in answer.supporting_insights
+            ],
+            "evidence": [
+                {
+                    "doc_key": item.document.doc_key,
+                    "kind": item.document.kind,
+                    "observed_at": item.document.observed_at.isoformat(),
+                    "text": item.document.text,
+                    "score": item.score,
+                }
+                for item in answer.evidence
+            ],
+        },
+    )
 
 
 BLURRED_BY_DEFAULT = (
@@ -157,28 +185,31 @@ BLURRED_BY_DEFAULT = (
 
 
 def privacy_payload(report: PrivacyReport) -> dict[str, Any]:
-    return {
-        "photographs": report.photographs,
-        "located": report.located,
-        "withheld_from_preference": report.withheld_from_preference,
-        "stay_captions": report.stay_captions,
-        "stay_refused": report.stay_refused,
-        "single_captions": report.single_captions,
-        "single_refused": report.single_refused,
-        "screen_readings": report.screen_readings,
-        "screens_label_silent": report.screens_label_silent,
-        "subject_readings": report.subject_readings,
-        "note_readings": report.note_readings,
-        "notes_label_silent": report.notes_label_silent,
-        "page_readings": report.page_readings,
-        "pages_label_silent": report.pages_label_silent,
-        "activity_days": report.activity_days,
-        "kept_profiles": report.kept_profiles,
-        "corrections": report.corrections,
-        "active_exclusions": report.active_exclusions,
-        "never_stored": [name for name, _reason, _test in NEVER_STORED],
-        "blurred_by_default": True,
-    }
+    return named(
+        "privacy",
+        {
+            "photographs": report.photographs,
+            "located": report.located,
+            "withheld_from_preference": report.withheld_from_preference,
+            "stay_captions": report.stay_captions,
+            "stay_refused": report.stay_refused,
+            "single_captions": report.single_captions,
+            "single_refused": report.single_refused,
+            "screen_readings": report.screen_readings,
+            "screens_label_silent": report.screens_label_silent,
+            "subject_readings": report.subject_readings,
+            "note_readings": report.note_readings,
+            "notes_label_silent": report.notes_label_silent,
+            "page_readings": report.page_readings,
+            "pages_label_silent": report.pages_label_silent,
+            "activity_days": report.activity_days,
+            "kept_profiles": report.kept_profiles,
+            "corrections": report.corrections,
+            "active_exclusions": report.active_exclusions,
+            "never_stored": [name for name, _reason, _test in NEVER_STORED],
+            "blurred_by_default": True,
+        },
+    )
 
 
 def limits_payload(report: LimitsReport) -> dict[str, Any]:
@@ -189,126 +220,143 @@ def limits_payload(report: LimitsReport) -> dict[str, Any]:
     is not more true for naming one to a stranger.
     """
     span = report.span
-    return {
-        "span": None
-        if span is None
-        else {
-            "first": span.first.isoformat(),
-            "last": span.last.isoformat(),
-            "days": span.days,
+    return named(
+        "limits",
+        {
+            "span": None
+            if span is None
+            else {
+                "first": span.first.isoformat(),
+                "last": span.last.isoformat(),
+                "days": span.days,
+            },
+            "sources": [
+                {
+                    "name": source.name,
+                    "count": source.count,
+                    "first": None if source.span is None else source.span.first.isoformat(),
+                    "last": None if source.span is None else source.span.last.isoformat(),
+                    "days": None if source.span is None else source.span.days,
+                }
+                for source in report.sources
+            ],
+            "limits": [
+                {"subject": limit.subject, "reading": limit.reading, "because": limit.because}
+                for limit in report.limits
+            ],
+            "unseeable": [
+                {"subject": subject, "because": reason} for subject, reason, _test in UNSEEABLE
+            ],
+            "empty": report.empty,
         },
-        "sources": [
-            {
-                "name": source.name,
-                "count": source.count,
-                "first": None if source.span is None else source.span.first.isoformat(),
-                "last": None if source.span is None else source.span.last.isoformat(),
-                "days": None if source.span is None else source.span.days,
-            }
-            for source in report.sources
-        ],
-        "limits": [
-            {"subject": limit.subject, "reading": limit.reading, "because": limit.because}
-            for limit in report.limits
-        ],
-        "unseeable": [
-            {"subject": subject, "because": reason} for subject, reason, _test in UNSEEABLE
-        ],
-        "empty": report.empty,
-    }
+    )
 
 
 def comparison_payload(comparison: Comparison, blur: bool = False) -> dict[str, Any]:
-    return {
-        "before_at": comparison.before_at.isoformat(),
-        "after_at": comparison.after_at.isoformat(),
-        "entries": [
-            {
-                "topic": blurred_place(entry.topic) if blur else entry.topic,
-                "change": entry.change.value,
-                "strength_before": entry.strength_before,
-                "strength_after": entry.strength_after,
-                "evidence_before": entry.evidence_before,
-                "evidence_after": entry.evidence_after,
-                "evidence_refs": [
-                    blurred_place(reference) if blur else reference
-                    for reference in entry.evidence_refs
-                ],
-            }
-            for entry in comparison.entries
-        ],
-    }
+    return named(
+        "compare",
+        {
+            "before_at": comparison.before_at.isoformat(),
+            "after_at": comparison.after_at.isoformat(),
+            "entries": [
+                {
+                    "topic": blurred_place(entry.topic) if blur else entry.topic,
+                    "change": entry.change.value,
+                    "strength_before": entry.strength_before,
+                    "strength_after": entry.strength_after,
+                    "evidence_before": entry.evidence_before,
+                    "evidence_after": entry.evidence_after,
+                    "evidence_refs": [
+                        blurred_place(reference) if blur else reference
+                        for reference in entry.evidence_refs
+                    ],
+                }
+                for entry in comparison.entries
+            ],
+        },
+    )
 
 
 def discovery_payload(feed: DiscoveryFeed, blur: bool = False) -> dict[str, Any]:
-    return {
-        "oldest_at": feed.oldest_at.isoformat(),
-        "latest_at": feed.latest_at.isoformat(),
-        "discoveries": [
-            {
-                "topic": blurred_place(entry.topic) if blur else entry.topic,
-                "kind": entry.kind.value,
-                "magnitude": entry.magnitude,
-                "confidence": entry.confidence,
-                "evidence": [
-                    blurred_place(reference) if blur else reference for reference in entry.evidence
-                ],
-                "novelty": entry.novelty,
-                "importance": entry.importance,
-            }
-            for entry in feed.entries
-        ],
-    }
+    return named(
+        "discover",
+        {
+            "oldest_at": feed.oldest_at.isoformat(),
+            "latest_at": feed.latest_at.isoformat(),
+            "discoveries": [
+                {
+                    "topic": blurred_place(entry.topic) if blur else entry.topic,
+                    "kind": entry.kind.value,
+                    "magnitude": entry.magnitude,
+                    "confidence": entry.confidence,
+                    "evidence": [
+                        blurred_place(reference) if blur else reference
+                        for reference in entry.evidence
+                    ],
+                    "novelty": entry.novelty,
+                    "importance": entry.importance,
+                }
+                for entry in feed.entries
+            ],
+        },
+    )
 
 
 def insights_payload(report: InsightReport, blur: bool = False) -> dict[str, Any]:
-    return {
-        "oldest_at": report.oldest_at.isoformat(),
-        "latest_at": report.latest_at.isoformat(),
-        "insights": [
-            {
-                "topic": blurred_place(item.topic) if blur else item.topic,
-                "kind": item.kind.value,
-                "direction": item.direction.value,
-                "magnitude": item.magnitude,
-                "first_seen": item.first_seen.isoformat() if item.first_seen else None,
-                "last_seen": item.last_seen.isoformat() if item.last_seen else None,
-                "confidence": item.confidence,
-                "evidence": [
-                    blurred_place(reference) if blur else reference for reference in item.evidence
-                ],
-                "novelty": item.novelty,
-                "derived_from": list(item.derived_from),
-            }
-            for item in report.insights
-        ],
-        "mixed": [
-            {
-                "held": blurred_place(pair.held) if blur else pair.held,
-                "held_strength": pair.held_strength,
-                "rising": blurred_place(pair.rising) if blur else pair.rising,
-                "rising_magnitude": pair.rising_magnitude,
-            }
-            for pair in derive_mixed(report)
-        ],
-    }
+    return named(
+        "insights",
+        {
+            "oldest_at": report.oldest_at.isoformat(),
+            "latest_at": report.latest_at.isoformat(),
+            "insights": [
+                {
+                    "topic": blurred_place(item.topic) if blur else item.topic,
+                    "kind": item.kind.value,
+                    "direction": item.direction.value,
+                    "magnitude": item.magnitude,
+                    "first_seen": item.first_seen.isoformat() if item.first_seen else None,
+                    "last_seen": item.last_seen.isoformat() if item.last_seen else None,
+                    "confidence": item.confidence,
+                    "evidence": [
+                        blurred_place(reference) if blur else reference
+                        for reference in item.evidence
+                    ],
+                    "novelty": item.novelty,
+                    "derived_from": list(item.derived_from),
+                }
+                for item in report.insights
+            ],
+            "mixed": [
+                {
+                    "held": blurred_place(pair.held) if blur else pair.held,
+                    "held_strength": pair.held_strength,
+                    "rising": blurred_place(pair.rising) if blur else pair.rising,
+                    "rising_magnitude": pair.rising_magnitude,
+                }
+                for pair in derive_mixed(report)
+            ],
+        },
+    )
 
 
 def lifecycle_payload(report: LifecycleReport, blur: bool = False) -> dict[str, Any]:
-    return {
-        "oldest_at": report.oldest_at.isoformat(),
-        "latest_at": report.latest_at.isoformat(),
-        "lifecycles": [
-            {
-                "topic": blurred_place(item.topic) if blur else item.topic,
-                "stage": item.stage.value,
-                "strength": item.strength,
-                "baseline": item.baseline,
-                "seen_profiles": item.seen_profiles,
-            }
-            for item in report.lifecycles
-        ],
-    }
+    return named(
+        "lifecycle",
+        {
+            "oldest_at": report.oldest_at.isoformat(),
+            "latest_at": report.latest_at.isoformat(),
+            "lifecycles": [
+                {
+                    "topic": blurred_place(item.topic) if blur else item.topic,
+                    "stage": item.stage.value,
+                    "strength": item.strength,
+                    "baseline": item.baseline,
+                    "seen_profiles": item.seen_profiles,
+                }
+                for item in report.lifecycles
+            ],
+        },
+    )
 
 
 def blurred_place(reference: str) -> str:
@@ -337,3 +385,36 @@ def _blur_place(reference: str, blur: bool) -> str:
     except ValueError:
         return reference
     return f"{PLACE_PREFIX}{latitude:.{BLUR_DECIMALS}f},{longitude:.{BLUR_DECIMALS}f}"
+
+
+def _suggestion(item: Suggestion, blur: bool) -> dict[str, Any]:
+    return {
+        "kind": item.kind.value,
+        "reference": _blur_place(item.reference, blur),
+        "confidence": item.confidence,
+        "days_since": item.days_since,
+        "cadence_days": item.cadence_days,
+        "seen_profiles": item.seen_profiles,
+        "baseline": item.baseline,
+        "distance_km": item.distance_km,
+    }
+
+
+def suggest_payload(found: SuggestionSet, blur: bool = True) -> dict[str, Any]:
+    """What `suggest` says, as a document. References are places, so
+    they are blurred unless raw is asked for, like every sibling."""
+    return named(
+        "suggest",
+        {
+            "suggestions": [_suggestion(item, blur) for item in found.suggestions],
+            "day_trips": [_suggestion(item, blur) for item in found.day_trips],
+            "reach": None
+            if found.reach is None
+            else {
+                "outings": found.reach.outings,
+                "typical_km": found.reach.typical_km,
+                "usual_km": found.reach.usual_km,
+                "share": found.reach.share,
+            },
+        },
+    )

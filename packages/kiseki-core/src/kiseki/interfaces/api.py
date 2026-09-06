@@ -26,8 +26,10 @@ from kiseki.interfaces.payloads import (
     discovery_payload,
     insights_payload,
     lifecycle_payload,
+    named,
     profile_payload,
     report_payload,
+    suggest_payload,
     trend_payload,
 )
 from kiseki.ports.models import (
@@ -124,7 +126,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _answer(self, path: str, query: dict[str, list[str]], blur: bool) -> None:
         if path == "/health":
-            self._send(200, {"status": "ok"})
+            self._send(200, named("health", {"status": "ok"}))
         elif path == "/report":
             report = self.server.pipeline_factory().report()
             self._send(200, report_payload(report, blur=blur))
@@ -134,7 +136,7 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/trend":
             trends = self.server.pipeline_factory().trend()
             if trends is None:
-                self._send(200, {"trends": None, "reason": "not enough history"})
+                self._send(200, named("trend", {"trends": None, "reason": "not enough history"}))
             else:
                 self._send(200, trend_payload(trends, blur=blur))
         elif path == "/tell":
@@ -149,31 +151,40 @@ class _Handler(BaseHTTPRequestHandler):
                 self.server.language_model_factory(),
                 language=language,
             )
-            self._send(200, {"story": story})
+            self._send(200, named("tell", {"story": story}))
         elif path == "/compare":
             comparison = self.server.pipeline_factory().compare()
             if comparison is None:
-                self._send(200, {"entries": None, "reason": "not enough history"})
+                self._send(200, named("compare", {"entries": None, "reason": "not enough history"}))
             else:
                 self._send(200, comparison_payload(comparison, blur=blur))
         elif path == "/discover":
             feed = self.server.pipeline_factory().discover()
             if feed is None:
-                self._send(200, {"discoveries": None, "reason": "not enough history"})
+                self._send(
+                    200, named("discover", {"discoveries": None, "reason": "not enough history"})
+                )
             else:
                 self._send(200, discovery_payload(feed, blur=blur))
         elif path == "/insights":
             findings = self.server.pipeline_factory().insights()
             if findings is None:
-                self._send(200, {"insights": None, "reason": "not enough history"})
+                self._send(
+                    200, named("insights", {"insights": None, "reason": "not enough history"})
+                )
             else:
                 self._send(200, insights_payload(findings, blur=blur))
         elif path == "/lifecycle":
             lifecycle = self.server.pipeline_factory().lifecycle()
             if lifecycle is None:
-                self._send(200, {"lifecycles": None, "reason": "not enough history"})
+                self._send(
+                    200, named("lifecycle", {"lifecycles": None, "reason": "not enough history"})
+                )
             else:
                 self._send(200, lifecycle_payload(lifecycle, blur=blur))
+        elif path == "/suggest":
+            found = self.server.pipeline_factory().suggest(datetime.now())  # noqa: DTZ005 -- as the command line does; see #402
+            self._send(200, suggest_payload(found, blur=blur))
         elif path == "/ask":
             question = query.get("q", [""])[0].strip()
             if not question:

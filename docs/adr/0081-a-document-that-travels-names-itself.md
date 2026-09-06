@@ -68,3 +68,18 @@ shape, inputs take PhotoRecord's.
   producers for no gain.
 - The three forms stay three. Written down, they are a rule; undocumented,
   they were three accidents waiting to be tidied into a breaking change.
+
+## Addendum (2026-09-06): a document that crosses a socket travels
+
+`kiseki serve` answers a GET with a document, and the reader chose
+the path -- by the test above, it knows what it asked for and needs
+only a version. That reading was declined. The reader is a program
+outside this repository, the document is held beside others from
+elsewhere, and a route's shape can move without its path moving.
+That is the export's situation, not the ingest command's.
+
+So every served document, and every `--json` document a command
+writes, carries `schema` (`kiseki-<endpoint>`) and `version`, in
+the export's shape. Additive: no existing key moved. The first
+consumer to ask for it was an orchestrator that refuses any
+document it cannot name, at every entrance.

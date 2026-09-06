@@ -9,7 +9,6 @@ import argparse
 import contextlib
 import io
 import json
-import sqlite3
 import sys
 import textwrap
 from collections.abc import Callable, Sequence
@@ -97,16 +96,12 @@ from kiseki.domain.services.cross_timeline import (
 from kiseki.domain.services.day_trips import (
     REGULAR_SPAN_DAYS,
     REGULAR_VISITS,
-    derive_day_trips,
-    derive_reach,
-    spread_out,
 )
 from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import (
-    PlaceProfile,
     derive_place_profiles,
 )
-from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
+from kiseki.domain.services.suggesting import SuggestionKind
 from kiseki.domain.services.theme_families import fold_by_family
 from kiseki.domain.services.trend_derivation import MIN_TREND_SPAN_DAYS
 from kiseki.domain.services.trips import derive_trips
@@ -134,6 +129,7 @@ from kiseki.interfaces.payloads import (
     privacy_payload,
     profile_payload,
     report_payload,
+    suggest_payload,
     trend_payload,
 )
 from kiseki.interfaces.view import render_view
@@ -1800,7 +1796,7 @@ def _command_export(args: argparse.Namespace) -> int:
         pipeline.lifecycle(),
         _date.today(),
     )
-    if args.out is not None:
+    if args.out is not None and args.out != "-":
         target = Path(args.out)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
@@ -2069,33 +2065,6 @@ def _command_trips(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _origins_of(places: Sequence[PlaceProfile]) -> list[GeoPoint]:
-    """The places the owner sets out from (ADR-0055)."""
-    regular = [
-        place.centroid
-        for place in places
-        if place.visits >= REGULAR_VISITS
-        and (place.last_seen - place.first_seen).days >= REGULAR_SPAN_DAYS
-    ]
-    if regular:
-        return regular
-    return [max(places, key=lambda place: place.visits).centroid] if places else []
-
-
-def _places_of(connection: sqlite3.Connection) -> tuple[PlaceProfile, ...]:
-    """Places, knowing which of their visits happened on a trip.
-
-    Read twice on purpose: the first reading finds the places the
-    owner sets out from, the trips are derived against those, and the
-    second reading knows which visits belong to one (ADR-0060).
-    """
-    outings = SqliteOutingRepository(connection).all()
-    plain = derive_place_profiles(outings)
-    trips = derive_trips(outings, _origins_of(plain))
-    on_trips = {outing.id.value for trip in trips for outing in trip.outings}
-    return derive_place_profiles(outings, on_trips)
-
-
 def _command_retention(args: argparse.Namespace) -> int:
     """The rules, and what they would let go of (ADR-0062).
 
@@ -2180,8 +2149,7 @@ def _command_forget(args: argparse.Namespace) -> int:
 
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
-    connection = connect(paths.db_path)
-    places = _places_of(connection)
+    places = _pipeline_from(paths.db_path).places()
     print(RULE)
     if not places:
         print("  no places yet: run `kiseki build` once the photographs are in")
@@ -2223,11 +2191,11 @@ def _command_suggest(args: argparse.Namespace) -> int:
     from datetime import datetime as _datetime
 
     paths = _paths_for(args)
-    connection = connect(paths.db_path)
-    places = _places_of(connection)
-    lifecycle = _pipeline_from(paths.db_path).lifecycle()
-    suggestions = derive_suggestions(places, lifecycle, _datetime.now())
-    suggestions = spread_out(suggestions)
+    found = _pipeline_from(paths.db_path).suggest(_datetime.now())
+    if args.json:
+        write_document(suggest_payload(found, blur=not args.raw))
+        return EXIT_OK
+    suggestions = found.suggestions
     print(RULE)
     if not suggestions:
         print("  nothing to suggest: the evidence is thin, or everything is current")
@@ -2251,9 +2219,8 @@ def _command_suggest(args: argparse.Namespace) -> int:
                 f"  seen in {item.seen_profiles} readings, was {item.baseline:.2f}"
                 f"  confidence {item.confidence:.2f}"
             )
-    reach = derive_reach(SqliteOutingRepository(connection).all())
-    trips = derive_day_trips(places, reach, _datetime.now()) if reach else ()
-    trips = spread_out(trips)
+    reach = found.reach
+    trips = found.day_trips
     names.update(
         place_names(
             (trip.reference for trip in trips),
@@ -2388,7 +2355,7 @@ def _command_demo(args: argparse.Namespace) -> int:
     from datetime import datetime as _datetime
 
     from kiseki.application.tour import TOUR
-    from kiseki.domain.services.suggesting import SuggestionKind, derive_suggestions
+    from kiseki.domain.services.suggesting import SuggestionKind
 
     # Resolved before anything moves: the tour runs each command from
     # inside the sandbox, so a relative path written afterwards would
@@ -2423,13 +2390,13 @@ def _command_demo(args: argparse.Namespace) -> int:
         return EXIT_OK
 
     profile = pipeline.profile(keep=False)
-    connection = connect(db_path)
-    places = _places_of(connection)
+    places = pipeline.places()
     lifecycle = pipeline.lifecycle()
     insights = pipeline.insights()
     feed = pipeline.discover()
     comparison = pipeline.compare()
-    suggestions = spread_out(derive_suggestions(places, lifecycle, _datetime.now()))
+    found = pipeline.suggest(_datetime.now())
+    suggestions = found.suggestions
 
     print(RULE)
     print("  a synthetic library, so the engine can be seen")
@@ -2478,8 +2445,8 @@ def _command_demo(args: argparse.Namespace) -> int:
     for suggestion in suggestions[:4]:
         kind = "go back" if suggestion.kind is SuggestionKind.REVISIT else "pick up"
         print(f"    {kind:<9}  {suggestion.reference}")
-    demo_reach = derive_reach(SqliteOutingRepository(connection).all())
-    demo_trips = derive_day_trips(places, demo_reach, _datetime.now()) if demo_reach else ()
+    demo_reach = found.reach
+    demo_trips = found.day_trips
     for trip in demo_trips:
         distance = trip.distance_km or 0.0
         print(f"    day trip   {trip.reference}  {distance:.0f} km out")
@@ -2489,7 +2456,6 @@ def _command_demo(args: argparse.Namespace) -> int:
             f" {demo_reach.usual_km:.0f} km"
         )
 
-    connection.close()
     del pipeline
     gc.collect()
     # Windows will not delete a file another handle still holds, and the
@@ -3029,6 +2995,10 @@ def build_parser() -> argparse.ArgumentParser:
     drift.set_defaults(run=_command_drift)
 
     suggest = commands.add_parser("suggest", help="from your own evidence, pointed forward")
+    suggest.add_argument("--json", action="store_true", help="machine readable output")
+    suggest.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     suggest.set_defaults(run=_command_suggest)
 
     reread = commands.add_parser("reread", help="what a newer prompt version left behind")

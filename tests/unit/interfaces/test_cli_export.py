@@ -26,3 +26,15 @@ class TestExportCommand:
         assert "exported" in capsys.readouterr().out
         document = json.loads(target.read_text(encoding="utf-8"))
         assert document["version"] == 1
+
+
+def test_a_dash_means_stdout_and_writes_no_file_called_dash(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The convention every shell tool follows. Before this, `--out -`
+    wrote a file literally named `-` in the working directory."""
+    monkeypatch.chdir(tmp_path)
+    assert main(["--data-root", str(tmp_path), "export", "--out", "-"]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert json.loads(out[out.index("{") :])["schema"] == "kiseki-interest-export"
+    assert not (tmp_path / "-").exists()
