@@ -134,6 +134,7 @@ from kiseki.interfaces.payloads import (
 )
 from kiseki.interfaces.view import render_view
 from kiseki.ports.models import CaptionRequest, ModelRefusedError, ModelUnavailableError
+from kiseki.ports.web import PageReadingRepository
 
 EXIT_OK = 0
 EXIT_BAD_INPUT = 2
@@ -531,6 +532,30 @@ def _to_page_readings(records: list[dict[str, Any]]) -> list["PageReading"]:
     return readings
 
 
+def _withdraw_pages(
+    repository: PageReadingRepository, readings: Sequence[PageReading], apply: bool
+) -> int:
+    """Take back exactly what a document put in, key by key.
+
+    The file is the unit. `kiseki web <file>` replaced these
+    (reference, day) readings; this removes the same ones and nothing
+    else, so a producer that wants a window gone hands over the file it
+    wrote for that window. Dry run unless --apply, as `forget` is: a
+    removal is the one thing here that cannot be undone."""
+    wanted = {(reading.reference, reading.day) for reading in readings}
+    held = {(reading.reference, reading.day) for reading in repository.all()}
+    present = sorted(wanted & held)
+    print(RULE)
+    if apply:
+        gone = repository.remove_all(present)
+        print(f"  withdrew      {gone} of {len(wanted)} readings the document names")
+    else:
+        print(f"  would withdraw {len(present)} of {len(wanted)} readings the document names")
+        print("  nothing removed: add --apply to do it")
+    print(f"  readings held {repository.count()}")
+    return EXIT_OK
+
+
 def _command_web(args: argparse.Namespace) -> int:
     """Read what a web producer wrote (WebRecord v1).
 
@@ -551,6 +576,11 @@ def _command_web(args: argparse.Namespace) -> int:
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqlitePageReadingRepository(connection)
+    if args.withdraw:
+        return _withdraw_pages(repository, readings, apply=args.apply)
+    if args.apply:
+        print("--apply only means something with --withdraw", file=sys.stderr)
+        return EXIT_BAD_INPUT
     before = {reading.reference for reading in repository.all()}
     repository.save_all(readings)
     held = repository.all()
@@ -2688,6 +2718,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     web = commands.add_parser("web", help="read what a web producer wrote (WebRecord v1)")
     web.add_argument("records", help="the WebRecord v1 document")
+    web.add_argument(
+        "--withdraw",
+        action="store_true",
+        help="remove exactly the (reference, day) readings this document names",
+    )
+    web.add_argument("--apply", action="store_true", help="with --withdraw: actually remove them")
     web.set_defaults(run=_command_web)
 
     commands.add_parser("build", help="recompute stops, outings and anchors").set_defaults(

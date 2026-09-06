@@ -133,3 +133,15 @@ class TestWhatTheDomainRefuses:
             refused="the model did not answer with JSON",
         )
         assert reading.answered is False
+
+
+def test_removing_named_readings_leaves_the_rest(tmp_path: Path) -> None:
+    connection = connect(tmp_path / "k.sqlite3")
+    repository = SqlitePageReadingRepository(connection)
+    repository.save_all([_reading("a"), _reading("b"), _reading("a", day=date(2026, 8, 31))])
+    gone = repository.remove_all([("a", date(2026, 8, 30)), ("zzz", date(2026, 8, 30))])
+    assert gone == 1
+    assert sorted((r.reference, r.day.isoformat()) for r in repository.all()) == [
+        ("a", "2026-08-31"),
+        ("b", "2026-08-30"),
+    ]
