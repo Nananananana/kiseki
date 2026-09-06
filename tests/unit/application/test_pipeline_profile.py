@@ -34,10 +34,14 @@ class TestProfile:
         assert profile.interests == ()
         assert profile.generated_at == GENERATED
 
-    def test_generated_at_defaults_to_now(self) -> None:
-        before = datetime.now()
+    def test_generated_at_defaults_to_now_and_says_its_offset(self) -> None:
+        """Compared in one shape (ADR-0064): the stamp is aware since #402,
+        and this test met it with a naive clock and raised the very
+        TypeError the change exists to end."""
+        before = datetime.now().astimezone()
         profile = _pipeline().profile()
-        after = datetime.now()
+        after = datetime.now().astimezone()
+        assert profile.generated_at.tzinfo is not None
         assert before <= profile.generated_at <= after
 
     def test_the_reading_is_saved_when_a_repository_was_given(self) -> None:

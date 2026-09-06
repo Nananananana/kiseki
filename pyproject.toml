@@ -54,8 +54,9 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ARG", "ISC", "BLE", "DTZ
 
 [tool.ruff.lint.per-file-ignores]
 # The command line compares a naive `now()` against stored moments it has
-# already stripped to naive (ADR-0064): ages in days, for a reader. Making
-# it aware is the other half of #402, not a lint fix.
+# already stripped to naive (ADR-0064): ages in days, for a reader. The
+# kept profile's stamp is aware since #402; these nine stay naive on
+# purpose, because the arithmetic beside them strips to naive first.
 "packages/kiseki-core/src/kiseki/interfaces/cli.py" = ["DTZ005", "DTZ011"]
 # Tests stub protocols with fakes that ignore arguments, build fixtures
 # with naive datetimes on purpose, and catch broadly to assert on the

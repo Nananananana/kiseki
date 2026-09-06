@@ -312,7 +312,11 @@ class Pipeline:
         """
         outings = self._outings.all()
         places = summarise_places(outings, self._settings.place_radius)
-        when = generated_at or datetime.now()  # noqa: DTZ005 -- stamps a kept profile without its offset; see #402
+        # Aware, in the machine's zone, as every photograph is (ADR-0064).
+        # Every kept profile on the real library lacked an offset while
+        # every photograph carried one; the aware/naive mismatch that
+        # #389 had to patch downstream started here (#402).
+        when = generated_at or datetime.now().astimezone()
         profile = derive_interests(places, when, anchors=self._anchors.all())
 
         if self._captions is not None and self._subjects is not None:
