@@ -13,6 +13,7 @@ document. See ADR-0036.
 
 from dataclasses import dataclass
 
+from kiseki.application.progress import OnProgress
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.models import ModelUnavailableError, TextEmbedder
 from kiseki.ports.repositories import PhotoRepository
@@ -98,6 +99,7 @@ def run_indexing(
     embedder: TextEmbedder,
     embedding_model: str,
     limit: int | None = None,
+    on_progress: OnProgress | None = None,
 ) -> IndexRunReport:
     """Sync the documents, then embed what lacks a vector, oldest first."""
     added = 0
@@ -120,5 +122,7 @@ def run_indexing(
         for document, vector in zip(chunk, vectors, strict=True):
             index.put_embedding(document.doc_key, embedding_model, vector)
             embedded += 1
+        if on_progress is not None:
+            on_progress(embedded, len(pending))
 
     return IndexRunReport(added, index.document_count(), embedded, already, paused)

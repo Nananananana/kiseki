@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.progress import OnProgress
 from kiseki.application.scheduling import fan_out
 from kiseki.domain.photo.observation import PhotoId
 from kiseki.domain.screen.reading import ScreenshotReading
@@ -49,6 +50,7 @@ def run_screen_reading(
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
     parallel: int = 1,
+    on_progress: OnProgress | None = None,
 ) -> ScreenRunReport:
     """Read every unread screenshot, oldest first."""
     read = already = refused = unreferenced = withheld = 0
@@ -82,6 +84,8 @@ def run_screen_reading(
             )
             read += 1
         pending = []
+        if on_progress is not None:
+            on_progress(read + refused, None)
 
     for photo in photos.all():
         if photo.content_kind != SCREENSHOT:

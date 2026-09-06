@@ -20,13 +20,19 @@ def isolated_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _known_commands() -> set[str]:
-    parser = build_parser()
-    known: set[str] = set()
-    for action in parser._actions:
-        choices = getattr(action, "choices", None)
-        if choices:
-            known.update(str(choice) for choice in choices)
-    return known
+    """The subcommands, and only those.
+
+    This read every top-level action's `choices`, which was the
+    commands until a top-level flag grew choices of its own
+    (`--progress jsonl`) and `jsonl` became a command the tour had
+    never mentioned.
+    """
+    from argparse import _SubParsersAction
+
+    for action in build_parser()._actions:
+        if isinstance(action, _SubParsersAction):
+            return {str(choice) for choice in action.choices}
+    raise AssertionError("the parser has no subcommands")
 
 
 def test_every_stop_names_a_real_command() -> None:

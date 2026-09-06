@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from kiseki.application.progress import OnProgress
 from kiseki.domain.caption.caption import CaptionKey
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.ports.captions import CaptionRepository
@@ -82,6 +83,7 @@ def run_subject_extraction(
     singles: SingleCaptionRepository | None = None,
     limit: int | None = None,
     now: Callable[[], datetime] = datetime.now,
+    on_progress: OnProgress | None = None,
 ) -> SubjectRunReport:
     """Read every answered caption that has no reading yet, in order.
 
@@ -116,6 +118,8 @@ def run_subject_extraction(
         except ModelRefusedError as error:
             subjects.save(_refusal(key, str(error), when))
             refused += 1
+            if on_progress is not None:
+                on_progress(extracted + refused, None)
             continue
         except ModelUnavailableError:
             paused = True
@@ -126,6 +130,8 @@ def run_subject_extraction(
             reason = f"unparseable answer: {completion.text[:80]}"
             subjects.save(_refusal(key, reason, when))
             refused += 1
+            if on_progress is not None:
+                on_progress(extracted + refused, None)
             continue
 
         subjects.save(
@@ -138,6 +144,8 @@ def run_subject_extraction(
             )
         )
         extracted += 1
+        if on_progress is not None:
+            on_progress(extracted + refused, None)
 
     return SubjectRunReport(extracted, already, refused, paused)
 

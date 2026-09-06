@@ -253,3 +253,21 @@ class TestSeveralAtOnce:
         assert world.captions.all() == (), "something was saved for an empty answer"
         again = world.run(FakeImageCaptioner())
         assert again.captioned == 2, "an empty answer was not asked again"
+
+
+class TestProgress:
+    def test_each_window_reports_how_far_the_run_has_got(self) -> None:
+        stops = [_stop([f"p{index}"], 9 + index) for index in range(5)]
+        world = World(stops, {f"p{index}": f"thumb{index}" for index in range(5)})
+        seen: list[tuple[int, int | None]] = []
+        world.run(
+            FakeImageCaptioner(),
+            parallel=2,
+            on_progress=lambda done, total: seen.append((done, total)),
+        )
+        assert seen == [(2, None), (4, None), (5, None)]
+
+    def test_no_reporter_means_no_calls(self) -> None:
+        stops = [_stop(["p0"], 9)]
+        world = World(stops, {"p0": "thumb0"})
+        assert world.run(FakeImageCaptioner()).captioned == 1
