@@ -42,3 +42,17 @@ library has no need of it yet: the listing says how far a name
 reaches, which is what the coarseness actually costs a reader. If you
 download one, `kiseki places` will use it without any change here --
 the loader reads the same columns.
+
+## It is read once
+
+`cities500.txt` is 235,000 rows and 40 MB. The first command that
+names a place parses it and writes a compact copy under
+`<cache>/gazetteer/` -- coordinates as a flat array, names as text,
+nothing that can execute -- keyed by the file's size and modification
+time. Every later command reads the copy in a fraction of the time,
+and a command that names places twice reads it once. Download a
+newer file and the old copy is replaced on the next run; delete the
+directory to force a re-read. Measured on one library of 4,950
+photographs: `suggest` went from 2.3 seconds to 0.9, `places` from
+1.7 to 0.8, and the first run after a download takes 1.2 seconds to
+write the copy. About half a second of what remains is Python starting.

@@ -327,6 +327,18 @@ def _screen_reader(args: argparse.Namespace) -> OllamaScreenshotReader:
     )
 
 
+def _gazetteer(paths: StoragePaths) -> FileGazetteer:
+    """The owner's gazetteer, read once.
+
+    Twelve commands built their own FileGazetteer, and one of them
+    built two. Measured on the real library, each build parsed a
+    40 MB file for 1.6 seconds. With a cache directory the adapter
+    reads its compact copy instead, and memoises within a process,
+    so this is the only place the path and the cache meet.
+    """
+    return FileGazetteer(paths.gazetteer_path, cache_dir=paths.cache_dir)
+
+
 def _paths_for(args: argparse.Namespace) -> StoragePaths:
     """Where everything is, and a word about anything overruled."""
     overrides = {"data_root": args.data_root or ""}
@@ -863,7 +875,7 @@ def _command_profile(args: argparse.Namespace) -> int:
     if args.json:
         write_document(profile_payload(profile))
     else:
-        gazetteer = FileGazetteer(paths.gazetteer_path)
+        gazetteer = _gazetteer(paths)
         names = place_names((interest.topic for interest in profile.interests), gazetteer)
         _print_profile(
             profile,
@@ -938,7 +950,7 @@ def _command_tell(args: argparse.Namespace) -> int:
     pipeline = _pipeline_from(paths.db_path)
     report = pipeline.report()
     profile = pipeline.profile()
-    gazetteer = FileGazetteer(paths.gazetteer_path)
+    gazetteer = _gazetteer(paths)
     names = place_names((interest.topic for interest in profile.interests), gazetteer)
     try:
         story = tell(
@@ -1084,7 +1096,7 @@ def _command_view(args: argparse.Namespace) -> int:
         profile,
         trend,
         blur=not args.raw,
-        names=place_names(topics, FileGazetteer(paths.gazetteer_path)),
+        names=place_names(topics, _gazetteer(paths)),
         insights=_pipeline_from(_paths_for(args).db_path).insights(),
         comparison=_pipeline_from(_paths_for(args).db_path).compare(),
         feed=_pipeline_from(_paths_for(args).db_path).discover(),
@@ -1325,9 +1337,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
     if args.json:
         write_document(lifecycle_payload(report))
         return EXIT_OK
-    names = place_names(
-        (item.topic for item in report.lifecycles), FileGazetteer(paths.gazetteer_path)
-    )
+    names = place_names((item.topic for item in report.lifecycles), _gazetteer(paths))
     print(RULE)
     print(f"  oldest        {report.oldest_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
@@ -1380,9 +1390,7 @@ def _command_insights(args: argparse.Namespace) -> int:
     if args.json:
         write_document(insights_payload(report))
         return EXIT_OK
-    names = place_names(
-        (item.topic for item in report.insights), FileGazetteer(paths.gazetteer_path)
-    )
+    names = place_names((item.topic for item in report.insights), _gazetteer(paths))
     print(RULE)
     print(f"  oldest        {report.oldest_at.date().isoformat()}")
     print(f"  latest        {report.latest_at.date().isoformat()}")
@@ -1497,9 +1505,7 @@ def _command_compare(args: argparse.Namespace) -> int:
     if args.json:
         write_document(comparison_payload(comparison))
         return EXIT_OK
-    names = place_names(
-        (entry.topic for entry in comparison.entries), FileGazetteer(paths.gazetteer_path)
-    )
+    names = place_names((entry.topic for entry in comparison.entries), _gazetteer(paths))
     moved = [entry for entry in comparison.entries if entry.change is not ChangeKind.STEADY]
     print(RULE)
     print(f"  before        {comparison.before_at.date().isoformat()}")
@@ -1946,7 +1952,7 @@ def _command_doctor(args: argparse.Namespace) -> int:
             )
         else:
             print(f"    [evidence]     nothing newer than the last kept profile ({age} days old)")
-    gazetteer = FileGazetteer(paths.gazetteer_path)
+    gazetteer = _gazetteer(paths)
     if gazetteer.entries:
         print(f"    [consistency]  gazetteer present, {gazetteer.entries} entries")
     else:
@@ -1981,9 +1987,7 @@ def _command_discover(args: argparse.Namespace) -> int:
     if args.json:
         write_document(discovery_payload(feed))
         return EXIT_OK
-    names = place_names(
-        (entry.topic for entry in feed.entries), FileGazetteer(paths.gazetteer_path)
-    )
+    names = place_names((entry.topic for entry in feed.entries), _gazetteer(paths))
     print(RULE)
     print(f"  oldest        {feed.oldest_at.date().isoformat()}")
     print(f"  latest        {feed.latest_at.date().isoformat()}")
@@ -2133,7 +2137,7 @@ def _command_trips(args: argparse.Namespace) -> int:
         print("  no trips yet: a trip is a night spent away from everywhere you")
         print("  usually set out from")
         return EXIT_OK
-    gazetteer = FileGazetteer(paths.gazetteer_path)
+    gazetteer = _gazetteer(paths)
     print(f"  trips         {len(trips)}, the most recent first")
     print()
     for trip in sorted(trips, key=lambda item: item.start, reverse=True)[:15]:
@@ -2246,7 +2250,7 @@ def _command_places(args: argparse.Namespace) -> int:
     if not places:
         print("  no places yet: run `kiseki build` once the photographs are in")
         return EXIT_OK
-    gazetteer = FileGazetteer(paths.gazetteer_path)
+    gazetteer = _gazetteer(paths)
 
     def _named(place: Any) -> str | None:
         found = gazetteer.nearest(place.centroid, Distance(25_000))
@@ -2292,9 +2296,7 @@ def _command_suggest(args: argparse.Namespace) -> int:
     if not suggestions:
         print("  nothing to suggest: the evidence is thin, or everything is current")
         return EXIT_OK
-    names = place_names(
-        (item.reference for item in suggestions), FileGazetteer(paths.gazetteer_path)
-    )
+    names = place_names((item.reference for item in suggestions), _gazetteer(paths))
     print("  from your own evidence, the most overdue first")
     print()
     for item in suggestions:
@@ -2316,7 +2318,7 @@ def _command_suggest(args: argparse.Namespace) -> int:
     names.update(
         place_names(
             (trip.reference for trip in trips),
-            FileGazetteer(paths.gazetteer_path),
+            _gazetteer(paths),
         )
     )
     for trip in trips:

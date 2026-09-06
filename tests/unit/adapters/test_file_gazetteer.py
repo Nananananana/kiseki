@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 from kiseki.adapters.fake.places import FakeGazetteer
 from kiseki.adapters.filesystem.gazetteer import FileGazetteer
 from kiseki.domain.shared.geo import Distance, GeoPoint
@@ -91,3 +92,101 @@ def test_a_missing_ascii_name_falls_back(tmp_path: Path) -> None:
     place = gazetteer.nearest(KYOTO, Distance(10_000))
     assert place is not None
     assert place.name == "Kyoto"
+
+
+class TestReadOnce:
+    """Measured on the real library: 235,375 rows, 40 MB, 1.6 seconds to
+    parse, parsed on every command that named a place and twice by
+    `suggest`. So: once per process, and once per file across processes."""
+
+    def setup_method(self) -> None:
+        from kiseki.adapters.filesystem.gazetteer import forget_loaded
+
+        forget_loaded()
+
+    def test_a_second_gazetteer_in_one_process_does_not_parse_again(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from kiseki.adapters.filesystem import gazetteer as module
+
+        source = _file(tmp_path, [_row("Kyoto", 35.0116, 135.7681)])
+        parses = 0
+        real = module._parse
+
+        def counted(path: Path) -> object:
+            nonlocal parses
+            parses += 1
+            return real(path)
+
+        monkeypatch.setattr(module, "_parse", counted)
+        FileGazetteer(source)
+        FileGazetteer(source)
+        assert parses == 1
+
+    def test_the_cache_is_written_once_and_read_after(self, tmp_path: Path) -> None:
+        from kiseki.adapters.filesystem.gazetteer import forget_loaded
+
+        source = _file(tmp_path, [_row("Kyoto", 35.0116, 135.7681)])
+        cache = tmp_path / "cache"
+        first = FileGazetteer(source, cache_dir=cache)
+        assert first.entries == 1
+        written = list((cache / "gazetteer").glob("cities-*"))
+        assert len(written) == 1, written
+        # Forget the memo and remove the source: only the cache can answer now.
+        forget_loaded()
+        stat = source.stat()
+        source.unlink()
+        from kiseki.adapters.filesystem.gazetteer import _load
+
+        rows = _load(source, stat.st_size, stat.st_mtime_ns, cache)
+        assert rows.count == 1
+
+    def test_a_changed_source_is_not_served_from_the_old_cache(self, tmp_path: Path) -> None:
+        """Same size, different content, later modification time: the key
+        has to notice the time, not only the size. The first version of
+        this test also grew the file, and passed with the time ignored."""
+        import os
+
+        from kiseki.adapters.filesystem.gazetteer import forget_loaded
+
+        cache = tmp_path / "cache"
+        source = _file(tmp_path, [_row("Kyoto", 35.0116, 135.7681)])
+        FileGazetteer(source, cache_dir=cache)
+        forget_loaded()
+        replaced = _file(tmp_path, [_row("Osaka", 34.6937, 135.5023)])
+        assert replaced.stat().st_size == source.stat().st_size, "the fixture must keep the size"
+        later = replaced.stat().st_mtime_ns + 1_000_000_000
+        os.utime(replaced, ns=(later, later))
+        again = FileGazetteer(replaced, cache_dir=cache)
+        assert again.nearest(GeoPoint(34.69, 135.50), Distance(5_000)) == PlaceName("Osaka", "JP")
+        assert again.nearest(GeoPoint(35.01, 135.77), Distance(5_000)) is None, (
+            "served from the stale copy"
+        )
+        assert len(list((cache / "gazetteer").glob("cities-*"))) == 1, "the stale copy was kept"
+
+    def test_cached_and_uncached_answer_alike(self, tmp_path: Path) -> None:
+        from kiseki.adapters.filesystem.gazetteer import forget_loaded
+
+        rows = [
+            _row("Kyoto", 35.0116, 135.7681),
+            _row("Osaka", 34.6937, 135.5023),
+            _row("Nara", 34.6851, 135.8048),
+        ]
+        source = _file(tmp_path, rows)
+        asked = [
+            (GeoPoint(35.0, 135.77), Distance(5_000)),
+            (GeoPoint(34.69, 135.80), Distance(3_000)),
+        ]
+        plain = [FileGazetteer(source).nearest(point, within) for point, within in asked]
+        forget_loaded()
+        FileGazetteer(source, cache_dir=tmp_path / "cache")
+        forget_loaded()
+        cached = FileGazetteer(source, cache_dir=tmp_path / "cache")
+        assert [cached.nearest(point, within) for point, within in asked] == plain
+
+    def test_a_cache_that_cannot_be_written_still_answers(self, tmp_path: Path) -> None:
+        source = _file(tmp_path, [_row("Kyoto", 35.0116, 135.7681)])
+        blocked = tmp_path / "not-a-dir"
+        blocked.write_text("a file where a directory was expected", encoding="utf-8")
+        found = FileGazetteer(source, cache_dir=blocked)
+        assert found.entries == 1
