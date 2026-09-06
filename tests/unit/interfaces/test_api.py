@@ -154,3 +154,34 @@ class TestApi:
             with pytest.raises(HTTPError) as caught:
                 _get(f"{base}/tell?lang=fr")
             assert caught.value.code == 400
+
+
+class TestTellServesItsFacts:
+    def test_tell_serves_the_facts_its_footnotes_point_at(self) -> None:
+        from kiseki.adapters.fake.models import FakeLanguageModel
+
+        def factory() -> Pipeline:
+            return Pipeline(
+                InMemoryPhotoRepository(),
+                InMemoryOutingRepository(),
+                InMemoryAnchorRepository(),
+                profiles=FakeProfileRepository(),
+            )
+
+        server = make_server(
+            factory,
+            lambda: FakeLanguageModel(answer=lambda system, prompt: "a story [F1]"),
+            host="127.0.0.1",
+            port=0,
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            payload = _get(f"http://127.0.0.1:{server.server_address[1]}/tell")
+        finally:
+            server.shutdown()
+            server.server_close()
+        assert payload["schema"] == "kiseki-tell"
+        assert payload["story"] == "a story [F1]"
+        assert payload["facts"][0]["id"] == "F1"
+        assert "photographs" in payload["facts"][0]["text"]

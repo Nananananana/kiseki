@@ -24,7 +24,7 @@ uv run kiseki report --json
 | `profile` | Read the measures and subjects as interests, and keep the reading |
 | `themes` | Gather the subject labels into themes |
 | `trend` | Read the drift between kept profiles |
-| `tell` | Say what the profile says, in prose |
+| `tell` | Say what the profile says, in prose; `--json` adds the facts each `[F1]` cites |
 | `serve` | Answer over local HTTP, loopback by default |
 | `view` | Write a self-contained HTML view |
 | `screens` | Read the screenshots: category and labels only |
@@ -138,7 +138,7 @@ uv run kiseki serve --host 0.0.0.0  # reachable from a phone -- deliberate
 | `/report` | the measures |
 | `/profile` | the current reading, not kept in the history |
 | `/trend` | the drift, or `"not enough history"` |
-| `/tell?lang=ja` | a cited narration; 503 while the model is away |
+| `/tell?lang=ja` | a cited narration and the numbered facts its `[F1]` footnotes point at; 503 while the model is away |
 | `/suggest` | somewhere to go back to, pick up, or go, with why now; same shape as `suggest --json` |
 
 Every served document names itself: `schema` is `kiseki-<endpoint>` and

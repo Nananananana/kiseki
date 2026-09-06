@@ -12,6 +12,7 @@ from typing import Any
 
 from kiseki.application.asking import Answer
 from kiseki.application.limits import LimitsReport
+from kiseki.application.narrative import Narration
 from kiseki.application.pipeline import PrivacyReport, Report, SuggestionSet
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
@@ -416,5 +417,21 @@ def suggest_payload(found: SuggestionSet, blur: bool = True) -> dict[str, Any]:
                 "usual_km": found.reach.usual_km,
                 "share": found.reach.share,
             },
+        },
+    )
+
+
+def narration_payload(narration: Narration) -> dict[str, Any]:
+    """The story, and the facts its footnotes point at.
+
+    Each fact is the exact string the model was shown, numbered as it
+    was in the prompt, so `[F3]` in the story is `facts[2]` here. The
+    facts carry no coordinate by construction: a place is a name from
+    the owner's gazetteer or a number, never where it is (ADR-0040)."""
+    return named(
+        "tell",
+        {
+            "story": narration.story,
+            "facts": [{"id": label, "text": fact} for label, fact in narration.numbered],
         },
     )

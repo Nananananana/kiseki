@@ -15,6 +15,7 @@ regenerated from the profile it reads. See ADR-0022.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
 from kiseki.application.pipeline import Report
@@ -93,6 +94,45 @@ def build_prompt(
     return system, numbered
 
 
+@dataclass(frozen=True)
+class Narration:
+    """A story and the closed list it was allowed to cite.
+
+    The story says `[F3]`; `facts[2]` is what F3 was. Served together
+    so a reader can open the fact behind a footnote instead of taking
+    the sentence on trust -- the facts were built for the prompt and
+    thrown away after it, which left every footnote pointing at
+    nothing a client could show."""
+
+    story: str
+    facts: tuple[str, ...]
+
+    @property
+    def numbered(self) -> tuple[tuple[str, str], ...]:
+        """`("F1", fact)` pairs, numbered exactly as the prompt was."""
+        return tuple((f"F{index}", fact) for index, fact in enumerate(self.facts, start=1))
+
+
+def narrate(
+    profile: Profile,
+    report: Report,
+    language_model: LanguageModel,
+    language: str = "ja",
+    names: Mapping[str, str] | None = None,
+    singles: Sequence[SingleCaption] = (),
+    photos: Sequence[PhotoObservation] = (),
+) -> Narration:
+    """One narration of the profile, with the facts it was given.
+
+    Model errors propagate to the caller."""
+    facts = narrative_facts(profile, report, names=names, singles=singles, photos=photos)
+    system, prompt = build_prompt(
+        profile, report, language, names=names, singles=singles, photos=photos
+    )
+    story = language_model.complete(system, [prompt])[0].text
+    return Narration(story=story, facts=facts)
+
+
 def tell(
     profile: Profile,
     report: Report,
@@ -102,11 +142,10 @@ def tell(
     singles: Sequence[SingleCaption] = (),
     photos: Sequence[PhotoObservation] = (),
 ) -> str:
-    """One narration of the profile. Model errors propagate to the caller."""
-    system, prompt = build_prompt(
-        profile, report, language, names=names, singles=singles, photos=photos
-    )
-    return language_model.complete(system, [prompt])[0].text
+    """The story alone. `narrate` is the same call keeping its facts."""
+    return narrate(
+        profile, report, language_model, language, names=names, singles=singles, photos=photos
+    ).story
 
 
 def _top_subjects(profile: Profile) -> tuple[Interest, ...]:
