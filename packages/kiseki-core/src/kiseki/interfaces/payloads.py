@@ -156,6 +156,11 @@ def answer_payload(answer: Answer, blur: bool = True) -> dict[str, Any]:
             "model": answer.model,
             "since": answer.since.isoformat() if answer.since else None,
             "until": answer.until.isoformat() if answer.until else None,
+            "routed_to": sorted(answer.route.kinds),
+            "routed_by": [
+                {"kind": kind, "phrase": phrase} for kind, phrase in answer.route.matched
+            ],
+            "unanswerable": list(answer.unanswerable),
             "supporting_insights": [
                 {
                     "topic": _blur_place(item.topic, blur),
