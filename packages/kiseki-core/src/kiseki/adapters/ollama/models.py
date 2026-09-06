@@ -43,6 +43,7 @@ from kiseki.ports.models import (
     CaptionRequest,
     Completion,
     ModelRefusedError,
+    ModelTimedOutError,
     ModelUnavailableError,
     Usage,
 )
@@ -116,7 +117,7 @@ def _http_post(host: str, timeout: float) -> Post:
                 # Reachable and slow, which is not the same as absent.
                 # One Ollama answers one request at a time, so the wait
                 # may belong to another program's request entirely.
-                raise ModelUnavailableError(
+                raise ModelTimedOutError(
                     f"reached ollama at {host} and waited {timeout:g}s without an answer. "
                     f"The model may be slow, or the wait may be a queue: one Ollama "
                     f"answers one request at a time, and `ollama ps` says what is loaded"

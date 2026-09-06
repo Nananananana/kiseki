@@ -25,6 +25,15 @@ class ModelUnavailableError(RuntimeError):
     """
 
 
+class ModelTimedOutError(ModelUnavailableError):
+    """The model was reached and did not answer in time.
+
+    A kind of unavailability, so everything that pauses on one pauses on
+    this; named separately because an orchestrator's ledger tells the
+    two apart -- a queue behind another program's request is not a
+    service that is down -- and the exit code carries the name."""
+
+
 class ModelRefusedError(RuntimeError):
     """The model rejected the request itself.
 
