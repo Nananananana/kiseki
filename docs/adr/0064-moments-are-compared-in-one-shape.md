@@ -43,3 +43,20 @@ in any zone.
   derivation inherits the behaviour instead of reinventing it.
 - The matrix that found this now guards it, on every source
   combination.
+
+## Addendum (2026-09-06): a kept profile says its offset
+
+Every kept profile on the real library was stamped by a naive
+`datetime.now()` while every photograph carried `+09:00`, and
+`store.py` said the offset was the contract. The comparisons above
+hid it: each strips to naive first, so nothing raised until `ask`
+met an aware moment (#389) and was patched where the symptom was.
+
+The stamp is now aware, in the machine's zone, as a photograph's
+is. The store refuses a profile whose stamp is naive, as
+`PhotoObservation` refuses a naive `captured_at`, so the class cannot
+recur by a new path. Histories already holding naive rows keep
+working: `naive()` converts an aware moment to the same local wall
+clock the old rows carried, `history()` orders by insertion, and
+retention reads the day and month by prefix, which an offset does
+not move. (#402)

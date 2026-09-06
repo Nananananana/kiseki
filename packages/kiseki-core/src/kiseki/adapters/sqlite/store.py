@@ -762,6 +762,11 @@ class SqliteProfileRepository:
         self._connection = connection
 
     def save(self, profile: Profile) -> None:
+        if profile.generated_at.tzinfo is None:
+            raise ValueError(
+                "a kept profile must say its offset: timestamps are stored with"
+                " theirs, and one without cannot be ordered against them (#402)"
+            )
         with self._connection:
             self._connection.execute(
                 "INSERT INTO profiles (generated_at, document) VALUES (?, ?)",

@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,7 +16,7 @@ from kiseki.domain.interests import (
 )
 from kiseki.interfaces.cli import EXIT_OK, main
 
-BASE = datetime(2026, 6, 1, 12)
+BASE = datetime(2026, 6, 1, 12, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
