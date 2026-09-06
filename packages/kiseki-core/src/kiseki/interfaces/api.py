@@ -18,7 +18,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from kiseki.application.asking import Answer
-from kiseki.application.narrative import tell
+from kiseki.application.narrative import narrate
 from kiseki.application.pipeline import Pipeline
 from kiseki.interfaces.payloads import (
     answer_payload,
@@ -27,6 +27,7 @@ from kiseki.interfaces.payloads import (
     insights_payload,
     lifecycle_payload,
     named,
+    narration_payload,
     profile_payload,
     report_payload,
     suggest_payload,
@@ -145,13 +146,13 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(400, {"error": f"lang must be one of: {', '.join(LANGUAGES)}"})
                 return
             pipeline = self.server.pipeline_factory()
-            story = tell(
+            narration = narrate(
                 pipeline.profile(keep=False),
                 pipeline.report(),
                 self.server.language_model_factory(),
                 language=language,
             )
-            self._send(200, named("tell", {"story": story}))
+            self._send(200, narration_payload(narration))
         elif path == "/compare":
             comparison = self.server.pipeline_factory().compare()
             if comparison is None:

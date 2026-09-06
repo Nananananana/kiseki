@@ -57,7 +57,7 @@ from kiseki.application.forgetting import forget, plan_forget
 from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
-from kiseki.application.narrative import narrative_facts, tell
+from kiseki.application.narrative import narrate
 from kiseki.application.pipeline import Pipeline, PipelineSettings, Report
 from kiseki.application.retention import (
     RetentionPolicy,
@@ -126,6 +126,7 @@ from kiseki.interfaces.payloads import (
     insights_payload,
     lifecycle_payload,
     limits_payload,
+    narration_payload,
     privacy_payload,
     profile_payload,
     report_payload,
@@ -949,11 +950,14 @@ def _command_tell(args: argparse.Namespace) -> int:
     singles = SqliteSingleCaptionRepository(connection)
     pipeline = _pipeline_from(paths.db_path)
     report = pipeline.report()
-    profile = pipeline.profile()
+    # keep=False: telling is a reading, not a keeping (ADR-0070). Without
+    # it every `kiseki tell` added a profile to the history the trend is
+    # computed from -- the served route had it right and this did not.
+    profile = pipeline.profile(keep=False)
     gazetteer = _gazetteer(paths)
     names = place_names((interest.topic for interest in profile.interests), gazetteer)
     try:
-        story = tell(
+        narration = narrate(
             profile,
             report,
             _language_model(args),
@@ -965,17 +969,11 @@ def _command_tell(args: argparse.Namespace) -> int:
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
         return _exit_for(error)
-    print(story)
-    narration_checks(
-        story,
-        narrative_facts(
-            profile,
-            report,
-            names=names,
-            singles=singles.all(),
-            photos=photos.all(),
-        ),
-    )
+    if args.json:
+        write_document(narration_payload(narration))
+        return EXIT_OK
+    print(narration.story)
+    narration_checks(narration.story, narration.facts)
     return EXIT_OK
 
 
@@ -2812,6 +2810,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     telling = commands.add_parser("tell", help="say what the profile says, in prose")
     telling.add_argument("--lang", default="ja", choices=["ja", "en"], help="output language")
+    telling.add_argument("--json", action="store_true", help="the story and its numbered facts")
     telling.set_defaults(run=_command_tell)
 
     themes = commands.add_parser("themes", help="gather the labels into themes")
