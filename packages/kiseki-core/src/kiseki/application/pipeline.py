@@ -62,6 +62,10 @@ from kiseki.domain.services.note_interest_derivation import (
     merge_note_interests,
 )
 from kiseki.domain.services.outing_assembly import assemble_outings
+from kiseki.domain.services.page_interest_derivation import (
+    derive_page_interests,
+    merge_page_interests,
+)
 from kiseki.domain.services.place_reading import PlaceProfile, derive_place_profiles
 from kiseki.domain.services.screen_interest_derivation import (
     derive_screen_interests,
@@ -75,7 +79,12 @@ from kiseki.domain.services.trips import derive_trips
 from kiseki.domain.services.vocabulary import overlap_of
 from kiseki.domain.shared.geo import Distance, GeoPoint
 from kiseki.domain.shared.moment import naive
-from kiseki.domain.shared.settings import AnchorSettings, OutingSettings, StopSettings
+from kiseki.domain.shared.settings import (
+    AnchorSettings,
+    OutingSettings,
+    PageSettings,
+    StopSettings,
+)
 from kiseki.domain.trends import TrendReport
 from kiseki.domain.web.reading import UNLABELLED_CATEGORIES as PAGE_UNLABELLED
 from kiseki.ports.activity import DailyActivityRepository
@@ -102,6 +111,7 @@ class PipelineSettings:
     stops: StopSettings = field(default_factory=StopSettings)
     outings: OutingSettings = field(default_factory=OutingSettings)
     anchors: AnchorSettings = field(default_factory=AnchorSettings)
+    pages: PageSettings = field(default_factory=PageSettings)
     place_radius: Distance = DEFAULT_PLACE_RADIUS
     stop_detector: StopDetector | None = None
     """Which algorithm separates stays from journeys, already resolved.
@@ -329,6 +339,13 @@ class Pipeline:
             # evidence of caring about it than a word in a file
             # (ADR-0080).
             profile = merge_note_interests(profile, derive_note_interests(self._notes.all()))
+        if self._pages is not None:
+            # After notes, and append-only again: a page adds only what
+            # nothing else has seen (ADR-0089).
+            profile = merge_page_interests(
+                profile,
+                derive_page_interests(self._pages.all(), self._settings.pages),
+            )
         if self._profiles is not None and keep:
             self._profiles.save(profile)
         return self._corrected(profile)

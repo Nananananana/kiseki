@@ -30,6 +30,7 @@ class EvidenceKind(Enum):
     PHOTOGRAPH = "photograph"
     SCREENSHOT = "screenshot"
     NOTE = "note"
+    PAGE = "page"
 
 
 @dataclass(frozen=True)

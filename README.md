@@ -515,11 +515,11 @@ and what might become true.
   CSV for QGIS, Leaflet, geopandas and pandas, blurred unless you ask twice
 - [Algorithms](docs/algorithms.md) -- seven ways to decide what a stay is,
   what each one costs, and how to change which one runs
-- [Thresholds](docs/thresholds.md) -- the ten numbers that decide what a stay
+- [Thresholds](docs/thresholds.md) -- the twelve numbers that decide what a stay
   is, which four were measured, and how to change any of them
 - [The words this library uses](docs/glossary.md) -- stay, stop, outing and
   anchor are four different things, and moment and pattern are two
-- [Architecture decisions](docs/adr) -- 88 ADRs, including the ones later
+- [Architecture decisions](docs/adr) -- 89 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 

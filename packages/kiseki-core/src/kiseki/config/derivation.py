@@ -64,6 +64,7 @@ from kiseki.domain.shared.geo import Distance
 from kiseki.domain.shared.settings import (
     AnchorSettings,
     OutingSettings,
+    PageSettings,
     StopSettings,
 )
 from kiseki.domain.shared.speed import Speed
@@ -84,6 +85,8 @@ KNOWN: dict[str, str] = {
     "min_visits": CHOSEN,
     "night_hours": CHOSEN,
     "working_hours": CHOSEN,
+    "min_page_days": CHOSEN,
+    "page_confidence_full_days": CHOSEN,
 }
 """Every setting, and how its default came to be that number.
 
@@ -101,6 +104,7 @@ class DerivationSettings:
     stops: StopSettings
     outings: OutingSettings
     anchors: AnchorSettings
+    pages: PageSettings
     sources: dict[str, str]
     """Which layer supplied each value: `default`, `kiseki.toml`,
     `.env`, `environment` or `command line`. Printed by `kiseki
@@ -245,12 +249,26 @@ def resolve_derivation_settings(
             else defaults_anchors.working_hours
         ),
     )
-    return DerivationSettings(stops, outings, anchors, sources)
+    defaults_pages = PageSettings()
+    pages = PageSettings(
+        min_days=(
+            int(_number(layers["min_page_days"], "min_page_days"))
+            if "min_page_days" in layers
+            else defaults_pages.min_days
+        ),
+        confidence_full_days=(
+            int(_number(layers["page_confidence_full_days"], "page_confidence_full_days"))
+            if "page_confidence_full_days" in layers
+            else defaults_pages.confidence_full_days
+        ),
+    )
+    return DerivationSettings(stops, outings, anchors, pages, sources)
 
 
 def in_force(settings: DerivationSettings) -> list[tuple[str, str, str, str]]:
     """Every setting as (name, value, where it came from, provenance)."""
     stops, outings, anchors = settings.stops, settings.outings, settings.anchors
+    pages = settings.pages
     values = {
         "stay_radius_m": f"{stops.stay_radius.meters:g}",
         "drift_speed_kmh": f"{stops.drift_speed.meters_per_second * 3.6:g}",
@@ -262,5 +280,7 @@ def in_force(settings: DerivationSettings) -> list[tuple[str, str, str, str]]:
         "min_visits": str(anchors.min_visits),
         "night_hours": f"{anchors.night_hours[0]},{anchors.night_hours[1]}",
         "working_hours": f"{anchors.working_hours[0]},{anchors.working_hours[1]}",
+        "min_page_days": str(pages.min_days),
+        "page_confidence_full_days": str(pages.confidence_full_days),
     }
     return [(name, values[name], settings.sources[name], KNOWN[name]) for name in KNOWN]

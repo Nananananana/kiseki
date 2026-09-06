@@ -242,3 +242,26 @@ class TestRefusals:
         not talking past each other."""
         with pytest.raises(ValueError):
             resolve(min_photographs="0")
+
+
+class TestThePageThresholds:
+    def test_the_defaults_are_the_chosen_ones(self) -> None:
+        settings = resolve()
+        assert settings.pages.min_days == 4
+        assert settings.pages.confidence_full_days == 10
+
+    def test_the_environment_moves_them(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("KISEKI_DERIVATION_MIN_PAGE_DAYS", "2")
+        assert resolve().pages.min_days == 2
+
+    def test_kiseki_toml_moves_them(self, tmp_path: Path) -> None:
+        (tmp_path / "kiseki.toml").write_text(
+            "[derivation]" + chr(10) + "page_confidence_full_days = 20" + chr(10), encoding="utf-8"
+        )
+        settings = resolve_derivation_settings(dotenv=tmp_path / ".env")
+        assert settings.pages.confidence_full_days == 20
+
+    def test_they_print_as_chosen(self) -> None:
+        rows = {name: (source, note) for name, _value, source, note in in_force(resolve())}
+        assert rows["min_page_days"] == ("default", KNOWN["min_page_days"])
+        assert "chosen" in KNOWN["min_page_days"]
