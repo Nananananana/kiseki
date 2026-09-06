@@ -378,6 +378,7 @@ def _pipeline_settings(args: argparse.Namespace | None = None) -> PipelineSettin
         stops=derivation.stops,
         outings=derivation.outings,
         anchors=derivation.anchors,
+        pages=derivation.pages,
         stop_detector=algorithms.stop_detector,
         stop_detector_name=algorithms.stops,
     )
@@ -1731,7 +1732,7 @@ def _command_settings(args: argparse.Namespace) -> int:
     print("  thresholds in force")
     print()
     for name, value, source, note in in_force(settings):
-        print(f"  {name:<22} {value:>8}   {source:<12} {note}")
+        print(f"  {name:<26} {value:>8}   {source:<12} {note}")
     print()
     print("  change one with KISEKI_DERIVATION_<NAME>, or in kiseki.toml:")
     print("      [derivation]")

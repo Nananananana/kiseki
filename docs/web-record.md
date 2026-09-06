@@ -235,8 +235,11 @@ with the encoding you meant; see [records.md](records.md).
 uv run kiseki web ~/kiseki-data/web-records.json
 ```
 
-*(The producer writes that file today; nothing in the core reads it
-yet. `kiseki web` is what the command will be called.)*
+The core reads it into the profile: a label that recurs on four
+separate days becomes an interest, with `page` as its evidence kind
+and the lowest standing of the four sources
+([ADR-0089](adr/0089-a-page-becomes-an-interest-more-carefully.md)).
+Both thresholds are `[derivation]` settings.
 
 Re-reading a window is safe: a page whose day has not changed replaces
 its reading, and the same page on a later day adds one.

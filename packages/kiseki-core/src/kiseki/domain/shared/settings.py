@@ -24,6 +24,8 @@ DEFAULT_CLUSTER_RADIUS = Distance(500)
 DEFAULT_MIN_VISITS = 5
 DEFAULT_NIGHT_HOURS = (20, 6)
 DEFAULT_WORKING_HOURS = (10, 17)
+DEFAULT_MIN_PAGE_DAYS = 4
+DEFAULT_PAGE_CONFIDENCE_FULL_DAYS = 10
 
 
 @dataclass(frozen=True)
@@ -104,3 +106,31 @@ class AnchorSettings:
     def __post_init__(self) -> None:
         if self.min_visits < 1:
             raise ValueError("min_visits must be at least 1")
+
+
+@dataclass(frozen=True)
+class PageSettings:
+    """How a page the owner opened becomes an interest (ADR-0089).
+
+    min_days
+        The number of separate days a label must appear on before it
+        counts. Higher than a note's two: opening is not choosing, the
+        dwell floor is a guess, and the classifier saw an address and a
+        title rather than the page. Four is chosen, not measured, and
+        sits above the export gate's three readings on purpose -- by the
+        time a page subject is admitted at all, it has already recurred
+        more than the gate asks.
+    confidence_full_days
+        Days at which confidence saturates. Ten, against a note's six,
+        for the same three reasons.
+
+    """
+
+    min_days: int = DEFAULT_MIN_PAGE_DAYS
+    confidence_full_days: int = DEFAULT_PAGE_CONFIDENCE_FULL_DAYS
+
+    def __post_init__(self) -> None:
+        if self.min_days < 1:
+            raise ValueError("a page label has to appear on at least one day")
+        if self.confidence_full_days < self.min_days:
+            raise ValueError("confidence cannot saturate before the label is admitted at all")

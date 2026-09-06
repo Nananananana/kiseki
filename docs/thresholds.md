@@ -1,8 +1,8 @@
 # The thresholds, and how to change them
 
-Ten numbers decide what a stay is, what an outing is, and what a place
-you return to is. **Four of them were measured. Six were chosen.** All
-ten are yours.
+Twelve numbers decide what a stay is, what an outing is, what a place
+you return to is, and when a page you opened becomes an interest.
+**Four of them were measured. Eight were chosen.** All twelve are yours.
 
 ```bash
 kiseki settings          # what is in force, and where each value came from
@@ -24,6 +24,8 @@ kiseki settings          # what is in force, and where each value came from
 | `min_visits` | 5 | distinct days before a place is an anchor | chosen |
 | `night_hours` | `20,6` | which hours count as night | chosen |
 | `working_hours` | `10,17` | which hours count as the working day | chosen |
+| `min_page_days` | 4 | separate days a page label must recur on before it is an interest; a note needs 2 | chosen ([ADR-0089](adr/0089-a-page-becomes-an-interest-more-carefully.md)) |
+| `page_confidence_full_days` | 10 | days at which a page interest's confidence saturates; a note's is 6 | chosen |
 
 "Measured" means: against **one** photo library — 4,950 photographs,
 one person, one country, one way of living. That is more than most
