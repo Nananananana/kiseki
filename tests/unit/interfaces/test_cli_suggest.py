@@ -1,5 +1,6 @@
 """The suggest command offers only what the owner's evidence holds."""
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -74,3 +75,13 @@ class TestSuggestCommand:
         """No outings, no reach: the command says nothing it cannot support."""
         assert main(["--data-root", str(tmp_path), "suggest"]) == EXIT_OK
         assert "your outings cover under" not in capsys.readouterr().out
+
+
+def test_suggest_json_is_a_named_document(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["--data-root", str(tmp_path), "suggest", "--json"]) == EXIT_OK
+    out = capsys.readouterr().out
+    document = json.loads(out[out.index("{") :])
+    assert document["schema"] == "kiseki-suggest"
+    assert document["suggestions"] == []

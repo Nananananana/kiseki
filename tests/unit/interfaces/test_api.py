@@ -94,7 +94,11 @@ def _get(url: str) -> dict[str, Any]:
 class TestApi:
     def test_health_answers(self) -> None:
         with _serving() as base:
-            assert _get(f"{base}/health") == {"status": "ok"}
+            assert _get(f"{base}/health") == {
+                "schema": "kiseki-health",
+                "version": 1,
+                "status": "ok",
+            }
 
     def test_a_served_profile_does_not_grow_the_history(self) -> None:
         repository = FakeProfileRepository()

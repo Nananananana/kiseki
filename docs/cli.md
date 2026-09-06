@@ -134,11 +134,17 @@ uv run kiseki serve --host 0.0.0.0  # reachable from a phone -- deliberate
 
 | Endpoint | Answer |
 |---|---|
-| `/health` | `{"status": "ok"}` |
+| `/health` | `{"schema": "kiseki-health", "version": 1, "status": "ok"}` |
 | `/report` | the measures |
 | `/profile` | the current reading, not kept in the history |
 | `/trend` | the drift, or `"not enough history"` |
 | `/tell?lang=ja` | a cited narration; 503 while the model is away |
+| `/suggest` | somewhere to go back to, pick up, or go, with why now; same shape as `suggest --json` |
+
+Every served document names itself: `schema` is `kiseki-<endpoint>` and
+`version` is `1`, in the export's shape (ADR-0081), so a reader that
+refuses unknown contracts can list them. The same two keys lead every
+`--json` document a command writes.
 
 Served payloads blur coordinates to two decimals, about a kilometre;
 add `?raw=true` to a request to opt out. A GET changes nothing: the
