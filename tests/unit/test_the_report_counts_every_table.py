@@ -28,6 +28,7 @@ COUNTED = {
     "note_readings": "note_readings, notes_label_silent",
     "page_readings": "page_readings, pages_label_silent",
     "daily_activity": "activity_days",
+    "daily_input": "input_days",
     "profiles": "kept_profiles",
     "corrections": "corrections, active_exclusions",
 }

@@ -76,12 +76,14 @@ NOTES = "notes"
 PAGES = "pages"
 ACTIVITY = "activity"
 SCREENS = "screens"
+INPUT = "input"
 
 LOSS: dict[str, str] = {
     PHOTOGRAPHS: "where you went and what was in front of you",
     NOTES: "what you wrote for yourself",
     PAGES: "what you read",
     ACTIVITY: "how your days were spent",
+    INPUT: "how much of your day was at the keys",
     SCREENS: "what you had open",
 }
 """What each source carries, and therefore what its absence costs.

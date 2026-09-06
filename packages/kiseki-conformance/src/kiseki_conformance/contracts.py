@@ -116,7 +116,18 @@ WEB_RECORD = Contract(
     entry="record",
 )
 
-CONTRACTS = (PHOTO_RECORD, INTEREST_EXPORT, NOTE_RECORD, WEB_RECORD)
+INPUT_RECORD = Contract(
+    name="InputRecord v1",
+    option="input-record",
+    resource=readings.INPUT_SCHEMA_RESOURCE,
+    declared_by=readings.anything,
+    semantics=readings.check_input_semantics,
+    container=None,
+    unit="day",
+    entry="record",
+)
+
+CONTRACTS = (PHOTO_RECORD, INTEREST_EXPORT, NOTE_RECORD, WEB_RECORD, INPUT_RECORD)
 
 UNNAMEABLE = tuple(contract for contract in CONTRACTS if contract.container is None)
 """The contracts no document can claim, because neither shape has a

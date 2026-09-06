@@ -24,6 +24,7 @@ from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.caption.subjects import SubjectExtraction
 from kiseki.domain.caption.themes import Theme, ThemeSet, ThemeSetKey
 from kiseki.domain.correction import Correction, CorrectionVerdict
+from kiseki.domain.input.daily import DailyInput
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -40,7 +41,7 @@ from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 from kiseki.domain.web.reading import PageReading
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -174,6 +175,15 @@ CREATE TABLE IF NOT EXISTS page_readings (
     PRIMARY KEY (reference, day)
 );
 
+CREATE TABLE IF NOT EXISTS daily_input (
+    day             TEXT PRIMARY KEY,
+    active_minutes  INTEGER NOT NULL,
+    events          INTEGER NOT NULL,
+    by_family       TEXT NOT NULL,
+    apps            INTEGER,
+    corrections     INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS daily_activity (
     day        TEXT PRIMARY KEY,
     steps      INTEGER NOT NULL,
@@ -232,6 +242,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 8:
             _migrate_v8_to_v9(connection)
             version = 9
+        if version == 9:
+            _migrate_v9_to_v10(connection)
+            version = 10
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -476,6 +489,75 @@ def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
         " distance_m REAL, floors INTEGER)"
     )
     connection.execute("UPDATE schema_version SET version = ?", (6,))
+
+
+def _migrate_v9_to_v10(connection: sqlite3.Connection) -> None:
+    """The one change from 9 to 10: a table for days at the keys.
+
+    A fifth kind of witness, in a table of its own. Photographs, days
+    of movement, notes and pages are untouched, and a library that
+    never reads one has an empty table -- which every derivation must
+    survive (ADR-0063, ADR-0065).
+
+    Keyed by day alone. There is no owner column here or anywhere:
+    one library belongs to one owner (docs/records.md), and several
+    people on one machine means several data roots."""
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS daily_input ("
+        " day TEXT PRIMARY KEY, active_minutes INTEGER NOT NULL,"
+        " events INTEGER NOT NULL, by_family TEXT NOT NULL,"
+        " apps INTEGER, corrections INTEGER)"
+    )
+    connection.execute("UPDATE schema_version SET version = ?", (10,))
+
+
+class SqliteDailyInputRepository:
+    """Days at the keys, one row per calendar day."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save_all(self, days: Sequence[DailyInput]) -> None:
+        """Store these days, replacing any already held for them."""
+        with self._connection:
+            self._connection.executemany(
+                "INSERT OR REPLACE INTO daily_input"
+                " (day, active_minutes, events, by_family, apps, corrections)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        day.day.isoformat(),
+                        day.active_minutes,
+                        day.events,
+                        json.dumps(day.by_family, sort_keys=True),
+                        day.apps,
+                        day.corrections,
+                    )
+                    for day in days
+                ],
+            )
+
+    def all(self) -> tuple[DailyInput, ...]:
+        rows = self._connection.execute(
+            "SELECT day, active_minutes, events, by_family, apps, corrections"
+            " FROM daily_input ORDER BY day"
+        )
+        return tuple(
+            DailyInput(
+                day=_date.fromisoformat(day),
+                active_minutes=active_minutes,
+                events=events,
+                by_family=json.loads(by_family),
+                apps=apps,
+                corrections=corrections,
+            )
+            for day, active_minutes, events, by_family, apps, corrections in rows
+        )
+
+    def count(self) -> int:
+        row = self._connection.execute("SELECT COUNT(*) FROM daily_input").fetchone()
+        total: int = row[0]
+        return total
 
 
 class SqliteDailyActivityRepository:

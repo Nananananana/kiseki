@@ -33,6 +33,7 @@ from kiseki.adapters.sqlite.store import (
     SqliteCaptionRepository,
     SqliteCorrectionRepository,
     SqliteDailyActivityRepository,
+    SqliteDailyInputRepository,
     SqliteNoteReadingRepository,
     SqliteOutingRepository,
     SqlitePageReadingRepository,
@@ -85,6 +86,7 @@ from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
+from kiseki.domain.input.daily import DailyInput
 from kiseki.domain.interests import Profile
 from kiseki.domain.note.reading import NoteReading
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
@@ -415,6 +417,7 @@ def _pipeline_from(db_path: Path, args: argparse.Namespace | None = None) -> Pip
         screens=SqliteScreenshotReadingRepository(connection),
         notes=SqliteNoteReadingRepository(connection),
         activity=SqliteDailyActivityRepository(connection),
+        inputs=SqliteDailyInputRepository(connection),
         pages=SqlitePageReadingRepository(connection),
         corrections=SqliteCorrectionRepository(connection),
         settings=_pipeline_settings(args),
@@ -716,6 +719,65 @@ def _command_activity(args: argparse.Namespace) -> int:
     print(RULE)
     print(f"  days read     {len(days)}")
     print(f"  days held     {repository.count()}")
+    return EXIT_OK
+
+
+def _to_inputs(records: list[dict[str, Any]]) -> list[DailyInput]:
+    """Turn InputRecord v1 documents into days at the keys.
+
+    `corrections` absent is not `corrections: 0`. A recorder reading a
+    redacted log knows the events but not which key each was, so it
+    cannot count a correction at all; reporting zero there would turn
+    *nobody could count* into *there were none*. Absent stays absent
+    all the way to the column (docs/input-record.md)."""
+    from datetime import date as _date
+
+    return [
+        DailyInput(
+            day=_date.fromisoformat(str(record["day"])),
+            active_minutes=int(record["active_minutes"]),
+            events=int(record["events"]),
+            by_family={
+                str(family): int(count) for family, count in (record.get("by_family") or {}).items()
+            },
+            apps=(int(record["apps"]) if record.get("apps") is not None else None),
+            corrections=(
+                int(record["corrections"]) if record.get("corrections") is not None else None
+            ),
+        )
+        for record in records
+    ]
+
+
+def _command_input(args: argparse.Namespace) -> int:
+    """Read days at the keys from an InputRecord v1 document.
+
+    A fifth contract beside the other four, independent of them: a
+    library with no photographs can hold days at the keys, and a
+    library with none behaves exactly as it did (ADR-0065, ADR-0091).
+    """
+    from kiseki.adapters.sqlite.store import SqliteDailyInputRepository
+
+    try:
+        document = json.loads(Path(args.records).read_text(encoding="utf-8-sig"))
+        if not isinstance(document, list):
+            raise ValueError("an InputRecord document is a list of days")
+        days = _to_inputs(document)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"the records could not be read: {error}", file=sys.stderr)
+        return EXIT_BAD_INPUT
+    connection = connect(_paths_for(args).db_path)
+    repository = SqliteDailyInputRepository(connection)
+    repository.save_all(days)
+    counted = sum(1 for day in days if day.counted_corrections)
+    print(RULE)
+    print(f"  days read     {len(days)}")
+    print(f"  days held     {repository.count()}")
+    if counted != len(days):
+        print(
+            f"  corrections   counted on {counted} of {len(days)}; "
+            "the rest could not be counted, which is not none"
+        )
     return EXIT_OK
 
 
@@ -1902,6 +1964,7 @@ def _command_privacy(args: argparse.Namespace) -> int:
         f"   label-silent {report.pages_label_silent}"
     )
     print(f"    days of movement  {report.activity_days:>6}")
+    print(f"    days at the keys  {report.input_days:>6}")
     print(f"    kept profiles     {report.kept_profiles:>6}")
     print(
         f"    corrections       {report.corrections:>6}   excluding now {report.active_exclusions}"
@@ -2807,6 +2870,10 @@ def build_parser() -> argparse.ArgumentParser:
     ingest = commands.add_parser("ingest", help="take in a PhotoRecord document")
     ingest.add_argument("records", type=Path)
     ingest.set_defaults(run=_command_ingest)
+
+    keys = commands.add_parser("input", help="read days at the keys (InputRecord v1)")
+    keys.add_argument("records", help="the InputRecord v1 document")
+    keys.set_defaults(run=_command_input)
 
     activity = commands.add_parser("activity", help="read days of movement (ActivityRecord v1)")
     activity.add_argument("records", help="the ActivityRecord v1 document")

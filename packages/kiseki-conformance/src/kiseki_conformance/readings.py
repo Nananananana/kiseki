@@ -22,6 +22,7 @@ from typing import Any
 
 NOTE_SCHEMA_RESOURCE = "note-record-v1.json"
 WEB_SCHEMA_RESOURCE = "web-record-v1.json"
+INPUT_SCHEMA_RESOURCE = "input-record-v1.json"
 
 NOTE_UNLABELLED = frozenset({"journal", "health", "money", "people", "credential"})
 """`docs/note-record.md`, and `SENSITIVE_CATEGORIES` in the core."""
@@ -86,3 +87,35 @@ def anything(_document: Mapping[str, Any]) -> bool:
     document that happens to use only shared categories.
     """
     return False
+
+
+def check_input_semantics(document: object) -> list[str]:
+    """What a schema cannot say about a day at the keys.
+
+    Two rules, and both are about a number that would be believed:
+
+    The families are some of the events, or all of them. A document
+    whose parts exceed its whole is a fault in the reduction, and the
+    core refuses it, so the kit says so first.
+
+    `active_minutes` without `events` is a day that was at the keys
+    for an hour and pressed nothing. Possible for a pointer-only
+    recorder, so it is not refused -- but a producer that meant to
+    count and did not should hear about it."""
+    if not isinstance(document, Sequence) or isinstance(document, str | bytes):
+        return []
+    messages = []
+    for index, record in enumerate(document):
+        if not isinstance(record, Mapping):
+            continue
+        events = record.get("events")
+        families = record.get("by_family")
+        if isinstance(events, int) and isinstance(families, Mapping):
+            counted = sum(value for value in families.values() if isinstance(value, int))
+            if counted > events:
+                messages.append(
+                    f"{index}: by_family holds {counted} events and the day holds "
+                    f"{events}. The parts cannot exceed the whole; the core "
+                    f"refuses the document."
+                )
+    return messages

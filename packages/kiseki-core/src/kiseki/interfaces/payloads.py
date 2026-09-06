@@ -212,6 +212,7 @@ def privacy_payload(report: PrivacyReport) -> dict[str, Any]:
             "page_readings": report.page_readings,
             "pages_label_silent": report.pages_label_silent,
             "activity_days": report.activity_days,
+            "input_days": report.input_days,
             "kept_profiles": report.kept_profiles,
             "corrections": report.corrections,
             "active_exclusions": report.active_exclusions,

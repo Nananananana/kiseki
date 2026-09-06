@@ -84,7 +84,7 @@ Model staging (ADR-0014): `qwen3-vl:8b` captions; `qwen2.5:14b-
 instruct-q4_K_M` extracts subjects and writes prose; `bge-m3` embeds.
 One model in VRAM at a time; `keep_alive` is explicit.
 
-Read the ADRs that cover what you are changing. There are 90.
+Read the ADRs that cover what you are changing. There are 91.
 
 When you write one: a consequence that could stop being true names
 what would end it, and a consequence that cannot says so. Most of them
@@ -234,8 +234,8 @@ not edited to match the present.
 ## Current state
 
 - Version: v0.11.0 released. v0.12 in progress.
-- Schema: version 9.
-- Commands (44): `paths`, `ingest`, `activity`, `notes`, `web`, `build`, `report`,
+- Schema: version 10.
+- Commands (45): `paths`, `ingest`, `activity`, `input`, `notes`, `web`, `build`, `report`,
   `profile`, `caption`, `singles`, `screens`, `subjects`, `themes`,
   `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,
   `compare`, `drift`, `places`, `trips`, `suggest`, `correct`,

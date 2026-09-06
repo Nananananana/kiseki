@@ -1,7 +1,8 @@
 # KISEKI
 
 **A local-first personal context engine.** It turns the traces you
-already leave -- photographs, notes, web pages, days of activity --
+already leave -- photographs, notes, web pages, days of activity, days
+of input at the keys --
 into evidence-backed insights about your journeys, your interests, and
 how they change.
 
@@ -89,6 +90,7 @@ comes to require one.
 | [ActivityRecord v1](docs/activity-record.md) | days you moved | a count of steps per day, no positions and no route |
 | [NoteRecord v1](docs/note-record.md) | notes you wrote | a category and some labels |
 | [WebRecord v1](docs/web-record.md) | pages you opened | a category and some labels |
+| [InputRecord v1](docs/input-record.md) | time at the keys | counts per day, no keys or words |
 
 **The text never arrives.** A note and a page are read by a producer
 that runs outside this library, classified there, and discarded there.
@@ -244,6 +246,7 @@ flowchart LR
     SU --> PR
     SC --> PR
     AD["Activity<br/>steps per day"] --> M
+    IN["Input<br/>counts per day at the keys"] --> M
     NR["Note readings<br/>category + labels only"] --> PR
     WR["Web readings<br/>category + labels only"] --> PR
     PR --> TL["tell -- a cited story"]
@@ -519,7 +522,7 @@ and what might become true.
   is, which four were measured, and how to change any of them
 - [The words this library uses](docs/glossary.md) -- stay, stop, outing and
   anchor are four different things, and moment and pattern are two
-- [Architecture decisions](docs/adr) -- 90 ADRs, including the ones later
+- [Architecture decisions](docs/adr) -- 91 ADRs, including the ones later
   reversed; the reasoning lives here
 - [Proposals](docs/proposals) and [release notes](docs/releases)
 

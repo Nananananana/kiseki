@@ -19,6 +19,7 @@ PhotoRecord v1    --+
 ActivityRecord v1   |
 NoteRecord v1       +--> Evidence --> Personal context
 WebRecord v1        |
+InputRecord v1      |
 (a future one)    --+
 ```
 
@@ -28,6 +29,7 @@ WebRecord v1        |
 | [ActivityRecord v1](activity-record.md) | `[...]` | days of movement |
 | [NoteRecord v1](note-record.md) | `[...]` | what the owner wrote, as category and labels |
 | [WebRecord v1](web-record.md) | `[...]` | what the owner opened, as category and labels |
+| [InputRecord v1](input-record.md) | `[...]` | how long the owner was at the keys, in counts |
 
 WebRecord v1 was written before its producer on purpose -- a contract
 argued against working code is argued against sunk cost -- and both
