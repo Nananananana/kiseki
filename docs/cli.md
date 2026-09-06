@@ -140,6 +140,7 @@ uv run kiseki serve --host 0.0.0.0  # reachable from a phone -- deliberate
 | `/trend` | the drift, or `"not enough history"` |
 | `/tell?lang=ja` | a cited narration and the numbered facts its `[F1]` footnotes point at; 503 while the model is away |
 | `/suggest` | somewhere to go back to, pick up, or go, with why now; same shape as `suggest --json` |
+| `/places` | each place the journeys know, with how far the blur can be wrong, for a map |
 
 Every served document names itself: `schema` is `kiseki-<endpoint>` and
 `version` is `1`, in the export's shape (ADR-0081), so a reader that
@@ -147,7 +148,12 @@ refuses unknown contracts can list them. The same two keys lead every
 `--json` document a command writes.
 
 Served payloads blur coordinates to two decimals, about a kilometre;
-add `?raw=true` to a request to opt out. A GET changes nothing: the
+add `?raw=true` to a request to opt out. `/places` also carries
+`blur_radius_m`: how far the true point can be from the blurred one, so
+a map can draw the circle the blur promises rather than a dot that
+claims a doorstep. It is the distance to the cell's corner, not half
+its height -- half is what a consumer computed from the visible
+decimals, and it was a third too small. A GET changes nothing: the
 profile history grows only through a deliberate `kiseki profile`.
 
 ## The view
