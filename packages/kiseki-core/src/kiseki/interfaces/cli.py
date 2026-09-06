@@ -133,11 +133,44 @@ from kiseki.interfaces.payloads import (
     trend_payload,
 )
 from kiseki.interfaces.view import render_view
-from kiseki.ports.models import CaptionRequest, ModelRefusedError, ModelUnavailableError
+from kiseki.ports.models import (
+    CaptionRequest,
+    ModelRefusedError,
+    ModelTimedOutError,
+    ModelUnavailableError,
+)
 from kiseki.ports.web import PageReadingRepository
 
 EXIT_OK = 0
 EXIT_BAD_INPUT = 2
+EXIT_MODEL_REFUSED = 3
+"""The model rejected the request. Asking again gives the same answer,
+so a script that sees this should not retry (ADR-0015)."""
+EXIT_MODEL_UNAVAILABLE = 4
+"""The model could not be reached, or a resumable run paused on it.
+Running again later continues from where it stopped."""
+EXIT_MODEL_TIMED_OUT = 5
+"""Reached, and no answer in time. A kind of unavailable, with a
+name, because a queue is not an outage."""
+
+
+def _exit_for(error: RuntimeError) -> int:
+    """The exit code a model error leaves with.
+
+    Two codes used to cover everything: 0 and 2. A refusal and an outage
+    both left as 2, and a paused captioning run left as 0, so a script
+    could not tell what to do next -- and the one that cannot tell a
+    refusal from a failure retries forever. Order matters below: a
+    timeout is an unavailability, and is asked about first."""
+    if isinstance(error, ModelTimedOutError):
+        return EXIT_MODEL_TIMED_OUT
+    if isinstance(error, ModelUnavailableError):
+        return EXIT_MODEL_UNAVAILABLE
+    if isinstance(error, ModelRefusedError):
+        return EXIT_MODEL_REFUSED
+    return EXIT_BAD_INPUT
+
+
 RULE = "-" * 70
 DOTENV = Path(".env")
 
@@ -863,6 +896,7 @@ def _command_caption(args: argparse.Namespace) -> int:
         print(f"  empty         {report.empty}   answered with no text; asked again next run")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
+        return EXIT_MODEL_UNAVAILABLE
     return EXIT_OK
 
 
@@ -881,6 +915,7 @@ def _command_subjects(args: argparse.Namespace) -> int:
     print(f"  refused       {report.refused}")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
+        return EXIT_MODEL_UNAVAILABLE
     return EXIT_OK
 
 
@@ -916,7 +951,7 @@ def _command_tell(args: argparse.Namespace) -> int:
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
-        return EXIT_BAD_INPUT
+        return _exit_for(error)
     print(story)
     narration_checks(
         story,
@@ -942,7 +977,7 @@ def _command_themes(args: argparse.Namespace) -> int:
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
-        return EXIT_BAD_INPUT
+        return _exit_for(error)
     print(RULE)
     print(f"  themes          {report.themes_made}")
     print(f"  labels          {report.labels_considered}")
@@ -1078,6 +1113,7 @@ def _command_screens(args: argparse.Namespace) -> int:
     print(f"  unreferenced  {report.unreferenced}")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
+        return EXIT_MODEL_UNAVAILABLE
     return EXIT_OK
 
 
@@ -1102,6 +1138,7 @@ def _command_singles(args: argparse.Namespace) -> int:
         print(f"  empty         {report.empty}   answered with no text; asked again next run")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
+        return EXIT_MODEL_UNAVAILABLE
     return EXIT_OK
 
 
@@ -1120,13 +1157,14 @@ def _command_index(args: argparse.Namespace) -> int:
         )
     except ModelRefusedError as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
-        return EXIT_BAD_INPUT
+        return _exit_for(error)
     print(RULE)
     print(f"  documents     {report.documents_total} ({report.documents_added} new)")
     print(f"  embedded      {report.embedded}")
     print(f"  already done  {report.already_embedded}")
     if report.paused:
         print("\n  paused: the model was unavailable; run again to resume")
+        return EXIT_MODEL_UNAVAILABLE
     return EXIT_OK
 
 
@@ -1196,7 +1234,7 @@ def _command_ask(args: argparse.Namespace) -> int:
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"the model could not answer: {error}", file=sys.stderr)
-        return EXIT_BAD_INPUT
+        return _exit_for(error)
     if args.json:
         write_document(answer_payload(answer, blur=not args.raw))
         return EXIT_OK
@@ -1355,7 +1393,7 @@ def _command_insights(args: argparse.Namespace) -> int:
             story = tell_insights(report, _language_model(args), language=args.lang, names=names)
         except (ModelRefusedError, ModelUnavailableError) as error:
             print(f"the model could not answer: {error}", file=sys.stderr)
-            return EXIT_BAD_INPUT
+            return _exit_for(error)
         print("\n" + story if story else "\n  no findings worth a story yet")
         return EXIT_OK
     shown = _capped(report.insights, _limit_of(args))
@@ -1732,12 +1770,13 @@ def _command_llm(args: argparse.Namespace) -> int:
         print("\n  --check asks the model whether it is there")
         return EXIT_OK
     try:
-        OllamaLanguageModel(model=settings.language_model, host=settings.host).complete(
-            "Answer with the word yes.", ["Are you there?"]
-        )
+        # Through _language_model, not built here: the inline constructor
+        # never received keep_alive or timeout, so --check was checking a
+        # differently configured model from the one every other command uses.
+        _language_model(args).complete("Answer with the word yes.", ["Are you there?"])
     except (ModelRefusedError, ModelUnavailableError) as error:
         print(f"\n  reachable       no: {error}")
-        return EXIT_BAD_INPUT
+        return _exit_for(error)
     print("\n  reachable       yes")
     return EXIT_OK
 

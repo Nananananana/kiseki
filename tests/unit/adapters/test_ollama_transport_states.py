@@ -104,3 +104,17 @@ class TestCouldNotEvenAsk:
         with pytest.raises(ValueError) as raised:
             _http_post("not a url", 12.0)("/api/chat", {})
         assert not isinstance(raised.value, ModelRefusedError | ModelUnavailableError)
+
+
+class TestATimeoutHasAName:
+    def test_a_timeout_is_an_unavailability_with_its_own_type(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Everything that pauses on an unavailable model still pauses on
+        a timeout; a ledger that wants to tell the two apart can."""
+        from kiseki.ports.models import ModelTimedOutError, ModelUnavailableError
+
+        monkeypatch.setattr(urllib.request, "urlopen", raising(TimeoutError("timed out")))
+        with pytest.raises(ModelTimedOutError) as caught:
+            _http_post(HOST, 12.0)("/api/chat", {})
+        assert isinstance(caught.value, ModelUnavailableError)

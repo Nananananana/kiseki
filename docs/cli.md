@@ -279,6 +279,22 @@ evidence counts on both sides (ADR-0045). By default it compares the
 trend's pair; `--from` / `--to` pick the latest kept profile at or
 before each date. Over HTTP: `GET /compare`.
 
+## Exit codes
+
+A script that cannot tell a refusal from a failure retries forever,
+so the code says which it was.
+
+| Code | Meaning | What a script should do |
+|---|---|---|
+| `0` | done | nothing |
+| `2` | bad input: an argument, a setting, a document, or a model outside the trust boundary | fix it; do not retry as is |
+| `3` | the model refused the request | record it; asking again gives the same answer (ADR-0015) |
+| `4` | the model was unavailable, or a resumable run (`caption`, `singles`, `screens`, `subjects`, `index`) paused on it | run again later; it continues from where it stopped |
+| `5` | the model was reached and did not answer in time | as `4`; a queue is not an outage, and `ollama ps` says what is loaded |
+
+`refresh` stops at the first stage that does not exit `0` and leaves
+with that stage's code.
+
 ## Where the model is
 
 Every model setting is read the same way the storage paths are --
