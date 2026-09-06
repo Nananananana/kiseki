@@ -121,6 +121,7 @@ def test_the_document_carries_the_counts_and_no_test_names(
         "pages": 0,
         "activity": 0,
         "screens": 0,
+        "input": 0,
     }
     assert payload["empty"] is False
     assert [one["subject"] for one in payload["unseeable"]]

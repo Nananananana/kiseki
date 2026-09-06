@@ -43,6 +43,7 @@ import pytest
 from kiseki.adapters.sqlite.store import (
     SqliteCaptionRepository,
     SqliteDailyActivityRepository,
+    SqliteDailyInputRepository,
     SqliteNoteReadingRepository,
     SqlitePageReadingRepository,
     SqlitePhotoRepository,
@@ -57,6 +58,7 @@ from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.caption.caption import Caption, CaptionKey
 from kiseki.domain.caption.single import SingleCaption
 from kiseki.domain.caption.subjects import SubjectExtraction
+from kiseki.domain.input.daily import DailyInput
 from kiseki.domain.interests import (
     EvidenceKind,
     Interest,
@@ -106,6 +108,7 @@ OMISSIONS = (
     "note reading",
     "page reading",
     "day of movement",
+    "day at the keys",
 )
 
 SOURCES = {
@@ -118,6 +121,7 @@ SOURCES = {
     "note_readings": "note reading",
     "page_readings": "page reading",
     "daily_activity": "day of movement",
+    "daily_input": "day at the keys",
 }
 """Every table holding the owner's own evidence, and the omission that
 removes it. Checked against the schema below, so a source that lands
@@ -277,6 +281,21 @@ def _seed(tmp_path: Path) -> None:
             for days in range(30)
         ]
     )
+    SqliteDailyInputRepository(connection).save_all(
+        [
+            DailyInput(
+                day=(NOW - timedelta(days=days)).date(),
+                active_minutes=120 + days,
+                events=9000 + 100 * days,
+                by_family={"key": 7000, "button": 1200},
+                apps=3,
+                # Half the days could not count corrections, which is the
+                # state the contract exists to keep distinct from zero.
+                corrections=40 if days % 2 == 0 else None,
+            )
+            for days in range(30)
+        ]
+    )
     connection.close()
     assert main(["--data-root", str(tmp_path), "build"]) == EXIT_OK
 
@@ -303,6 +322,7 @@ def _remove(tmp_path: Path, omission: str) -> None:
         "note reading": ["DELETE FROM note_readings"],
         "page reading": ["DELETE FROM page_readings"],
         "day of movement": ["DELETE FROM daily_activity"],
+        "day at the keys": ["DELETE FROM daily_input"],
     }[omission]
     with connection:
         for statement in statements:

@@ -12,6 +12,7 @@ from kiseki.application.captioning import DEFAULT_IMAGES_PER_STOP, representativ
 from kiseki.application.estimating import UNKNOWN, Stage
 from kiseki.application.limits import (
     ACTIVITY,
+    INPUT,
     NOTES,
     PAGES,
     PHOTOGRAPHS,
@@ -90,6 +91,7 @@ from kiseki.domain.web.reading import UNLABELLED_CATEGORIES as PAGE_UNLABELLED
 from kiseki.ports.activity import DailyActivityRepository
 from kiseki.ports.captions import CaptionRepository
 from kiseki.ports.corrections import CorrectionRepository
+from kiseki.ports.inputs import DailyInputRepository
 from kiseki.ports.notes import NoteReadingRepository
 from kiseki.ports.profiles import ProfileRepository
 from kiseki.ports.repositories import (
@@ -181,6 +183,7 @@ class PrivacyReport:
     note_readings: int
     notes_label_silent: int
     activity_days: int
+    input_days: int
     page_readings: int
     pages_label_silent: int
     kept_profiles: int
@@ -238,6 +241,7 @@ class Pipeline:
         screens: ScreenshotReadingRepository | None = None,
         notes: NoteReadingRepository | None = None,
         activity: DailyActivityRepository | None = None,
+        inputs: DailyInputRepository | None = None,
         pages: PageReadingRepository | None = None,
         singles: SingleCaptionRepository | None = None,
         corrections: CorrectionRepository | None = None,
@@ -253,6 +257,7 @@ class Pipeline:
         self._screens = screens
         self._notes = notes
         self._activity = activity
+        self._inputs = inputs
         self._pages = pages
         self._singles = singles
         self._corrections = corrections
@@ -451,6 +456,7 @@ class Pipeline:
         subjects = self._subjects.all() if self._subjects is not None else ()
         notes = self._notes.all() if self._notes is not None else ()
         days = self._activity.all() if self._activity is not None else ()
+        inputs = self._inputs.all() if self._inputs is not None else ()
         pages = self._pages.all() if self._pages is not None else ()
         history = self._profiles.history() if self._profiles is not None else ()
         corrections = self._corrections.all() if self._corrections is not None else ()
@@ -474,6 +480,7 @@ class Pipeline:
                 1 for reading in notes if reading.refused is None and not reading.labels
             ),
             activity_days=len(days),
+            input_days=len(inputs),
             page_readings=len(pages),
             pages_label_silent=sum(
                 1 for reading in pages if reading.refused is None and not reading.labels
@@ -507,6 +514,7 @@ class Pipeline:
         notes = self._notes.all() if self._notes is not None else ()
         pages = self._pages.all() if self._pages is not None else ()
         activity = self._activity.all() if self._activity is not None else ()
+        inputs = self._inputs.all() if self._inputs is not None else ()
         screens = self._screens.all() if self._screens is not None else ()
 
         sources = (
@@ -524,6 +532,11 @@ class Pipeline:
                 name=PAGES,
                 count=len(pages),
                 span=span_of([reading.day for reading in pages]),
+            ),
+            Source(
+                name=INPUT,
+                count=len(inputs),
+                span=span_of([day.day for day in inputs]),
             ),
             Source(
                 name=ACTIVITY,

@@ -16,6 +16,7 @@ uv run kiseki report --json
 | `ingest` | Take a PhotoRecord document into the database |
 | `activity` | Take an ActivityRecord document: days of movement |
 | `notes` | Take a NoteRecord document: what the owner wrote, as category and labels |
+| `input` | Take an InputRecord document: how long the owner was at the keys, in counts |
 | `web` | Take a WebRecord document: what the owner opened, as category and labels; `--withdraw` takes the same document back |
 | `build` | Recompute stops, outings and anchors from what is stored |
 | `report` | Print what the measures say |

@@ -72,6 +72,7 @@ IN_THE_KIT = {
     "interest-export": "interest-export.md",
     "note-record": "note-record.md",
     "web-record": "web-record.md",
+    "input-record": "input-record.md",
 }
 
 NOT_IN_THE_KIT = {

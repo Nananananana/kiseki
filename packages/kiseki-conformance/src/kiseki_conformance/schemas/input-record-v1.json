@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nananananana/kiseki/schemas/inputrecord-record-v1.json",
+  "title": "InputRecord v1",
+  "description": "A day at the keys, in counts. No key names, words, application names, window titles, times of day or positions -- the producer reduces locally and discards. `corrections` is optional on purpose: absent means the recorder could not count them, which is not the same as zero. additionalProperties is true because rule two of docs/records.md is that a reader passes over what it does not know.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/record"
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "owner",
+        "platform",
+        "day",
+        "active_minutes",
+        "events"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "day": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "active_minutes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1440
+        },
+        "events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "by_family": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "apps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "corrections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recorded_at": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

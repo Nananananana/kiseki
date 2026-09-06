@@ -64,6 +64,7 @@ TOUR: tuple[Stop, ...] = (
     Stop("export", "the most that ever leaves, and in what shape", runs=False),
     Stop("forget", "removes photographs and everything that spoke about them", runs=False),
     Stop("activity", "reads days of movement from an ActivityRecord document", runs=False),
+    Stop("input", "reads days at the keys from an InputRecord document", runs=False),
     Stop("notes", "reads what a note producer wrote, as categories and labels", runs=False),
     Stop("web", "reads what a web producer wrote, as categories and labels", runs=False),
     Stop("ingest", "takes in a PhotoRecord document", runs=False),

@@ -27,6 +27,7 @@ from kiseki.adapters.memory.repositories import (
 )
 from kiseki.application.limits import (
     ACTIVITY,
+    INPUT,
     LOSS,
     NOTES,
     PAGES,
@@ -47,7 +48,7 @@ from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 REPO_ROOT = Path(__file__).parents[2]
 JST = timezone(timedelta(hours=9))
 
-EVERY_SOURCE = (PHOTOGRAPHS, NOTES, PAGES, ACTIVITY, SCREENS)
+EVERY_SOURCE = (PHOTOGRAPHS, NOTES, PAGES, ACTIVITY, SCREENS, INPUT)
 
 
 def full(**counts: int) -> list[Source]:
@@ -70,7 +71,7 @@ def full(**counts: int) -> list[Source]:
 def test_there_are_limits_to_report_at_all() -> None:
     """A report with no possible limits would make every assertion
     below pass by having nothing to look at."""
-    assert len(EVERY_SOURCE) == 5
+    assert len(EVERY_SOURCE) == 6
     assert set(LOSS) == set(EVERY_SOURCE)
     assert UNSEEABLE, "nothing is claimed unseeable, so those tests check nothing"
 
