@@ -129,6 +129,7 @@ from kiseki.interfaces.payloads import (
     lifecycle_payload,
     limits_payload,
     narration_payload,
+    places_payload,
     privacy_payload,
     profile_payload,
     report_payload,
@@ -2279,6 +2280,22 @@ def _command_forget(args: argparse.Namespace) -> int:
 def _command_places(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     places = _pipeline_from(paths.db_path).places()
+    if args.json:
+        gazetteer = _gazetteer(paths)
+        write_document(
+            places_payload(
+                places,
+                names=place_names(
+                    (
+                        f"place:{place.centroid.latitude:.5f},{place.centroid.longitude:.5f}"
+                        for place in places
+                    ),
+                    gazetteer,
+                ),
+                blur=not args.raw,
+            )
+        )
+        return EXIT_OK
     print(RULE)
     if not places:
         print("  no places yet: run `kiseki build` once the photographs are in")
@@ -3089,6 +3106,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--unfolded",
         action="store_true",
         help="show every place apart, without folding a name into one",
+    )
+    places.add_argument("--json", action="store_true", help="machine readable output")
+    places.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
     )
     places.set_defaults(run=_command_places)
 

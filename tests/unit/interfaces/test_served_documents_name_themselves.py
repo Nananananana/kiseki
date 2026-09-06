@@ -68,6 +68,7 @@ ROUTES = (
     "insights",
     "lifecycle",
     "suggest",
+    "places",
 )
 
 

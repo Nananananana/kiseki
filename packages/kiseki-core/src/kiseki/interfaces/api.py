@@ -28,6 +28,7 @@ from kiseki.interfaces.payloads import (
     lifecycle_payload,
     named,
     narration_payload,
+    places_payload,
     profile_payload,
     report_payload,
     suggest_payload,
@@ -183,6 +184,13 @@ class _Handler(BaseHTTPRequestHandler):
                 )
             else:
                 self._send(200, lifecycle_payload(lifecycle, blur=blur))
+        elif path == "/places":
+            # No gazetteer here: naming is the command line's, which has
+            # the owner's file. A served place is a shape and a count.
+            self._send(
+                200,
+                places_payload(self.server.pipeline_factory().places(), blur=blur),
+            )
         elif path == "/suggest":
             found = self.server.pipeline_factory().suggest(datetime.now())  # noqa: DTZ005 -- as the command line does; see #402
             self._send(200, suggest_payload(found, blur=blur))

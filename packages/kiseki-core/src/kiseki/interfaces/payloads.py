@@ -8,6 +8,7 @@ are where coordinates become visible: served output blurs by default
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from kiseki.application.asking import Answer
@@ -20,7 +21,9 @@ from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
 from kiseki.domain.services.mixing import derive_mixed
+from kiseki.domain.services.place_reading import PlaceProfile
 from kiseki.domain.services.suggesting import Suggestion
+from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 
@@ -370,6 +373,36 @@ def blurred_place(reference: str) -> str:
     return _blur_place(reference, blur=True)
 
 
+def blur_radius_m(latitude: float, longitude: float) -> float:
+    """How far the true point can be from the blurred one, in metres.
+
+    Blurring rounds each coordinate to `BLUR_DECIMALS` places, so the
+    true point lies anywhere in a cell of that size: within half a
+    cell **on each axis at once**. The honest radius is therefore the
+    distance to the cell's *corner*, not half its height.
+
+    The difference is not pedantic. A consumer drawing the circle
+    from the visible decimals computed half the north-south cell --
+    553 m at latitude 34.7 -- where the corner is 721 m. A circle
+    that small says the point is nearer than the blur promises,
+    which is the figure making a claim of its own. Only this library
+    knows `BLUR_DECIMALS`, so only this library can say.
+
+    Measured with the library's own haversine rather than a metres-
+    per-degree constant, so it is right at any latitude and cannot
+    drift from how distance is measured everywhere else."""
+    half = 0.5 * 10.0**-BLUR_DECIMALS
+    centre = GeoPoint(round(latitude, BLUR_DECIMALS), round(longitude, BLUR_DECIMALS))
+    # Near a pole the corner would leave the sphere; the cell is
+    # still a cell, so the corner is taken on the side that fits.
+    lifted = centre.latitude + half
+    corner = GeoPoint(
+        lifted if lifted <= 90.0 else centre.latitude - half,
+        centre.longitude + half if centre.longitude + half <= 180.0 else centre.longitude - half,
+    )
+    return centre.distance_to(corner).meters
+
+
 def _blur_value(value: float, blur: bool) -> float:
     return round(value, BLUR_DECIMALS) if blur else value
 
@@ -440,3 +473,51 @@ def narration_payload(narration: Narration) -> dict[str, Any]:
             "facts": [{"id": label, "text": fact} for label, fact in narration.numbered],
         },
     )
+
+
+def places_payload(
+    places: Sequence[PlaceProfile],
+    names: Mapping[str, str] | None = None,
+    blur: bool = True,
+) -> dict[str, Any]:
+    """Every place the journeys know, for a map that draws no tiles.
+
+    `blur_radius_m` is the point of it. A consumer that has only the
+    coordinate can draw a dot, and a dot says *here*; with the radius
+    it can draw the circle the blur actually promises. The number is
+    the library's, because the blur is (ADR-0026).
+
+    `name` is resolved from the owner's own gazetteer at display time
+    and is a name or nothing -- never a coordinate (ADR-0040)."""
+    resolved = names or {}
+    return named(
+        "places",
+        {
+            "blurred": blur,
+            "places": [
+                {
+                    "name": resolved.get(_reference_of(place)),
+                    "reference": _blur_place(_reference_of(place), blur),
+                    "lat": _blur_value(place.centroid.latitude, blur),
+                    "lon": _blur_value(place.centroid.longitude, blur),
+                    "blur_radius_m": (
+                        round(blur_radius_m(place.centroid.latitude, place.centroid.longitude))
+                        if blur
+                        else 0
+                    ),
+                    "visits": place.visits,
+                    "trip_visits": place.trip_visits,
+                    "first_seen": place.first_seen.date().isoformat(),
+                    "last_seen": place.last_seen.date().isoformat(),
+                    "cadence_days": place.median_gap_days,
+                }
+                for place in places
+            ],
+        },
+    )
+
+
+def _reference_of(place: PlaceProfile) -> str:
+    """The `place:lat,lon` handle, unblurred, as the rest of the
+    library writes it."""
+    return f"{PLACE_PREFIX}{place.centroid.latitude:.5f},{place.centroid.longitude:.5f}"
