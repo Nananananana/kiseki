@@ -4,6 +4,7 @@ Everything here works through ports, so the whole sequence can be exercised
 against fakes in milliseconds. That property is why the ports exist.
 """
 
+import contextlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -22,6 +23,7 @@ from kiseki.application.limits import (
     Span,
     limits_of,
 )
+from kiseki.application.now import Now, what_is_happening
 from kiseki.application.today import Today, what_matters_today
 from kiseki.domain.analytics.analytics import (
     OutingHabits,
@@ -629,6 +631,25 @@ class Pipeline:
             self.lifecycle(),
             self.insights(),
             now,
+        )
+
+    def now(self, at: datetime, wrong: tuple[str, ...] = ()) -> Now:
+        """One screen from what is stored. No model is consulted.
+
+        `wrong` comes from the caller because what is wrong is a
+        question about the database rather than about the owner."""
+        trends = None
+        with contextlib.suppress(ValueError):
+            trends = self.trend()
+        report = self.report()
+        return what_is_happening(
+            at=at,
+            today=self.today(at),
+            trends=trends,
+            limits=self.limits(),
+            wrong=wrong,
+            photographs=report.photographs,
+            outings=len(report.outings),
         )
 
     def compare(

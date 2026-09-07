@@ -16,6 +16,7 @@ from typing import Any
 from kiseki.application.asking import Answer
 from kiseki.application.limits import LimitsReport
 from kiseki.application.narrative import Narration
+from kiseki.application.now import Now
 from kiseki.application.pipeline import PrivacyReport, Report, SuggestionSet
 from kiseki.application.today import Today
 from kiseki.config.paths import StoragePaths
@@ -591,5 +592,38 @@ def today_payload(items: Sequence[Today], blur: bool = True) -> dict[str, Any]:
                 }
                 for item in items
             ],
+        },
+    )
+
+
+def now_payload(screen: Now, blur: bool = True) -> dict[str, Any]:
+    """The whole screen as a document.
+
+    `unread` is the part worth reading: a region absent from it is
+    full, and a region in it says which command would fill it. A
+    consumer can therefore tell *nothing to show* from *nothing was
+    ever read*, which a blank region cannot."""
+    return named(
+        "now",
+        {
+            "at": screen.at.isoformat(),
+            "photographs": screen.photographs,
+            "outings": screen.outings,
+            "today": today_payload(screen.today, blur=blur)["today"],
+            "changed": [
+                {
+                    "topic": _blur_place(trend.topic, blur),
+                    "direction": trend.direction.value,
+                    "strength": trend.strength,
+                    "baseline": trend.baseline,
+                }
+                for trend in screen.changed
+            ],
+            "thin": [
+                {"subject": limit.subject, "reading": limit.reading, "because": limit.because}
+                for limit in screen.thin
+            ],
+            "wrong": list(screen.wrong),
+            "unread": dict(screen.unread),
         },
     )
