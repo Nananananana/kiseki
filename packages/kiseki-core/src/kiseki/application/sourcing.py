@@ -48,6 +48,17 @@ def source_of(reference: str) -> EvidenceSource:
     return EvidenceSource.PHOTOGRAPH
 
 
+def is_reference(text: str) -> bool:
+    """Whether this names a stored reading rather than a derivation.
+
+    `derived_from` mixes the two: an insight says it came from
+    `trend`, `lifecycle` and `profile:2026-08-29T...`, and only the
+    last of those is a thing anybody can go and look at. A caller
+    that treated the command names as readings would be citing the
+    name of a derivation as evidence for itself."""
+    return any(text.startswith(prefix) for prefix in PREFIXES)
+
+
 def sources_of(references: Iterable[str]) -> SourceSet:
     """Every kind of witness a set of references came from."""
     return frozenset(source_of(reference) for reference in references)

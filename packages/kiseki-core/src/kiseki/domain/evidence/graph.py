@@ -96,8 +96,12 @@ the shape of thing that wrote the owner's doorstep at full precision
 when a default failed open (ADR-0095). And a place is the most
 sensitive node here by a distance.
 
-So a node's label may not contain a coordinate at all, and
-`__post_init__` refuses one. A place is identified the way grounding
+So neither a node's label nor its **id** may contain a coordinate,
+and `__post_init__` refuses both. The id matters as much: this
+library's own evidence references are `place:34.756612,135.461234`,
+so a builder that used a reference as an id would smuggle the
+doorstep in through the field nobody was watching. An id travels
+exactly as far as a label. A place is identified the way grounding
 already identifies it (ADR-0040): by an opaque name, with its cadence
 and its shares carried as the derivation's own words, never by where it
 is. The rule is here rather than at the serving boundary because a
@@ -259,11 +263,13 @@ class Node:
             raise ValueError("a node without an id cannot be pointed at")
         if not self.label.strip():
             raise ValueError("a node that cannot be named cannot be shown to anybody")
-        if _A_COORDINATE.search(self.label):
-            raise ValueError(
-                "a graph node may not carry a coordinate; a place is named the way "
-                "grounding names one, by its cadence and never by where it is (ADR-0040)"
-            )
+        for part in (self.id, self.label):
+            if _A_COORDINATE.search(part):
+                raise ValueError(
+                    "a graph node may not carry a coordinate, in its id any more than "
+                    "in its label; a place is named the way grounding names one, by its "
+                    "cadence and never by where it is (ADR-0040)"
+                )
         if self.kind is NodeKind.OBSERVATION and not self.source:
             raise ValueError(
                 f"the observation {self.id!r} does not say what it came from; an unnamed "
