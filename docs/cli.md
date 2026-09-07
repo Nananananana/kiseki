@@ -52,6 +52,7 @@ uv run kiseki report --json
 | `places` | What your journeys say about each place |
 | `trips` | The nights away, as journeys |
 | `drift` | What moved with what, and each against its own past |
+| `today` | One to three things worth knowing now, each saying why now |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |
