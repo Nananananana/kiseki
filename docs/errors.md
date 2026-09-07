@@ -45,7 +45,7 @@ and a test refuses them drifting apart.
 | `kind` | the stable identifier, exactly as it appears before the colon on the first line of stderr |
 | `exit_code` | the code that always accompanies this kind, or `null` where it varies |
 | `outcome` | one of `refused`, `unavailable`, `failed`, `timed_out` |
-| `retryable` | whether asking again could succeed. Only this library knows |
+| `retryable` | may the same request be made again, unchanged. Only this library knows |
 | `detail` | one line of English |
 | `detail_ja` | the same, in Japanese, written here rather than translated elsewhere |
 
@@ -66,6 +66,32 @@ and a test refuses them drifting apart.
 
 `open_namespaces` is empty and is expected to stay so. Every name this
 library prints is in the table; a reader may take the set as closed.
+
+## What `retryable` means
+
+**May the same request be made again, unchanged?** Not *could a second
+attempt succeed*. A failure where asking again is itself a new event --
+something leaves the machine, something is charged, something is
+written -- is `false` even when a second attempt would work, because a
+consumer should not be handed a reason to send it twice. The wording
+is the family's, arrived at by two libraries separately.
+
+The three that are `true` here were checked against it rather than
+carried over:
+
+- `ModelUnavailable`: nothing was written for the readings that were
+  never answered, and the next run asks for exactly those.
+- `ModelTimedOut`: the request did leave this machine, which is why it
+  needed checking. A timeout is an unavailability here, so nothing was
+  written for it; the model is the owner's own, on a host the owner
+  allowed (ADR-0073); and this library retries it on the next run
+  whatever a consumer decides, so `false` would be a claim the
+  library itself contradicts.
+- `StageStopped`: the routine resumes rather than repeats, because
+  every stage does only the work not already done. It rests on
+  keeping a profile being the last stage, so a run that stopped never
+  kept one and a rerun cannot keep a second (ADR-0070). A test holds
+  that order.
 
 ## Two things a consumer should not assume
 

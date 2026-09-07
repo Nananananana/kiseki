@@ -54,6 +54,25 @@ outcome, which is a guess wearing the face of a rule: `ModelTooFarAway`
 is a refusal that will never succeed however long you wait, and
 `StageStopped` has no fixed exit code and is worth resuming.
 
+The definition is the family's, and it is narrower than the one this
+first shipped with. Not *could a second attempt succeed* but **may the
+same request be made again, unchanged** -- iriguchi found the flaw and
+mamori reached the same wording separately, which is what makes it a
+definition rather than a preference. A failure where asking again is
+itself a new event is false even when a second attempt would work.
+
+The three `true` values here were checked against the narrower reading
+rather than carried over. `ModelTimedOut` is the one that needed it:
+the request did leave this machine. It stays true because a timeout is
+an unavailability here, so nothing was written for the reading that
+timed out; because the model is the owner's own on a host the owner
+allowed; and because this library retries it on the next run whatever
+a consumer decides, so `false` would be a claim the library itself
+contradicts. `StageStopped` stays true because the routine resumes
+rather than repeats, which rests on keeping a profile being the last
+stage -- held by a test, since reordering the stages would turn that
+`true` into a false claim about what a rerun writes.
+
 **`StageStopped` declares no exit code.** It carries the code of
 whatever stopped it, and a single number there would be a claim we
 cannot keep. The field is nullable for exactly this.

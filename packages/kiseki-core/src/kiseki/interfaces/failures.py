@@ -89,9 +89,19 @@ class Failure:
 
     outcome: str
     retryable: bool
-    """Whether asking again could succeed. Only this library knows; a
-    consumer inferring it from the outcome is guessing with the face of
-    a rule."""
+    """May the same request be made again, unchanged?
+
+    **Not** whether a second attempt could succeed, which is what this
+    said first and is the wrong question. iriguchi found the flaw: a
+    failure where asking again is itself a new event -- something
+    leaves the machine, something is charged, something is written --
+    is false even when a second attempt would work, because a
+    consumer should not be handed a reason to send it twice. mamori
+    reached the same wording separately, which is what makes it the
+    definition rather than anyone's preference.
+
+    Only this library can answer it. A consumer inferring it from the
+    outcome is guessing with the face of a rule."""
 
     detail: str
     detail_ja: str
@@ -138,6 +148,14 @@ CATALOGUE = (
         detail="The model was reached and did not answer in time. A queue is not an outage.",
         detail_ja="モデルには届いたが、時間内に答えなかった。待ち行列は障害ではない。",
     ),
+    # Retryable under the strict definition, and it needed checking: the
+    # request did leave this machine. But a timeout is an unavailability
+    # here (`_exit_for` asks about it first), so nothing was written for
+    # the job that timed out, and the next run asks for exactly the
+    # readings that were never answered. Nothing is charged: the model is
+    # the owner's own, on a host the owner allowed (ADR-0073). Declaring
+    # it false would also contradict this library, which retries it on
+    # the next run whatever a consumer decides.
     Failure(
         kind="ModelTooFarAway",
         exit_code=2,
@@ -194,6 +212,13 @@ CATALOGUE = (
         detail="A step of a longer routine stopped, and nothing after it ran.",
         detail_ja="長い手順の途中の段が止まり、それより後は実行されなかった。",
     ),
+    # Retryable because the routine resumes rather than repeats: every
+    # stage does only the work not already done, so a rerun asks the
+    # model for the readings that were never answered and no others.
+    # It rests on one fact -- keeping a profile is the last stage, so a
+    # run that stopped never kept one, and a rerun cannot keep a second
+    # (ADR-0070). A test holds that order, because reordering the
+    # stages would make this `true` a false claim.
 )
 
 OPEN_NAMESPACES: tuple[str, ...] = ()
