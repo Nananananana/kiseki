@@ -34,6 +34,19 @@ $ kiseki suggest
 ```
 
 ```text
+$ kiseki why insight:flight:new
+
+  flight is up
+  confidence     1.00
+  rests on       6 readings
+  read from      kept_reading, screen
+
+    2026-08-15  screen   screen:sha256:37e996...
+    ...
+  because        trend, lifecycle
+```
+
+```text
 $ kiseki ask "what did you eat in Seoul?" --near "37.56,126.98"
 Fried chicken, dumplings, and a Korean BBQ spread of grilled meats and
 side dishes around a tabletop grill [F1][F5].
@@ -70,16 +83,24 @@ uv run kiseki report      # what it measured
 uv run kiseki refresh     # the whole routine, idempotent
 ```
 
-`build`, `report`, `places`, `trips` and `privacy` need **no model at
-all**. Captioning and everything above it needs
+**Most of this needs no model at all**: `build`, `report`, `places`,
+`trips`, `privacy`, `now`, `today`, `limits`, `graph`, `why` and
+`errors`. Captioning and everything above it needs
 [Ollama](https://ollama.com) on your own machine, or on one you name
 ([docs/models.md](docs/models.md)).
+
+When something else schedules the model -- several libraries sharing
+one machine -- `KISEKI_MODEL_USE=withheld` takes it away entirely.
+Everything above still answers, and anything that needs a model stops
+with `ModelWithheld`: **refused**, not unavailable, because a policy
+gives the same answer every time and nothing should retry it forever
+([docs/errors.md](docs/errors.md)).
 
 ---
 
 ## What it reads
 
-Four kinds of evidence, each through a written contract
+Five kinds of evidence, each through a written contract
 ([docs/records.md](docs/records.md)), and **any of them may be absent** --
 a test matrix removes each in turn and fails the build if a derivation
 comes to require one.
@@ -158,10 +179,20 @@ flowchart LR
 
 ## What you can do
 
+**Open it in the morning**
+
+```bash
+uv run kiseki now            # one screen: worth a look, changed, thin, wrong
+uv run kiseki today          # one to three things, each saying why today
+uv run kiseki why <id>       # what a conclusion rests on, and which witnesses
+uv run kiseki limits         # what this library cannot tell you, and why
+```
+
 **Take it in, and keep it current**
 
 ```bash
 uv run kiseki ingest ...     # read PhotoRecord files
+uv run kiseki notes ...      # NoteRecord, web ..., activity ..., input ...
 uv run kiseki build          # stops, outings, anchors
 uv run kiseki refresh        # the whole routine, idempotent
 uv run kiseki doctor         # categorised health checks
@@ -215,6 +246,9 @@ uv run kiseki reread         # what a newer prompt version left behind
 uv run kiseki retry          # refusals the environment caused
 uv run kiseki view           # one self-contained HTML page
 uv run kiseki serve          # the same answers over local HTTP
+uv run kiseki graph          # what it believes and why, as nodes and edges
+uv run kiseki errors         # every named way a command here can stop
+uv run kiseki cost           # what the model work would take, before doing it
 ```
 
 Full reference: [docs/cli.md](docs/cli.md).
@@ -255,43 +289,68 @@ flowchart LR
     SI --> IX
     SC --> IX
     IX --> AS["ask -- answers with evidence"]
+    PR --> GR["Evidence graph<br/>why it concluded that"]
+    IT --> GR
+    GR --> WY["why -- walked back to the readings"]
 ```
+
+Above the derivations sits an **evidence graph**: every conclusion and
+every interest, joined by typed edges to the readings under them, so
+*why did you conclude that* is answered by walking rather than by
+asking a model to recall its reasoning. **Nothing in it accumulates** --
+delete it, rebuild, and the same graph comes back, which is what makes
+a two-year picture a function of the evidence rather than a residue of
+having run. No node carries a coordinate, in its id any more than its
+label.
 
 ---
 
 ## Where this sits
 
-KISEKI is one of six libraries built on the same idea: your own
+KISEKI is one of seven libraries built on the same idea -- your own
 material, read on your own machine, with whatever crosses a boundary
-written down as a contract. **It needs none of the other five.**
-Nothing in this repository imports a sibling, and everything below is
-true with all of them absent.
+written down as a contract -- and an orchestrator that talks to all
+seven. **This library needs none of them.** Nothing in this
+repository imports a sibling, and everything below is true with all
+of them absent.
 
 ```text
-     your exports, your folders            your photo library
-                 |                                 |
-            [ musubi ]                        [ KISEKI ]  <- you are here
-       documents/ + traces/            kiseki-interest-export/1
-                 |                                 |
-                 +----------------+----------------+
-                                  |
-                            [ tsumugi ]
-                     tsumugi.context-package/1
-                                  |
-                           [ iriguchi ]
-                 +----------------+----------------+
-                 |                |                |
-             REFUSED       local model         ESCALATED
-            nothing runs   on this machine          |
-                                               [ mamori ]
-                                          protected on the way out,
-                                          restored on the way back
-                                                    |
-                                            ( external model )
-                                                    |
-                                              [ akashi ]
-                                        akashi.audit-report/1
+  your exports,          your keyboard,       your photo library,
+  your folders           your days            your notes, your pages
+        |                     |                          |
+   [ musubi ]             [ kibi ]                  [ KISEKI ] <- here
+        |                     |                          ^
+        |          InputRecord/1, ActivityRecord/1 ------+
+        |
+  documents/ + traces/              kiseki-interest-export/1
+        |                                    |
+        +--------------+---------------------+
+                       |
+                 [ tsumugi ]
+            tsumugi.context-package/1
+                       |
+                [ iriguchi ]
+        +--------------+---------------------+
+        |              |                     |
+    REFUSED       local model            ESCALATED
+  nothing runs   on this machine              |
+                                        [ mamori ]
+                                 protected on the way out,
+                                 restored on the way back
+                                             |
+                                     ( external model )
+                                             |
+                                       [ akashi ]
+                                 akashi.audit-report/1
 ```
+
+An orchestrator (`sora`) runs all seven and is the only program that
+sees more than one. It reads documents and never imports anything, so
+the contracts are the whole of the coupling: it produces the days at
+the keys this library reads, and reads the graph and the error
+catalogue this library writes. **This library does not know it is
+being orchestrated**, and a command still answers on a machine where
+nothing else is installed.
 
 The only thing that ever leaves is
 [kiseki-interest-export v1](docs/interest-export.md): a versioned
@@ -345,9 +404,12 @@ constraint, not a feature added later:
   download yourself
 - **No personal data in this repository.** Tests build synthetic
   photographs at run time; a pre-commit hook refuses images and databases
-- **Coordinate blurring is the default** on everything served or written:
-  the local API and the HTML view round to about a kilometre unless raw
-  output is asked for explicitly
+- **Coordinate blurring is the default on every document that leaves the
+  process**, whichever door it leaves by: the local API, the HTML view
+  and every `--json` command round to about a kilometre unless `--raw`
+  is asked for. Seven of them did not, for three releases, and no test
+  noticed -- so the check is now structural
+  ([ADR-0095](docs/adr/0095-a-document-blurs-by-whichever-door-it-leaves.md))
 - **Screenshot words are never stored**: a screen reading is a category and
   short labels, with no text field; chat, auth and finance screens are
   never labelled, and consent flags are enforced in code (ADR-0030,
@@ -442,9 +504,10 @@ reconstruction and the evidence model are already usable; the personal
 context layer is actively evolving, and the API and data model may change
 before v1.0.
 
-**Current:** v0.10 -- more than photographs: the boundary.
-**Next:** v0.11 -- the first new sources
-([docs/proposals](docs/proposals)).
+**Current:** v0.12 -- one question, the right machine: `kiseki now`,
+documents that name themselves, `kiseki limits`, and an evidence graph
+that can be asked what a conclusion rests on.
+**Next:** v0.13 -- your rhythm ([docs/proposals](docs/proposals)).
 
 ## Roadmap
 
@@ -478,7 +541,7 @@ flowchart LR
 | v0.9 | Long years, and what to forget: the privacy promises checked by machine, overnight trips, deletion that reaches everything that spoke, retention as rules you can leave off | **Released** |
 | v0.10 | More than photographs, the boundary: every source may be absent and a matrix proves it, records as siblings with PhotoRecord v1 frozen, a second contract for daily movement, the rules a new source passes | **Released** |
 | v0.11 | Where the model is, and what you write: a trust boundary for the model with the strictest default, privacy computed from your settings with the name of the test beside every claim, notes and web pages read into labels by a producer that discards the text, a dry run before anything is recorded | **Released** |
-| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, documents on the way out, `kiseki limits` for what this cannot tell you | In progress |
+| v0.12 | One question, the right machine: questions routed to the derivation that can answer them, `kiseki now` in place of six commands, documents on the way out, `kiseki limits` for what this cannot tell you, an error catalogue a consumer can check, and an evidence graph that answers *why did you conclude that* | **In progress** |
 | v0.13 | Your rhythm: a typical week and month from whatever sources exist, departures named and never judged, and `kiseki eval` for what the model tier is actually worth | Planned |
 | v1.0 | Public: PyPI, a frozen API, hardened conformance, a security pass over serve | Planned |
 
@@ -494,9 +557,10 @@ from; a test matrix removes each source in turn and fails the build if
 anything requires one. A library with photographs alone behaves exactly
 as it does today.
 Two things are deliberately *not* built, each waiting for a measurement
-rather than an opinion: the incremental build (a full build takes 0.3
-seconds at five thousand photographs) and a vector extension (retrieval is
-measured by a golden dataset in CI). Both have a written trigger.
+rather than an opinion: the incremental build (a full rebuild takes 0.08
+seconds at 4,950 photographs, measured on a real library) and a vector
+extension (retrieval is measured by a golden dataset in CI). Both have a
+written trigger.
 
 ---
 
@@ -514,6 +578,8 @@ and what might become true.
 - [PhotoRecord v1](docs/photo-record.md),
   [kiseki-interest-export v1](docs/interest-export.md) and the
   [conformance kit](docs/conformance.md)
+- [kiseki-errors v1](docs/errors.md) -- every named way a command can
+  stop, its exit code, and whether asking again could help
 - [Getting your journeys into other tools](docs/interchange.md) -- GeoJSON and
   CSV for QGIS, Leaflet, geopandas and pandas, blurred unless you ask twice
 - [Algorithms](docs/algorithms.md) -- seven ways to decide what a stay is,
