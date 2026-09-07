@@ -1,7 +1,8 @@
 # Proposal 0010: An evidence graph, and what it must not invent
 
-Status: Proposed. Written against the owner's requirements document for
-a Hypothesis Graph / Evidence Graph, after reading the current source
+Status: Proposed. Written against the owner's two requirements
+documents -- a Hypothesis Graph / Evidence Graph, and the multimodal
+memory graph that reinforces it -- after reading the current source
 rather than the current documentation.
 
 It agrees with the goal, disagrees with two of the mechanisms, and
@@ -62,6 +63,69 @@ the existing one, written down as a graph.
 
 The first and third are worth doing on their own, and need no numbers
 that do not exist. That is the reshaping this proposal argues for.
+
+## The second document changes one thing in the model, and it is right
+
+The multimodal paper separates a **source node** from an **event**:
+`Photo_001`, `Audio_021`, `Memo_008` and `GPS_332` are four readings,
+and *an afternoon at the park* is one event they are each witness to.
+
+The first draft of the domain model here had a single `fact` kind
+covering both, and that is wrong in a way that grows with the number
+of sources: a library that cannot say three readings are one
+afternoon either counts the afternoon three times or discards two of
+the readings. With photographs alone the distinction is invisible,
+which is presumably why it survived. So the model now has both, and
+an event carries no source of its own -- what it came from is the
+observations under it, which is structure rather than a field and so
+cannot fall out of step with the edges.
+
+**The fusing itself is not Phase 1.** Deciding *which* observations
+belong to one event needs thresholds -- how near in time, how near in
+space, how similar -- and every one of them would be a chosen number.
+What Phase 1 provides is the shape that lets fusion be written later
+without changing anything else.
+
+## Sources must be open, and this library has the receipt
+
+The second document asks that a new source be addable by writing an
+adapter rather than by changing the core. Half of that already holds:
+the record contracts are the adapter boundary and the producers live
+outside the core package (ADR-0063, ADR-0065).
+
+The half that did not hold was the vocabulary. `EvidenceSource` was a
+closed enum; the web shipped in v0.11 and it did not grow, so
+`source_of` fell through to its photograph default and an answer
+resting entirely on what the owner wrote and read reported *read from
+photograph*. `EvidenceSource.NOTE` existed the whole time with
+nothing able to return it.
+
+**A closed vocabulary did not prevent an unknown source. It made an
+unknown source indistinguishable from a camera.** So in the graph a
+source is any name, checked for shape and never for membership, and a
+recorder producing something this library has never heard of gets a
+node that says what it is.
+
+The kinds stay closed, because they are roles in the reasoning rather
+than facts about the world, and roles do not grow when a recorder
+arrives.
+
+## On storage, which the second document leaves open
+
+SQLite, as both documents assume, and the recommendation is the dull
+one: two tables, typed columns for what every node has, a JSON column
+for what only some kinds carry, and a rule that **anything a query
+filters on graduates to a column of its own.** A JSON bag is a
+reasonable extension point and a poor index, and the difference
+between the two is where schemas go to die.
+
+The edge table's primary key is the triple of ends and type, so
+storing the same relationship twice is impossible rather than merely
+discouraged, and the backwards walk gets an index on the target.
+
+The all-pairs question the second document raises answers itself
+here: candidates are generated, scored and only then stored, so the
+table holds the sparse graph and never the potential one.
 
 ## Three things that will break it if built as written
 
