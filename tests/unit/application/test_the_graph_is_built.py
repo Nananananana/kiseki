@@ -70,9 +70,12 @@ class TestNoCoordinateBecomesAnId:
     """The one thing this builder must be careful about."""
 
     def test_a_place_gets_an_opaque_name(self) -> None:
+        """The entity is named; the reading of it is a day at it."""
         graph = build_graph(_profile(_interest("camping", DOORSTEP)), None)
-        observations = graph.of_kind(NodeKind.OBSERVATION)
-        assert [node.id for node in observations] == ["place-1"]
+        assert [node.id for node in graph.of_kind(NodeKind.ENTITY)] == ["place-1"]
+        assert [node.id for node in graph.of_kind(NodeKind.OBSERVATION)] == [
+            "visit:place-1:2026-06-01"
+        ]
 
     def test_no_digit_of_the_doorstep_survives_anywhere(self) -> None:
         """Every field, because the leak would be through whichever one
@@ -96,10 +99,18 @@ class TestNoCoordinateBecomesAnId:
             _profile(_interest("a", often, seldom), _interest("b", often)),
             None,
         )
-        by_id = {node.id for node in graph.of_kind(NodeKind.OBSERVATION)}
-        assert by_id == {"place-1", "place-2"}
-        first = next(edge.target for edge in graph.edges if edge.source == "interest:b")
-        assert first == "place-1"
+        assert {node.id for node in graph.of_kind(NodeKind.ENTITY)} == {
+            "place-1",
+            "place-2",
+        }
+        # An interest whose topic is not a place needs no edge of its
+        # own: the walk already answers *which places for this* --
+        # interest -> rests_on -> a visit -> about -> the place.
+        visits = {node.id for node in graph.observations_under("interest:b")}
+        reached = {
+            edge.target for edge in graph.edges if edge.source in visits and edge.kind == "about"
+        }
+        assert reached == {"place-1"}
 
 
 class TestANewSourceArrivesForFree:
@@ -249,3 +260,66 @@ class TestAReadingCarriesWhenItWasMade:
         time."""
         graph = build_graph(None, _insight("camping", "note:a"))
         assert graph.of_kind(NodeKind.OBSERVATION)[0].occurred_at is None
+
+
+class TestAPlaceIsAThingVisitsAreAbout:
+    """A returned-to place is cited by its interest twice, as the first
+    visit and the last. Keying a node by the reference collapsed the two
+    into one, so twenty-two of the owner's interests said *rests on one
+    reading* when they rest on two, and the second date was gone."""
+
+    def _place_interest(self) -> Profile:
+        first = InterestEvidence(kind=EvidenceKind.VISIT, reference=DOORSTEP, observed_at=WHEN)
+        last = InterestEvidence(
+            kind=EvidenceKind.VISIT,
+            reference=DOORSTEP,
+            observed_at=WHEN.replace(month=8),
+        )
+        return Profile(
+            generated_at=WHEN,
+            interests=(
+                Interest(
+                    topic=DOORSTEP,
+                    score=0.7,
+                    confidence=0.8,
+                    evidence=(first, last),
+                    first_seen=WHEN,
+                    last_seen=WHEN.replace(month=8),
+                ),
+            ),
+        )
+
+    def test_two_visits_to_one_place_are_two_readings(self) -> None:
+        graph = build_graph(self._place_interest(), None)
+        readings = graph.observations_under("interest:place-1")
+        assert len(readings) == 2
+        assert {node.occurred_at.month for node in readings if node.occurred_at} == {6, 8}
+
+    def test_the_place_itself_is_an_entity(self) -> None:
+        graph = build_graph(self._place_interest(), None)
+        assert [node.id for node in graph.of_kind(NodeKind.ENTITY)] == ["place-1"]
+
+    def test_the_visits_and_the_interest_point_at_it(self) -> None:
+        """What makes *which places do I go to for this* a walk rather
+        than a query somebody has to write (#391)."""
+        graph = build_graph(self._place_interest(), None)
+        pointing = {
+            edge.source for edge in graph.edges if edge.kind == "about" and edge.target == "place-1"
+        }
+        assert "interest:place-1" in pointing
+        assert len([item for item in pointing if item.startswith("visit:")]) == 2
+
+    def test_a_finding_citing_a_place_rests_on_the_visits_to_it(self) -> None:
+        """Not on the place. A finding cites the place, and what it
+        rests on are the days at it -- pointing at the thing would
+        have a conclusion rest on a concept rather than a reading."""
+        graph = build_graph(self._place_interest(), _insight("camping", DOORSTEP, "note:a"))
+        assert not [node for node in graph.nodes if node.id.endswith(":undated")]
+        under = {node.id for node in graph.observations_under("insight:camping:new")}
+        assert any(item.startswith("visit:place-1:") for item in under), under
+
+    def test_an_entity_carries_no_coordinate(self) -> None:
+        graph = build_graph(self._place_interest(), None)
+        for node in graph.of_kind(NodeKind.ENTITY):
+            assert "34.756612" not in node.id
+            assert "34.756612" not in node.label

@@ -2214,7 +2214,10 @@ def _command_graph(args: argparse.Namespace) -> int:
     store = _graph_store(args)
     if args.build:
         graph = _pipeline_for(args).graph()
-        written = store.save(graph)
+        # Replace rather than add: a rebuild computes the whole graph,
+        # so a node it no longer produces is stale rather than somebody
+        # else's work.
+        written = store.replace(graph)
         if not args.json:
             print(RULE)
             print(f"  built    {len(graph.nodes)} nodes, {len(graph.edges)} edges")
