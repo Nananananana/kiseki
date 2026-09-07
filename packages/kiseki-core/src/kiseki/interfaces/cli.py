@@ -9,6 +9,7 @@ import argparse
 import contextlib
 import io
 import json
+import sqlite3
 import sys
 import textwrap
 from collections.abc import Callable, Sequence
@@ -59,6 +60,12 @@ from kiseki.application.indexing import run_indexing
 from kiseki.application.insight_narration import tell_insights
 from kiseki.application.narration_validation import validate_narration
 from kiseki.application.narrative import narrate
+from kiseki.application.now import (
+    WHAT_CHANGED,
+    WHAT_IS_THIN,
+    WHAT_IS_WRONG,
+    WORTH_A_LOOK,
+)
 from kiseki.application.pipeline import Pipeline, PipelineSettings, Report
 from kiseki.application.progress import OnProgress
 from kiseki.application.retention import (
@@ -132,6 +139,7 @@ from kiseki.interfaces.payloads import (
     lifecycle_payload,
     limits_payload,
     narration_payload,
+    now_payload,
     paths_payload,
     places_payload,
     privacy_payload,
@@ -2012,19 +2020,83 @@ def _command_export(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _command_doctor(args: argparse.Namespace) -> int:
-    from datetime import datetime as _datetime
+FAULTS = (
+    "recoverable",
+    "evidence",
+    "gazetteer",
+    "thumbnails",
+)
+"""What can be wrong with a library, in the order `now` says it."""
 
+
+def _reading_moments(connection: sqlite3.Connection) -> list[datetime]:
+    """When every reading in the library was made."""
+    moments: list[datetime] = []
+    for caption in SqliteCaptionRepository(connection).all():
+        moments.append(caption.created_at)
+    for single in SqliteSingleCaptionRepository(connection).all():
+        moments.append(single.created_at)
+    for screen in SqliteScreenshotReadingRepository(connection).all():
+        moments.append(screen.created_at)
+    return moments
+
+
+def _faults(paths: StoragePaths, connection: sqlite3.Connection) -> dict[str, str]:
+    """What is wrong with this library, each saying what to do.
+
+    One list and two readers: `doctor` prints these among its status
+    lines and `now` prints them alone, so the two commands cannot
+    disagree about whether anything is wrong. A screen that computed
+    its own idea of wrong would drift from `doctor` on the first
+    change to either, and the reader would have no way to tell which
+    was right.
+
+    Only faults are here. A schema at the code's version and a
+    profile with nothing newer than it are states, not findings, and
+    a screen that listed them would report something wrong every
+    day -- which is the same as reporting nothing.
+    """
+    found: dict[str, str] = {}
+    recoverable = sum(count_recoverable(connection, table) for table in RETRY_STAGES.values())
+    if recoverable:
+        found["recoverable"] = (
+            f"{recoverable} of all refusals are recoverable"
+            " (the image was missing); `kiseki retry` says which"
+        )
+    history = SqliteProfileRepository(connection).history()
+    if not history:
+        found["evidence"] = "no kept profile yet; run `kiseki profile` once"
+    else:
+        last = history[-1].generated_at.replace(tzinfo=None)
+        newer = sum(
+            1 for moment in _reading_moments(connection) if moment.replace(tzinfo=None) > last
+        )
+        if newer:
+            found["evidence"] = (
+                f"{newer} readings newer than the last kept profile"
+                f" ({(datetime.now() - last).days} days old);"
+                " a `kiseki profile` would capture them"
+            )
+    if not _gazetteer(paths).entries:
+        found["gazetteer"] = "no gazetteer file; places stay unnamed (docs/gazetteer.md)"
+    missing = sum(
+        1
+        for photograph in SqlitePhotoRepository(connection).all()
+        if photograph.thumbnail_ref and not (paths.thumbs_dir / photograph.thumbnail_ref).is_file()
+    )
+    if missing:
+        found["thumbnails"] = (
+            f"{missing} photographs have no reduced copy"
+            f" under {paths.thumbs_dir}; the readers will refuse them"
+        )
+    return found
+
+
+def _command_doctor(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     report = _pipeline_from(paths.db_path).privacy()
     connection = connect(paths.db_path)
-    readings: list[_datetime] = []
-    for caption in SqliteCaptionRepository(connection).all():
-        readings.append(caption.created_at)
-    for single in SqliteSingleCaptionRepository(connection).all():
-        readings.append(single.created_at)
-    for screen in SqliteScreenshotReadingRepository(connection).all():
-        readings.append(screen.created_at)
+    found = _faults(paths, connection)
     history = SqliteProfileRepository(connection).history()
 
     print(RULE)
@@ -2035,45 +2107,23 @@ def _command_doctor(args: argparse.Namespace) -> int:
         f"    [integrity]    {refusals} caption refusals recorded;"
         " a rerun will not retry them (ADR-0015)"
     )
-    recoverable = sum(count_recoverable(connection, table) for table in RETRY_STAGES.values())
-    if recoverable:
-        print(
-            f"                   {recoverable} of all refusals are recoverable"
-            " (the image was missing); `kiseki retry` says which"
-        )
+    if "recoverable" in found:
+        print(f"                   {found['recoverable']}")
     print(
         f"    [privacy]      {report.screens_label_silent} label-silent screens;"
         f" {report.active_exclusions} references excluded by correction"
     )
-    if not history:
-        print("    [evidence]     no kept profile yet; run `kiseki profile` once")
+    if "evidence" in found:
+        print(f"    [evidence]     {found['evidence']}")
     else:
-        last = history[-1].generated_at.replace(tzinfo=None)
-        newer = sum(1 for moment in readings if moment.replace(tzinfo=None) > last)
-        age = (_datetime.now() - last).days
-        if newer:
-            print(
-                f"    [evidence]     {newer} readings newer than the last kept profile"
-                f" ({age} days old); a `kiseki profile` would capture them"
-            )
-        else:
-            print(f"    [evidence]     nothing newer than the last kept profile ({age} days old)")
-    gazetteer = _gazetteer(paths)
-    if gazetteer.entries:
-        print(f"    [consistency]  gazetteer present, {gazetteer.entries} entries")
+        age = (datetime.now() - history[-1].generated_at.replace(tzinfo=None)).days
+        print(f"    [evidence]     nothing newer than the last kept profile ({age} days old)")
+    if "gazetteer" in found:
+        print(f"    [consistency]  {found['gazetteer']}")
     else:
-        print("    [consistency]  no gazetteer file; places stay unnamed (docs/gazetteer.md)")
-    photographs = SqlitePhotoRepository(connection).all()
-    missing = sum(
-        1
-        for photograph in photographs
-        if photograph.thumbnail_ref and not (paths.thumbs_dir / photograph.thumbnail_ref).is_file()
-    )
-    if missing:
-        print(
-            f"    [consistency]  {missing} photographs have no reduced copy"
-            f" under {paths.thumbs_dir}; the readers will refuse them"
-        )
+        print(f"    [consistency]  gazetteer present, {_gazetteer(paths).entries} entries")
+    if "thumbnails" in found:
+        print(f"    [consistency]  {found['thumbnails']}")
     return EXIT_OK
 
 
@@ -2402,6 +2452,56 @@ def _command_places(args: argparse.Namespace) -> int:
     note = _shown(len(shown), len(folded))
     if note:
         print(note)
+    return EXIT_OK
+
+
+def _command_now(args: argparse.Namespace) -> int:
+    """One screen instead of six commands held in the head (ADR-0093).
+
+    Reaches no model: every region is derived from what is stored, so
+    this is the screen that works when the model is away. What the
+    model would cost is `kiseki cost`."""
+    from datetime import datetime as _dt
+
+    paths = _paths_for(args)
+    found = _faults(paths, connect(paths.db_path))
+    screen = _pipeline_from(paths.db_path).now(
+        _dt.now().astimezone(), tuple(found[name] for name in FAULTS if name in found)
+    )
+    if args.json:
+        write_document(now_payload(screen, blur=not args.raw))
+        return EXIT_OK
+    print(RULE)
+    print(f"  {screen.photographs} photographs, {screen.outings} outings")
+    print()
+    names = place_names((item.topic for item in screen.today), _gazetteer(paths))
+    print("  worth a look")
+    for item in screen.today:
+        print(f"    {names.get(item.topic, item.topic)}")
+        print(f"      {item.why_today}")
+    if not screen.today:
+        print(f"    nothing yet -- {screen.unread[WORTH_A_LOOK.name]}")
+    print()
+    print("  what changed")
+    for trend in screen.changed:
+        print(
+            f"    {trend.topic:<22} {trend.direction.value:<9}"
+            f" {trend.baseline:.2f} -> {trend.strength:.2f}"
+        )
+    if not screen.changed:
+        print(f"    nothing yet -- {screen.unread[WHAT_CHANGED.name]}")
+    print()
+    print("  what is thin")
+    for limit in screen.thin:
+        print(f"    {limit.subject:<22} {limit.reading}")
+    if not screen.thin:
+        print(f"    {screen.unread[WHAT_IS_THIN.name]}")
+    print()
+    print("  what is wrong")
+    for line in screen.wrong:
+        print(f"    {line}")
+    if not screen.wrong:
+        print(f"    {screen.unread[WHAT_IS_WRONG.name]}")
     return EXIT_OK
 
 
@@ -3273,12 +3373,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     suggest.set_defaults(run=_command_suggest)
 
-    now = commands.add_parser("today", help="one to three things worth knowing now")
-    now.add_argument("--json", action="store_true", help="machine readable output")
-    now.add_argument(
+    morning = commands.add_parser("today", help="one to three things worth knowing now")
+    morning.add_argument("--json", action="store_true", help="machine readable output")
+    morning.add_argument(
         "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
     )
-    now.set_defaults(run=_command_today)
+    morning.set_defaults(run=_command_today)
+
+    screen = commands.add_parser(
+        "now", help="one screen: what is worth a look, what changed, what is wrong"
+    )
+    screen.add_argument("--json", action="store_true", help="machine readable output")
+    screen.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
+    screen.set_defaults(run=_command_now)
 
     reread = commands.add_parser("reread", help="what a newer prompt version left behind")
     reread.add_argument(

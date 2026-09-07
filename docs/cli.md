@@ -53,6 +53,7 @@ uv run kiseki report --json
 | `trips` | The nights away, as journeys |
 | `drift` | What moved with what, and each against its own past |
 | `today` | One to three things worth knowing now, each saying why now |
+| `now` | One screen: what is worth a look, what changed, what is thin, what is wrong. No model |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |
