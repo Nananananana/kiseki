@@ -144,6 +144,7 @@ from kiseki.interfaces.payloads import (
     insights_payload,
     lifecycle_payload,
     limits_payload,
+    named,
     narration_payload,
     now_payload,
     paths_payload,
@@ -1206,7 +1207,7 @@ def _command_trend(args: argparse.Namespace) -> int:
     report = _pipeline_for(args).trend()
     if report is None:
         if args.json:
-            write_document({"trends": None, "reason": "not enough history"})
+            write_document(named("trend", {"trends": None, "reason": "not enough history"}))
         else:
             print(RULE)
             print(
@@ -1516,7 +1517,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
     report = _pipeline_from(paths.db_path).lifecycle()
     if report is None:
         if args.json:
-            write_document({"lifecycles": None, "reason": "not enough history"})
+            write_document(named("lifecycle", {"lifecycles": None, "reason": "not enough history"}))
         else:
             print(RULE)
             print(
@@ -1569,7 +1570,7 @@ def _command_insights(args: argparse.Namespace) -> int:
     report = _pipeline_from(paths.db_path).insights()
     if report is None:
         if args.json:
-            write_document({"insights": None, "reason": "not enough history"})
+            write_document(named("insights", {"insights": None, "reason": "not enough history"}))
         else:
             print(RULE)
             print(
@@ -1687,7 +1688,7 @@ def _command_compare(args: argparse.Namespace) -> int:
         return EXIT_BAD_INPUT
     if comparison is None:
         if args.json:
-            write_document({"entries": None, "reason": "not enough history"})
+            write_document(named("compare", {"entries": None, "reason": "not enough history"}))
         else:
             print(RULE)
             print("  not enough history: compare needs two kept profiles to pair")
@@ -2315,7 +2316,7 @@ def _command_discover(args: argparse.Namespace) -> int:
     feed = _pipeline_from(paths.db_path).discover()
     if feed is None:
         if args.json:
-            write_document({"discoveries": None, "reason": "not enough history"})
+            write_document(named("discover", {"discoveries": None, "reason": "not enough history"}))
         else:
             print(RULE)
             print(
