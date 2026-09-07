@@ -364,6 +364,18 @@ class EvidenceGraph:
     nodes: tuple[Node, ...] = ()
     edges: tuple[Edge, ...] = ()
 
+    built_by: str | None = None
+    """Which set of rules assembled this, where it was assembled
+    rather than hand-written.
+
+    Here rather than added by whoever writes the document, because a
+    graph read back from storage was built by whatever version was
+    current *then*. A document that stamped today's version onto
+    yesterday's content would be exactly the confusion the field
+    exists to prevent: a consumer must be able to tell a hypothesis
+    that appeared because the owner did something new from one that
+    appeared because these rules learned to look somewhere else."""
+
     whole: bool = True
     """Whether this is the library's graph or a piece of it.
 
@@ -485,7 +497,9 @@ class EvidenceGraph:
         return not self.nodes
 
 
-def part_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
+def part_of(
+    nodes: Iterable[Node], edges: Sequence[Edge], built_by: str | None = None
+) -> EvidenceGraph:
     """A piece of the graph, which does not claim to be all of it.
 
     For a neighbourhood read back from storage. Every structural check
@@ -493,19 +507,23 @@ def part_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
     only the rule about a conclusion reaching an observation is skipped,
     because that is a fact about the library rather than about a view.
     """
-    return _assembled(nodes, edges, whole=False)
+    return _assembled(nodes, edges, whole=False, built_by=built_by)
 
 
-def graph_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
+def graph_of(
+    nodes: Iterable[Node], edges: Sequence[Edge], built_by: str | None = None
+) -> EvidenceGraph:
     """Assemble a graph, dropping duplicate edges rather than storing two.
 
     Two derivations naming the same evidence is normal and says nothing
     extra; the second copy would only make a count wrong later.
     """
-    return _assembled(nodes, edges, whole=True)
+    return _assembled(nodes, edges, whole=True, built_by=built_by)
 
 
-def _assembled(nodes: Iterable[Node], edges: Sequence[Edge], whole: bool) -> EvidenceGraph:
+def _assembled(
+    nodes: Iterable[Node], edges: Sequence[Edge], whole: bool, built_by: str | None = None
+) -> EvidenceGraph:
     kept: dict[tuple[str, str, str], Edge] = {}
     for edge in edges:
         kept[(edge.source, edge.target, edge.kind)] = edge
@@ -516,4 +534,5 @@ def _assembled(nodes: Iterable[Node], edges: Sequence[Edge], whole: bool) -> Evi
         nodes=tuple(nodes),
         edges=tuple(kept[key] for key in sorted(kept)),
         whole=whole,
+        built_by=built_by,
     )

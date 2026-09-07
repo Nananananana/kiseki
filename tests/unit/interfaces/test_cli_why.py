@@ -109,7 +109,7 @@ class TestItAnswersTheQuestion:
         document = json.loads(capsys.readouterr().out)
         assert document["schema"] == "kiseki-why"
         assert document["sources"] == ["note", "screen"]
-        assert {reading["id"] for reading in document["rests_on"]} == {"o1", "o2"}
+        assert {reading["node_id"] for reading in document["evidence"]} == {"o1", "o2"}
 
     def test_a_node_nobody_stored_is_a_named_failure(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -129,7 +129,7 @@ class TestItAnswersTheQuestion:
         readings, which is how deep this library's chains go."""
         _seed(tmp_path)
         assert _run(tmp_path, "why", "c1", "--json") == EXIT_OK
-        assert len(json.loads(capsys.readouterr().out)["rests_on"]) == 2
+        assert len(json.loads(capsys.readouterr().out)["evidence"]) == 2
 
 
 class TestTheGraphCommand:

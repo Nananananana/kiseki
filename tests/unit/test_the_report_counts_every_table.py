@@ -44,6 +44,7 @@ NOT_COUNTED = {
     "graph_nodes": "the evidence graph, derived from every table above (#435)",
     "graph_edges": "relationships between derived nodes; rebuilt with them",
     "graph_edge_evidence": "which nodes made an edge; rebuilt with it",
+    "graph_meta": "which rules built the graph; one row, not the owner's data",
 }
 """Why each one is absent from the report. A derived table is not a
 second copy of what it was derived from: counting it would tell the
