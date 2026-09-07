@@ -71,7 +71,7 @@ def named(endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     return {"schema": f"kiseki-{endpoint}", "version": SERVED_VERSION, **body}
 
 
-def report_payload(report: Report, blur: bool = False) -> dict[str, Any]:
+def report_payload(report: Report, blur: bool = True) -> dict[str, Any]:
     habits = report.habits
     return named(
         "report",
@@ -113,7 +113,7 @@ def report_payload(report: Report, blur: bool = False) -> dict[str, Any]:
     )
 
 
-def profile_payload(profile: Profile, blur: bool = False) -> dict[str, Any]:
+def profile_payload(profile: Profile, blur: bool = True) -> dict[str, Any]:
     return named(
         "profile",
         {
@@ -140,7 +140,7 @@ def profile_payload(profile: Profile, blur: bool = False) -> dict[str, Any]:
     )
 
 
-def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
+def trend_payload(report: TrendReport, blur: bool = True) -> dict[str, Any]:
     return named(
         "trend",
         {
@@ -162,7 +162,7 @@ def trend_payload(report: TrendReport, blur: bool = False) -> dict[str, Any]:
 def answer_payload(answer: Answer, blur: bool = True) -> dict[str, Any]:
     """The answer as a document, blurred unless raw is asked for.
 
-    Blurred by default, unlike its siblings, because this one accepted
+    Blurred by default, as its siblings are, because this one accepted
     `blur` and ignored it: `/ask` over HTTP and `kiseki ask --json`
     both served `supporting_insights[].topic` raw, and an insight's
     topic can be `place:lat,lon`. Every other served payload blurs
@@ -284,7 +284,7 @@ def limits_payload(report: LimitsReport) -> dict[str, Any]:
     )
 
 
-def comparison_payload(comparison: Comparison, blur: bool = False) -> dict[str, Any]:
+def comparison_payload(comparison: Comparison, blur: bool = True) -> dict[str, Any]:
     return named(
         "compare",
         {
@@ -309,7 +309,7 @@ def comparison_payload(comparison: Comparison, blur: bool = False) -> dict[str, 
     )
 
 
-def discovery_payload(feed: DiscoveryFeed, blur: bool = False) -> dict[str, Any]:
+def discovery_payload(feed: DiscoveryFeed, blur: bool = True) -> dict[str, Any]:
     return named(
         "discover",
         {
@@ -334,7 +334,7 @@ def discovery_payload(feed: DiscoveryFeed, blur: bool = False) -> dict[str, Any]
     )
 
 
-def insights_payload(report: InsightReport, blur: bool = False) -> dict[str, Any]:
+def insights_payload(report: InsightReport, blur: bool = True) -> dict[str, Any]:
     return named(
         "insights",
         {
@@ -371,7 +371,7 @@ def insights_payload(report: InsightReport, blur: bool = False) -> dict[str, Any
     )
 
 
-def lifecycle_payload(report: LifecycleReport, blur: bool = False) -> dict[str, Any]:
+def lifecycle_payload(report: LifecycleReport, blur: bool = True) -> dict[str, Any]:
     return named(
         "lifecycle",
         {

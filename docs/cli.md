@@ -151,8 +151,11 @@ Every served document names itself: `schema` is `kiseki-<endpoint>` and
 refuses unknown contracts can list them. The same two keys lead every
 `--json` document a command writes.
 
-Served payloads blur coordinates to two decimals, about a kilometre;
-add `?raw=true` to a request to opt out. `/places` also carries
+Every document that leaves the process blurs coordinates to two
+decimals, about a kilometre, whichever door it leaves by: add
+`?raw=true` to a served request, or `--raw` to a command that writes
+one, to opt out (ADR-0095). Printed to a terminal the same commands
+keep their precision, which is the distinction ADR-0026 drew. `/places` also carries
 `blur_radius_m`: how far the true point can be from the blurred one, so
 a map can draw the circle the blur promises rather than a dot that
 claims a doorstep. It is the distance to the cell's corner, not half
