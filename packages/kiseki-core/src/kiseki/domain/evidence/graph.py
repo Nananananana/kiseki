@@ -123,6 +123,8 @@ from datetime import datetime
 from enum import Enum, unique
 from typing import Any
 
+from kiseki.domain.evidence.visual import EdgeVisual, NodeVisual
+
 
 @unique
 class NodeKind(Enum):
@@ -209,23 +211,48 @@ class Node:
 
     Checked for shape and never for membership, so a recorder this
     library has never heard of produces a node that says what it is
-    rather than one that quietly claims to be a photograph. Required on
-    a fact, which is the only kind that comes from anywhere; `None` on
-    a derivation, which comes from the facts under it.
-    """
+    rather than one that quietly claims to be a photograph. Required
+    on an observation, which is the only kind that comes from
+    anywhere; `None` on a derivation, which comes from the
+    observations under it."""
 
     occurred_at: datetime | None = None
-    """When, where the node is about a moment. `None` for an entity or
-    a derivation, which are about a pattern rather than an instant."""
+    """When, where the node is about a moment. `None` for an
+    entity or a derivation, which are about a pattern rather than an
+    instant."""
 
-    attributes: dict[str, Any] = field(default_factory=dict)
-    """What only this kind of node has, for a producer that knows more
-    than the shape above.
+    confidence: float | None = None
+    """How much the derivation that produced this believed it.
 
-    The extension point, and the smallest one that works: a field here
-    costs no migration, and anything a query needs to filter on should
-    graduate to a column of its own rather than living in here forever.
-    """
+    **Carried, never synthesised.** A derivation that computed a
+    confidence puts it here, and nothing in this module combines two
+    of them: the per-kind confidences are not comparable, so a number
+    summed from them would give the incomparability a decimal point
+    (#390). `None` is not zero -- a node nobody scored and a node
+    scored zero are different, and the difference decides whether it
+    may be averaged."""
+
+    importance: float | None = None
+    """How much this matters, in [0, 1].
+
+    Nothing computes it yet, and the field is here rather than added
+    later because a viewer needs somewhere to read a size from and
+    the alternative is a viewer inventing one. `None` says plainly
+    that nothing measured it."""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    """What only this kind of node has, for a producer that knows
+    more than the shape above.
+
+    The extension point, and the smallest one that works: a field
+    here costs no migration, and anything a query needs to filter on
+    should graduate to a column of its own rather than living in here
+    forever."""
+
+    visual: NodeVisual | None = None
+    """Hints for drawing it, which no derivation reads. See
+    `visual.py` for why they travel with the node rather than in a
+    second model that would have to be kept in step."""
 
     def __post_init__(self) -> None:
         if not self.id.strip():
@@ -239,30 +266,79 @@ class Node:
             )
         if self.kind is NodeKind.OBSERVATION and not self.source:
             raise ValueError(
-                f"the observation {self.id!r} does not say what it came from; an unnamed source "
-                "is indistinguishable from a photograph, which is how the web went two "
-                "releases misreported"
+                f"the observation {self.id!r} does not say what it came from; an unnamed "
+                "source is indistinguishable from a photograph, which is how the web went "
+                "two releases misreported"
             )
         if self.source is not None and not _NAME.match(self.source):
             raise ValueError(
                 f"{self.source!r} is not the shape of a source name; lower case, "
                 "digits and underscores, so a vocabulary stays a vocabulary"
             )
+        for name, value in (("confidence", self.confidence), ("importance", self.importance)):
+            if value is not None and not 0.0 <= value <= 1.0:
+                raise ValueError(f"a {name} of {value} is not in [0, 1]")
 
 
 @dataclass(frozen=True)
 class Edge:
-    """One relationship, pointing at what came first."""
+    """What the library believes about how two things relate.
 
+    Deliberately as heavy as a node. An edge here is not a pointer
+    between two records -- it is a claim, with a type, a strength the
+    library may revise, and the observations that made it. *A
+    influenced B* is a thing this library thinks, and a thing it can
+    be wrong about, which makes it a memory of its own rather than
+    plumbing between two others.
+
+    It has an identity for the same reason: a claim that cannot be
+    named cannot be revised, corrected or pointed at, and every one
+    of those is a phase that follows."""
+
+    id: str
     source: str
     target: str
     kind: str
 
-    attributes: dict[str, Any] = field(default_factory=dict)
-    """As on a node, and for the same reason. No confidence here yet:
-    see the module docstring."""
+    strength: float | None = None
+    """How strongly the two are held together, in [0, 1].
+
+    Separate from `confidence`, and the difference matters: strength
+    is how much of a relationship there is, confidence is how sure
+    the library is that there is one at all. A weak relationship
+    seen fifty times and a strong one seen twice are different
+    claims, and one number cannot say both.
+
+    Carried, never synthesised here, for the reason on
+    `Node.confidence`."""
+
+    confidence: float | None = None
+
+    evidence: tuple[str, ...] = ()
+    """The nodes that made this claim, by id.
+
+    A field here and structure on a node, which looks inconsistent
+    and is not. A node's evidence is reachable by walking its edges,
+    so storing it twice would let the two disagree. An edge cannot
+    have edges of its own, so its evidence has nowhere structural to
+    live -- and the graph checks that every id here is a node it
+    holds, so the field cannot drift either."""
+
+    because: tuple[str, ...] = ()
+    """Why the library drew it: `temporal proximity`, `semantic
+    similarity`, `repeated behaviour`.
+
+    Words rather than a score, because *0.82* answers a different
+    question from *these two kept happening within an hour of each
+    other*, and a reader deciding whether to believe an edge wants
+    the second."""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    visual: EdgeVisual | None = None
 
     def __post_init__(self) -> None:
+        if not self.id.strip():
+            raise ValueError("an edge without an id cannot be revised, corrected or pointed at")
         if self.source == self.target:
             raise ValueError("a thing cannot be derived from itself")
         if self.kind not in EDGE_KINDS:
@@ -270,6 +346,9 @@ class Edge:
                 f"{self.kind!r} is not a declared relationship; add it to EDGE_KINDS, "
                 "which is one line, so that every type in the graph can be listed"
             )
+        for name, value in (("strength", self.strength), ("confidence", self.confidence)):
+            if value is not None and not 0.0 <= value <= 1.0:
+                raise ValueError(f"a {name} of {value} is not in [0, 1]")
 
 
 @dataclass(frozen=True)
@@ -285,10 +364,21 @@ class EvidenceGraph:
             if node.id in seen:
                 raise ValueError(f"two nodes share the id {node.id!r}")
             seen[node.id] = node
+        named: set[str] = set()
         for edge in self.edges:
+            if edge.id in named:
+                raise ValueError(f"two edges share the id {edge.id!r}")
+            named.add(edge.id)
             for end in (edge.source, edge.target):
                 if end not in seen:
                     raise ValueError(f"an edge points at {end!r}, which is not in the graph")
+            for cited in edge.evidence:
+                if cited not in seen:
+                    raise ValueError(
+                        f"the edge {edge.id!r} cites {cited!r} as its evidence and the "
+                        "graph does not hold it; an edge that rests on something absent "
+                        "is the field version of a conclusion reaching no observation"
+                    )
         for node in self.nodes:
             if node.kind is NodeKind.CONCLUSION and not self._observations_under(node.id, seen):
                 raise ValueError(
@@ -381,6 +471,9 @@ def graph_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
     kept: dict[tuple[str, str, str], Edge] = {}
     for edge in edges:
         kept[(edge.source, edge.target, edge.kind)] = edge
+    # Keyed by the claim rather than by the edge's id, because two ids
+    # for one claim is the duplicate worth dropping and the same id
+    # twice is a mistake worth raising, which __post_init__ does.
     return EvidenceGraph(
         nodes=tuple(nodes),
         edges=tuple(kept[key] for key in sorted(kept)),

@@ -23,8 +23,15 @@ from kiseki.domain.evidence.graph import (
     NodeKind,
     graph_of,
 )
+from kiseki.domain.evidence.visual import NodeVisual
 
 WHEN = datetime(2026, 6, 1, 12, tzinfo=UTC)
+
+
+def _edge(source: str, target: str, kind: str) -> Edge:
+    """An edge with an id made from its own ends, so a test reads as
+    the claim it is making rather than as bookkeeping."""
+    return Edge(id=f"{source}-{kind}-{target}", source=source, target=target, kind=kind)
 
 
 def _observation(name: str = "f1", source: str = "photograph") -> Node:
@@ -52,8 +59,8 @@ class TestAConclusionReachesAnObservation:
         graph = graph_of(
             [_conclusion(), _interest(), _observation()],
             [
-                Edge("c1", "i1", "derived_from"),
-                Edge("i1", "f1", "rests_on"),
+                _edge("c1", "i1", "derived_from"),
+                _edge("i1", "f1", "rests_on"),
             ],
         )
         assert [node.id for node in graph.observations_under("c1")] == ["f1"]
@@ -68,7 +75,7 @@ class TestAConclusionReachesAnObservation:
         with pytest.raises(ValueError, match="reaches no observation"):
             graph_of(
                 [_conclusion(), _interest()],
-                [Edge("c1", "i1", "derived_from")],
+                [_edge("c1", "i1", "derived_from")],
             )
 
     def test_an_interest_with_no_evidence_is_allowed_on_its_own(self) -> None:
@@ -80,9 +87,9 @@ class TestAConclusionReachesAnObservation:
         graph = graph_of(
             [_conclusion(), _interest("i1"), _interest("i2"), _observation("f9")],
             [
-                Edge("c1", "i1", "derived_from"),
-                Edge("i1", "i2", "rests_on"),
-                Edge("i2", "f9", "rests_on"),
+                _edge("c1", "i1", "derived_from"),
+                _edge("i1", "i2", "rests_on"),
+                _edge("i2", "f9", "rests_on"),
             ],
         )
         assert [node.id for node in graph.observations_under("c1")] == ["f9"]
@@ -94,10 +101,10 @@ class TestAConclusionReachesAnObservation:
         graph = graph_of(
             [_conclusion(), _interest("i1"), _interest("i2"), _observation()],
             [
-                Edge("c1", "i1", "derived_from"),
-                Edge("i1", "i2", "rests_on"),
-                Edge("i2", "i1", "rests_on"),
-                Edge("i2", "f1", "rests_on"),
+                _edge("c1", "i1", "derived_from"),
+                _edge("i1", "i2", "rests_on"),
+                _edge("i2", "i1", "rests_on"),
+                _edge("i2", "f1", "rests_on"),
             ],
         )
         assert [node.id for node in graph.observations_under("c1")] == ["f1"]
@@ -157,10 +164,10 @@ class TestAnySourceAtAll:
                 _observation("f3", source="audio"),
             ],
             [
-                Edge("c1", "i1", "derived_from"),
-                Edge("i1", "f1", "rests_on"),
-                Edge("i1", "f2", "rests_on"),
-                Edge("i1", "f3", "rests_on"),
+                _edge("c1", "i1", "derived_from"),
+                _edge("i1", "f1", "rests_on"),
+                _edge("i1", "f2", "rests_on"),
+                _edge("i1", "f3", "rests_on"),
             ],
         )
         assert graph.sources_under("c1") == ("audio", "note")
@@ -193,9 +200,9 @@ class TestAnObservationIsNotAnEvent:
                 _observation("o3", source="note"),
             ],
             [
-                Edge("e1", "o1", "derived_from"),
-                Edge("e1", "o2", "derived_from"),
-                Edge("e1", "o3", "derived_from"),
+                _edge("e1", "o1", "derived_from"),
+                _edge("e1", "o2", "derived_from"),
+                _edge("e1", "o3", "derived_from"),
             ],
         )
 
@@ -230,8 +237,8 @@ class TestAnObservationIsNotAnEvent:
                 _observation("o1", source="audio"),
             ],
             [
-                Edge("e1", "o1", "derived_from"),
-                Edge("e2", "o1", "derived_from"),
+                _edge("e1", "o1", "derived_from"),
+                _edge("e2", "o1", "derived_from"),
             ],
         )
         assert len(graph.of_kind(NodeKind.EVENT)) == 2
@@ -245,8 +252,8 @@ class TestAnObservationIsNotAnEvent:
                 _observation("o1", source="audio"),
             ],
             [
-                Edge("c1", "e1", "derived_from"),
-                Edge("e1", "o1", "derived_from"),
+                _edge("c1", "e1", "derived_from"),
+                _edge("e1", "o1", "derived_from"),
             ],
         )
         assert graph.sources_under("c1") == ("audio",)
@@ -260,7 +267,7 @@ class TestAnythingMayPointAtAnything:
     def test_a_fact_may_precede_another_observation(self) -> None:
         graph = graph_of(
             [_observation("f1", source="audio"), _observation("f2", source="page")],
-            [Edge("f1", "f2", "precedes")],
+            [_edge("f1", "f2", "precedes")],
         )
         assert len(graph.edges) == 1
 
@@ -268,7 +275,7 @@ class TestAnythingMayPointAtAnything:
         """Adding one is a line in EDGE_KINDS, so that every type in
         the graph can be listed."""
         with pytest.raises(ValueError, match="not a declared relationship"):
-            Edge("f1", "f2", "vibes_with")
+            _edge("f1", "f2", "vibes_with")
 
     def test_causation_is_not_among_them(self) -> None:
         """Correlation is not causation, and a causal claim is a
@@ -283,9 +290,9 @@ class TestAnythingMayPointAtAnything:
             kind=NodeKind.OBSERVATION,
             label="a recording",
             source="audio",
-            attributes={"seconds": 42},
+            metadata={"seconds": 42},
         )
-        assert node.attributes["seconds"] == 42
+        assert node.metadata["seconds"] == 42
 
 
 class TestNoNodeCarriesACoordinate:
@@ -330,7 +337,7 @@ class TestNoNodeCarriesACoordinate:
 class TestTheShapeIsChecked:
     def test_an_edge_pointing_at_nothing_is_refused(self) -> None:
         with pytest.raises(ValueError, match="not in the graph"):
-            EvidenceGraph(nodes=(_observation(),), edges=(Edge("f1", "nowhere", "about"),))
+            EvidenceGraph(nodes=(_observation(),), edges=(_edge("f1", "nowhere", "about"),))
 
     def test_two_nodes_cannot_share_an_id(self) -> None:
         with pytest.raises(ValueError, match="share the id"):
@@ -338,7 +345,7 @@ class TestTheShapeIsChecked:
 
     def test_a_thing_is_not_derived_from_itself(self) -> None:
         with pytest.raises(ValueError, match="derived from itself"):
-            Edge("i1", "i1", "rests_on")
+            _edge("i1", "i1", "rests_on")
 
     def test_a_node_that_cannot_be_named_is_refused(self) -> None:
         with pytest.raises(ValueError, match="cannot be named"):
@@ -350,8 +357,8 @@ class TestTheShapeIsChecked:
         graph = graph_of(
             [_interest(), _observation()],
             [
-                Edge("i1", "f1", "rests_on"),
-                Edge("i1", "f1", "rests_on"),
+                _edge("i1", "f1", "rests_on"),
+                _edge("i1", "f1", "rests_on"),
             ],
         )
         assert len(graph.edges) == 1
@@ -360,11 +367,135 @@ class TestTheShapeIsChecked:
         graph = graph_of(
             [_interest(), _observation()],
             [
-                Edge("i1", "f1", "rests_on"),
-                Edge("i1", "f1", "about"),
+                _edge("i1", "f1", "rests_on"),
+                _edge("i1", "f1", "about"),
             ],
         )
         assert len(graph.edges) == 2
+
+
+class TestAnEdgeIsAClaim:
+    """Not plumbing between two records. *A influenced B* is a thing the
+    library thinks and can be wrong about, so it carries its own
+    identity, strength, evidence and reasons."""
+
+    def test_an_edge_carries_why_it_was_drawn(self) -> None:
+        edge = Edge(
+            id="r1",
+            source="e1",
+            target="i1",
+            kind="influences",
+            strength=0.82,
+            confidence=0.76,
+            because=("temporal proximity", "repeated behaviour"),
+        )
+        assert edge.because[0] == "temporal proximity"
+
+    def test_strength_and_confidence_are_different_questions(self) -> None:
+        """A weak relationship seen fifty times and a strong one seen
+        twice are different claims, and one number cannot say both."""
+        edge = Edge(
+            id="r1",
+            source="a",
+            target="b",
+            kind="influences",
+            strength=0.2,
+            confidence=0.9,
+        )
+        assert (edge.strength, edge.confidence) == (0.2, 0.9)
+
+    def test_an_edge_without_an_id_cannot_be_revised_later(self) -> None:
+        with pytest.raises(ValueError, match="cannot be revised"):
+            Edge(id=" ", source="a", target="b", kind="related_to")
+
+    def test_two_edges_cannot_share_an_id(self) -> None:
+        with pytest.raises(ValueError, match="share the id"):
+            EvidenceGraph(
+                nodes=(_observation("o1"), _observation("o2"), _interest()),
+                edges=(
+                    Edge(id="r1", source="i1", target="o1", kind="rests_on"),
+                    Edge(id="r1", source="i1", target="o2", kind="rests_on"),
+                ),
+            )
+
+    def test_an_edge_citing_something_absent_is_refused(self) -> None:
+        """The field version of a conclusion reaching no observation:
+        evidence that is not in the graph cannot be checked."""
+        with pytest.raises(ValueError, match="does not hold it"):
+            EvidenceGraph(
+                nodes=(_observation("o1"), _interest()),
+                edges=(
+                    Edge(
+                        id="r1",
+                        source="i1",
+                        target="o1",
+                        kind="rests_on",
+                        evidence=("o9",),
+                    ),
+                ),
+            )
+
+    def test_evidence_the_graph_holds_is_kept(self) -> None:
+        graph = EvidenceGraph(
+            nodes=(_observation("o1"), _observation("o2"), _interest()),
+            edges=(
+                Edge(
+                    id="r1",
+                    source="i1",
+                    target="o1",
+                    kind="rests_on",
+                    evidence=("o2",),
+                ),
+            ),
+        )
+        assert graph.edges[0].evidence == ("o2",)
+
+    def test_a_strength_outside_the_range_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="strength"):
+            Edge(id="r1", source="a", target="b", kind="related_to", strength=1.4)
+
+    def test_a_confidence_outside_the_range_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="confidence"):
+            Edge(id="r1", source="a", target="b", kind="related_to", confidence=-0.1)
+
+
+class TestDrawingIsNotReasoning:
+    """The hints travel with the node so two models cannot drift, and
+    nothing in the reasoning reads them."""
+
+    def test_a_node_may_carry_a_hint_for_a_viewer(self) -> None:
+        node = Node(
+            id="o1",
+            kind=NodeKind.OBSERVATION,
+            label="a long sentence a derivation wrote",
+            source="audio",
+            visual=NodeVisual(short_label="the park", group="outings", weight=0.6),
+        )
+        assert node.visual is not None
+        assert node.visual.short_label == "the park"
+
+    def test_no_position_and_no_colour_are_ours_to_decide(self) -> None:
+        """A position is a layout imposed on every viewer and a colour is
+        a palette; what a viewer needs from us is what things are."""
+        assert not hasattr(NodeVisual(), "position")
+        assert not hasattr(NodeVisual(), "colour")
+
+    def test_a_weight_outside_a_share_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="not a share"):
+            NodeVisual(weight=1.5)
+
+    def test_the_reasoning_never_reads_a_drawing_hint(self) -> None:
+        """Checkable, and the whole rule: the graph module may hold the
+        field and must never branch on it."""
+        from inspect import getsource
+
+        from kiseki.domain.evidence import graph as module
+
+        for line in getsource(module).splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("#", "visual:")) or stripped.startswith('"""'):
+                continue
+            assert ".visual." not in stripped, line
 
 
 class TestWalkingIt:
@@ -378,9 +509,9 @@ class TestWalkingIt:
         graph = graph_of(
             [_conclusion(), _observation("f2"), _observation("f1"), _observation("f3")],
             [
-                Edge("c1", "f2", "derived_from"),
-                Edge("c1", "f1", "derived_from"),
-                Edge("c1", "f3", "derived_from"),
+                _edge("c1", "f2", "derived_from"),
+                _edge("c1", "f1", "derived_from"),
+                _edge("c1", "f3", "derived_from"),
             ],
         )
         assert [node.id for node in graph.observations_under("c1")] == ["f1", "f2", "f3"]
@@ -389,8 +520,8 @@ class TestWalkingIt:
         graph = graph_of(
             [_conclusion(), _interest(), _observation()],
             [
-                Edge("c1", "i1", "derived_from"),
-                Edge("i1", "f1", "rests_on"),
+                _edge("c1", "i1", "derived_from"),
+                _edge("i1", "f1", "rests_on"),
             ],
         )
         assert len(graph.neighbours("i1")) == 2
