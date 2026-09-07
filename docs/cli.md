@@ -343,6 +343,26 @@ child's environment and touches no file.
 | `KISEKI_MODEL_PARALLEL` | `1` | calls in flight at once; `--parallel` overrides it once |
 | `KISEKI_MODEL_KEEP_ALIVE` | `5m` | how long the server keeps the model loaded; `0` unloads on return |
 | `KISEKI_MODEL_TIMEOUT_SECONDS` | `300` | how long one call may take before it counts as unavailable |
+| `KISEKI_MODEL_USE` | `self` | who calls the model: `self`, or `withheld` when the caller schedules it; `--model-use` overrides it once |
+
+## When the caller schedules the model
+
+Running alone, this library decides when to call a model: `refresh`
+runs the reading stages in order and each one asks. Running as one
+of several libraries on one machine, that is the wrong default --
+several programs each deciding to load a model onto one GPU is not
+a schedule.
+
+```bash
+kiseki --model-use withheld refresh    # stops with ModelWithheld
+kiseki --model-use withheld now        # answers; it needs no model
+kiseki --model-use withheld cost --no-measure
+```
+
+`ModelWithheld` is **refused**, not unavailable, and not retryable:
+an outage may change in a minute, and a policy answers the same way
+every time (docs/errors.md). Everything that needs no model still
+works, and `kiseki llm` says which is in force.
 
 The boundary is judged on the host, so a second Ollama on
 `127.0.0.1:11435` is still `same_host`.

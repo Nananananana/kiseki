@@ -165,6 +165,18 @@ CATALOGUE = (
         detail_ja="モデルが所有者の許した範囲より遠い。故障ではなく決定である。",
     ),
     Failure(
+        kind="ModelWithheld",
+        exit_code=2,
+        outcome=REFUSED,
+        retryable=False,
+        detail="The caller withheld the model, and this command needed it.",
+        detail_ja="呼び出し側がモデルを使わせない設定にしており、このコマンドには必要だった。",
+    ),
+    # Refused rather than unavailable, and not retryable, because it
+    # will answer the same way every time it is asked. An orchestrator
+    # told this was an outage would retry a policy at whatever interval
+    # it retries outages, forever.
+    Failure(
         kind="RecordsUnreadable",
         exit_code=2,
         outcome=FAILED,

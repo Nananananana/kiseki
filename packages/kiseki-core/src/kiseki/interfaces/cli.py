@@ -89,7 +89,7 @@ from kiseki.config.derivation import (
     in_force,
     resolve_derivation_settings,
 )
-from kiseki.config.model import ModelSettings, resolve_model_settings
+from kiseki.config.model import ModelSettings, ModelUse, resolve_model_settings
 from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
@@ -318,6 +318,10 @@ class ModelRefusedByBoundaryError(RuntimeError):
     """The model is further away than the owner allowed."""
 
 
+class ModelWithheldError(RuntimeError):
+    """The caller has taken the model away, and this needed it."""
+
+
 def _model_overrides(args: argparse.Namespace) -> dict[str, str]:
     """What this invocation said about the models, as the top layer.
 
@@ -330,7 +334,20 @@ def _model_overrides(args: argparse.Namespace) -> dict[str, str]:
         overrides["host"] = args.model_host
     if getattr(args, "parallel", None) is not None:
         overrides["parallel"] = str(args.parallel)
+    if getattr(args, "model_use", None):
+        overrides["use"] = args.model_use
     return overrides
+
+
+def _described_models(args: argparse.Namespace) -> ModelSettings:
+    """Where the models are, for a command that only says so.
+
+    Describing a model is not calling one, and `privacy` is the
+    command that reports what leaves this machine. Stopping it
+    because the caller withheld the model would refuse to answer
+    *does anything leave?* in exactly the case where the answer is
+    the strongest **no** the library can give."""
+    return resolve_model_settings(_model_overrides(args), dotenv=DOTENV)
 
 
 def _models_for(args: argparse.Namespace) -> ModelSettings:
@@ -342,6 +359,11 @@ def _models_for(args: argparse.Namespace) -> ModelSettings:
     before the first one (ADR-0073).
     """
     settings = resolve_model_settings(_model_overrides(args), dotenv=Path(".env"))
+    if settings.withheld:
+        raise ModelWithheldError(
+            "the model was withheld by the caller, so this command did nothing;"
+            " `kiseki cost --no-measure` says what the work would take"
+        )
     verdict = settings.verdict
     if not verdict.admitted:
         raise ModelRefusedByBoundaryError(
@@ -1926,6 +1948,9 @@ def _command_llm(args: argparse.Namespace) -> int:
     print(f"\n  captioning      {settings.captioning_model}")
     print(f"  language        {settings.language_model}")
     print(f"  embedding       {settings.embedding_model}")
+    print(f"  used by         {settings.use.value}")
+    if settings.withheld:
+        print("                  the caller schedules the model; this process will not call it")
     print(f"  parallel        {settings.parallel} call(s) in flight at once")
     print(f"  keep_alive      {settings.keep_alive}   (0 unloads the model on return)")
     print(f"  timeout         {settings.timeout_seconds:g}s per call")
@@ -2034,7 +2059,7 @@ def _command_privacy(args: argparse.Namespace) -> int:
     print("\n  what the owner has withheld")
     print(f"    from the preferences  {report.withheld_from_preference} photographs")
     print("\n  where the models are, and what therefore leaves")
-    for name, value in outbound_lines(_models_for(args)):
+    for name, value in outbound_lines(_described_models(args)):
         print(f"    {name:<24}  {value}")
     print("\n  what is never stored, by construction")
     for name, reason, test in NEVER_STORED:
@@ -3059,6 +3084,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="where the model is, this once",
     )
     parser.add_argument(
+        "--model-use",
+        dest="model_use",
+        choices=[item.value for item in ModelUse],
+        default=None,
+        help=("who calls the model: self, or withheld when the caller schedules it"),
+    )
+    parser.add_argument(
         "--progress",
         choices=["jsonl"],
         default=None,
@@ -3544,6 +3576,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         exit_code: int = args.run(args)
+    except ModelWithheldError as withheld:
+        # A decision, and one that will answer the same way every time:
+        # reporting it as an outage would have an orchestrator retrying
+        # a policy forever (ADR-0015, from the other direction).
+        _stderr("ModelWithheld", str(withheld))
+        return EXIT_BAD_INPUT
     except ModelRefusedByBoundaryError as refusal:
         # The one refusal that is a decision rather than a failure: the
         # model is further away than the owner allowed (ADR-0073).

@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import tomllib
 from dataclasses import dataclass
+from enum import Enum, unique
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,42 @@ from kiseki.domain.trust import TrustBoundary, Verdict, judge
 ENV_PREFIX = "KISEKI_MODEL_"
 
 DEFAULT_PARALLEL = 1
+
+
+@unique
+class ModelUse(Enum):
+    """Who does the model work when this library is part of a system.
+
+    Running alone, kiseki decides when to call a model: `refresh`
+    runs the reading stages in order and each one asks. Running as
+    one of several libraries on one machine, that is the wrong
+    default -- seven programs each deciding to load a model onto one
+    GPU is not a schedule, and the orchestrator that can see all
+    seven is the only place a schedule can exist.
+
+    So the caller may take the model away, and the library says so
+    rather than pretending it is broken."""
+
+    SELF = "self"
+    """This process calls the model. The default, and what a
+    person at their own terminal wants."""
+
+    WITHHELD = "withheld"
+    """This process must not call the model, by the caller's
+    decision.
+
+    **Not the same as the model being away**, and the difference is
+    the point. An outage is a fact about the world that may change
+    in a minute; this is a decision that will give the same answer
+    every time it is asked. Reporting one as the other would have an
+    orchestrator retrying a policy, forever, at whatever interval it
+    retries outages -- which is the failure ADR-0015 exists to
+    prevent, arriving from the other direction.
+
+    Everything that needs no model still works: the derivations, the
+    screens, the graph, and `cost --no-measure`, which is how a
+    caller asks what the work would take without doing any of it."""
+
 
 DEFAULT_KEEP_ALIVE = "5m"
 """How long the server keeps a model loaded after a call. Ollama's own
@@ -56,6 +93,7 @@ KNOWN = (
     "parallel",
     "keep_alive",
     "timeout_seconds",
+    "use",
 )
 
 
@@ -72,6 +110,7 @@ class ModelSettings:
     parallel: int = DEFAULT_PARALLEL
     keep_alive: str = DEFAULT_KEEP_ALIVE
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
+    use: ModelUse = ModelUse.SELF
     """How many one-element model calls the captioning loops keep in
     flight at once. One is a plain loop. Set from OLLAMA_NUM_PARALLEL's
     value on the server, not above it: the server queues what it
@@ -84,6 +123,11 @@ class ModelSettings:
             raise ValueError("keep_alive cannot be blank; use 0 to unload on return")
         if self.timeout_seconds <= 0:
             raise ValueError(f"timeout_seconds must be positive, not {self.timeout_seconds}")
+
+    @property
+    def withheld(self) -> bool:
+        """Whether the caller has taken the model away."""
+        return self.use is ModelUse.WITHHELD
 
     @property
     def verdict(self) -> Verdict:
@@ -153,6 +197,16 @@ def resolve_model_settings(
                 f"'{layers['boundary']}' is not a trust boundary. Choose one of: {allowed}"
             ) from None
 
+    use = ModelUse.SELF
+    if "use" in layers:
+        try:
+            use = ModelUse(layers["use"].strip().lower())
+        except ValueError:
+            allowed = ", ".join(item.value for item in ModelUse)
+            raise ValueError(
+                f"'{layers['use']}' is not a way of using the model. Choose one of: {allowed}"
+            ) from None
+
     trusted = tuple(
         name.strip().lower() for name in layers.get("trusted_hosts", "").split(",") if name.strip()
     )
@@ -184,4 +238,5 @@ def resolve_model_settings(
         parallel=parallel,
         keep_alive=layers.get("keep_alive", DEFAULT_KEEP_ALIVE).strip(),
         timeout_seconds=timeout_seconds,
+        use=use,
     )
