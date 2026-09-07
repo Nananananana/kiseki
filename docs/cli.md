@@ -12,7 +12,7 @@ uv run kiseki report --json
 
 | Command | What it does |
 |---|---|
-| `paths` | Print where everything will be stored, and stop |
+| `paths` | Print where everything will be stored, and stop; `--json` also says which paths the data root does not hold |
 | `ingest` | Take a PhotoRecord document into the database |
 | `activity` | Take an ActivityRecord document: days of movement |
 | `notes` | Take a NoteRecord document: what the owner wrote, as category and labels |
@@ -141,7 +141,7 @@ uv run kiseki serve --host 0.0.0.0  # reachable from a phone -- deliberate
 | `/trend` | the drift, or `"not enough history"` |
 | `/tell?lang=ja` | a cited narration and the numbered facts its `[F1]` footnotes point at; 503 while the model is away |
 | `/suggest` | somewhere to go back to, pick up, or go, with why now; same shape as `suggest --json` |
-| `/places` | each place the journeys know, with how far the blur can be wrong, for a map |
+| `/places` | each place the journeys know, with how far the blur can be wrong and how long since, for a map |
 
 Every served document names itself: `schema` is `kiseki-<endpoint>` and
 `version` is `1`, in the export's shape (ADR-0081), so a reader that
