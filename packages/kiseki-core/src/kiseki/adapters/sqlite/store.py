@@ -42,7 +42,7 @@ from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 from kiseki.domain.web.reading import PageReading
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -250,6 +250,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 10:
             _migrate_v10_to_v11(connection)
             version = 11
+        if version == 11:
+            _migrate_v11_to_v12(connection)
+            version = 12
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -494,6 +497,22 @@ def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
         " distance_m REAL, floors INTEGER)"
     )
     connection.execute("UPDATE schema_version SET version = ?", (6,))
+
+
+def _migrate_v11_to_v12(connection: sqlite3.Connection) -> None:
+    """The one change from 11 to 12: the graph says which rules
+    built it.
+
+    One key and one value. A consumer keyed on what we write must be
+    able to tell a graph that changed because the owner did something
+    from one that changed because these rules did, and a document
+    that stamped today's version onto yesterday's content could not.
+
+    Additive: an older library gains an empty table, and the next
+    build fills it.
+    """
+    connection.executescript(GRAPH_TABLES)
+    connection.execute("UPDATE schema_version SET version = ?", (12,))
 
 
 def _migrate_v10_to_v11(connection: sqlite3.Connection) -> None:

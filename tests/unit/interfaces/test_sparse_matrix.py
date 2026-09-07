@@ -139,6 +139,7 @@ NOT_A_SOURCE = {
     "graph_nodes": "the evidence graph, derived from every source above (#435)",
     "graph_edges": "relationships between derived nodes; removed with them",
     "graph_edge_evidence": "which nodes made an edge; removed with it",
+    "graph_meta": "which rules built the graph; one row, not the owner's data",
 }
 """Why each table is not seeded and not omitted. The same shape
 test_the_report_counts_every_table.py uses, for the same reason: the

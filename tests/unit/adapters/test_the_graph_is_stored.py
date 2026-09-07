@@ -157,7 +157,7 @@ class TestWhatGoesInComesOut:
                         confidence=0.76,
                         evidence=("o2",),
                         because=("temporal proximity", "repeated behaviour"),
-                        visual=EdgeVisual(dashed=True),
+                        visual=EdgeVisual(weight=0.7),
                     )
                 ],
             )
@@ -167,7 +167,7 @@ class TestWhatGoesInComesOut:
         assert edge.evidence == ("o2",)
         assert edge.because == ("temporal proximity", "repeated behaviour")
         assert edge.visual is not None
-        assert edge.visual.dashed is True
+        assert edge.visual.weight == 0.7
 
 
 class TestWritingIsAdditive:
@@ -339,7 +339,7 @@ class TestAnOlderLibraryGainsThemAndLosesNothing:
         connection.execute(
             "INSERT INTO photos (id, captured_at) VALUES ('sha256:aa', '2026-06-01T12:00:00')"
         )
-        for table in ("graph_edge_evidence", "graph_edges", "graph_nodes"):
+        for table in ("graph_edge_evidence", "graph_edges", "graph_nodes", "graph_meta"):
             connection.execute(f"DROP TABLE {table}")
         connection.execute("UPDATE schema_version SET version = 10")
         connection.commit()
@@ -350,14 +350,14 @@ class TestAnOlderLibraryGainsThemAndLosesNothing:
         where = self._a_version_ten_database(tmp_path)
         connection = connect(where)
         (version,) = connection.execute("SELECT version FROM schema_version").fetchone()
-        assert version == 11
+        assert version == 12
         tables = {
             row[0]
             for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'graph%'"
             ).fetchall()
         }
-        assert tables == {"graph_nodes", "graph_edges", "graph_edge_evidence"}
+        assert tables == {"graph_nodes", "graph_edges", "graph_edge_evidence", "graph_meta"}
 
     def test_what_was_already_stored_is_still_there(self, tmp_path: Path) -> None:
         """Additive and explicit: a migration that lost a photograph
@@ -378,4 +378,4 @@ class TestAnOlderLibraryGainsThemAndLosesNothing:
         where = self._a_version_ten_database(tmp_path)
         connect(where).close()
         connection = connect(where)
-        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 11
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 12

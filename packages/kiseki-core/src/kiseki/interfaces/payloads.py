@@ -711,6 +711,7 @@ def graph_payload(graph: EvidenceGraph) -> dict[str, Any]:
         "graph",
         {
             "whole": graph.whole,
+            "built_by": graph.built_by,
             "sources": list(graph.sources),
             "nodes": [
                 {
@@ -745,12 +746,29 @@ def graph_payload(graph: EvidenceGraph) -> dict[str, Any]:
     )
 
 
+SUPPORTS = "supports"
+"""What a reading does to the thing above it.
+
+One value today, and a field rather than a constant on purpose.
+Contradiction arrives with hypotheses, and when it does it belongs
+**in this same array**: with two arrays, or two calls, the shorter
+code is the one that shows only the supporting half. Every consumer
+writes the shorter code eventually, and not from malice.
+
+So the shape that makes the honest screen the easy one is settled
+now, while there is nothing to contradict and it costs a word."""
+
+
 def why_payload(graph: EvidenceGraph, node_id: str) -> dict[str, Any]:
     """What one conclusion rests on, and which witnesses said so.
 
     The question the whole structure exists to answer, as a document.
     A reader who doubts a conclusion is handed the readings under it
     rather than a score.
+
+    `evidence` is one array with a `stance` on each entry, so that
+    when contradiction exists it lands here rather than behind a
+    second call a screen can forget to make.
     """
     node = next((item for item in graph.nodes if item.id == node_id), None)
     if node is None:
@@ -763,12 +781,13 @@ def why_payload(graph: EvidenceGraph, node_id: str) -> dict[str, Any]:
             "label": node.label,
             "confidence": node.confidence,
             "sources": list(graph.sources_under(node_id)),
-            "rests_on": [
+            "evidence": [
                 {
-                    "id": reading.id,
+                    "node_id": reading.id,
+                    "stance": SUPPORTS,
                     "source": reading.source,
                     "label": reading.label,
-                    "occurred_at": reading.occurred_at.isoformat() if reading.occurred_at else None,
+                    "at": reading.occurred_at.isoformat() if reading.occurred_at else None,
                 }
                 for reading in graph.observations_under(node_id)
             ],

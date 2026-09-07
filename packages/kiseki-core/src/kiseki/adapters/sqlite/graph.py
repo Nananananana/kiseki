@@ -38,6 +38,12 @@ one rule would not be.
 **The index on `target_id`** is the backwards walk, which is the read
 this whole structure exists for.
 
+**Every read is ordered by id.** SQLite happens to return rows in
+rowid order and nothing promises it -- a `VACUUM` is enough to change
+it. A consumer keyed on the hash of what we write would read a
+reordering as *something happened today*, so the order is stated
+rather than observed.
+
 ## Writing is additive
 
 `save` replaces the nodes and edges it is given and touches nothing
@@ -105,7 +111,18 @@ CREATE TABLE IF NOT EXISTS graph_edge_evidence (
 );
 
 CREATE INDEX IF NOT EXISTS graph_edge_evidence_node ON graph_edge_evidence(node_id);
+
+CREATE TABLE IF NOT EXISTS graph_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
+
+
+BUILT_BY = "built_by"
+"""Which rules built what is stored, kept beside the graph rather
+than stamped on at read time: a graph read back was built by whatever
+version was current then, not now."""
 
 
 def _as_json(value: Any) -> str:
@@ -219,6 +236,12 @@ class SqliteEvidenceGraph:
                         (edge.id, cited),
                     )
                 written += 1
+            if graph.built_by is not None:
+                self._connection.execute(
+                    "INSERT INTO graph_meta (key, value) VALUES (?, ?)"
+                    " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (BUILT_BY, graph.built_by),
+                )
         return written
 
     def forget(self, node_ids: Sequence[str]) -> int:
@@ -235,11 +258,18 @@ class SqliteEvidenceGraph:
 
     # ----------------------------------------------------------------- read
 
+    def built_by(self) -> str | None:
+        """Which rules built what is stored, or None if nothing did."""
+        row = self._connection.execute(
+            "SELECT value FROM graph_meta WHERE key = ?", (BUILT_BY,)
+        ).fetchone()
+        return None if row is None else str(row[0])
+
     def all(self) -> EvidenceGraph:
         """Everything. Convenient, and the read that stops being
         reasonable first -- see `around`."""
         nodes = self._nodes_where("1 = 1", ())
-        return graph_of(nodes.values(), self._edges_among(set(nodes)))
+        return graph_of(nodes.values(), self._edges_among(set(nodes)), built_by=self.built_by())
 
     def around(self, node_id: str, steps: int = 1) -> EvidenceGraph:
         """The neighbourhood of one node, out to `steps` edges.
@@ -262,7 +292,7 @@ class SqliteEvidenceGraph:
         nodes = self._nodes_where(
             f"id IN ({','.join('?' for _ in reached)})", tuple(sorted(reached))
         )
-        return part_of(nodes.values(), self._edges_among(set(nodes)))
+        return part_of(nodes.values(), self._edges_among(set(nodes)), built_by=self.built_by())
 
     def of_kind(self, kind: NodeKind) -> tuple[Node, ...]:
         found = self._nodes_where("kind = ?", (kind.value,))
@@ -291,6 +321,7 @@ class SqliteEvidenceGraph:
             f"""
             SELECT id, kind, label, source, occurred_at, confidence, importance, metadata, visual
             FROM graph_nodes WHERE {clause}
+            ORDER BY id
             """,
             values,
         ).fetchall()

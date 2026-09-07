@@ -53,6 +53,22 @@ Only the evidence carries it. A finding's `derived_from` names
 readings without saying when they were made, so those stay undated
 rather than being given a plausible time.
 
+## A label is written here, never copied
+
+Asked for as a declaration, and it is a stronger answer than a
+declaration: **no label in this graph contains anything the owner
+wrote, said, or photographed.** Every one is a sentence this file
+composes from a *kind* -- *a note the library read* -- or a topic
+word that the interest derivation already published, or an opaque
+place name.
+
+Nothing here reads a caption's text, a note's body, a page's title
+or a file's path. A consumer may therefore show a label without
+asking what privacy level produced it, which is the property a
+screen actually needs. It is checked rather than promised: a test
+puts the owner's own words in every field the builder touches and
+fails if any of them reaches a node.
+
 ## Rebuilding is not duplicating
 
 Every id is derived from what the node is rather than from when it was
@@ -77,6 +93,17 @@ from kiseki.domain.evidence.graph import (
 )
 from kiseki.domain.insight import Insight, InsightReport
 from kiseki.domain.interests import Profile
+
+ALGORITHM_VERSION = "1"
+"""Which set of rules built a graph, carried in the document.
+
+So that a consumer can tell two kinds of change apart. A finding
+that appeared because the owner did something new, and one that
+appeared because this file learned to look somewhere else, are
+different news; a screen that showed them alike would report a
+refactor as a life event.
+
+Bumped when what is built from the same readings changes."""
 
 PLACE_PREFIX = "place:"
 
@@ -226,4 +253,4 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
                 )
             )
 
-    return graph_of(nodes.values(), edges)
+    return graph_of(nodes.values(), edges, built_by=ALGORITHM_VERSION)

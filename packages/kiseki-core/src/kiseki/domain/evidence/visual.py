@@ -11,6 +11,21 @@ reasoning reads them**. That is the whole rule, and it is checkable:
 a test greps the graph module for the field and fails if the analysis
 has started depending on how something looks.
 
+## Nothing here may mean anything
+
+Sharper than it first read, and the orchestrator was right to press on
+it: a hint that carries meaning is a second place the document says
+something, and then one document draws two different pictures.
+
+`EdgeVisual` had a `dashed` flag meaning *offered rather than settled*.
+That is a fact about the claim, not about the drawing, and it belongs in
+the edge where it can be read, argued with and corrected. It is gone;
+nothing produced it yet, which is the cheapest moment to find such a
+thing.
+
+What is left is size, grouping and a shorter label -- **which of several
+things to look at first**, never what any of them means.
+
 ## What is deliberately not here
 
 No positions and no colours. A position computed here would be a layout
@@ -56,12 +71,6 @@ class EdgeVisual:
     weight: float | None = None
     """How heavily to draw the line. As on a node, `None` means nothing
     measured it."""
-
-    dashed: bool = False
-    """Whether the relationship is offered rather than settled -- a
-    candidate, a weakened claim. A viewer that ignores this draws a
-    solid line, which is wrong but not misleading in the way a wrong
-    colour would be."""
 
     def __post_init__(self) -> None:
         if self.weight is not None and not 0.0 <= self.weight <= 1.0:
