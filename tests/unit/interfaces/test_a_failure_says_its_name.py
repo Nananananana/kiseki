@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 from kiseki.interfaces import cli
-from kiseki.interfaces.cli import EXIT_BAD_INPUT, EXIT_OK, main
+from kiseki.interfaces.cli import EXIT_BAD_INPUT, EXIT_OK, REFRESH_STAGES, main
 from kiseki.interfaces.failures import (
     BY_KIND,
     CATALOGUE,
@@ -179,6 +179,29 @@ class TestTheDocument:
         is working. No --data-root, and no database is made."""
         assert main(["errors", "--json"]) == EXIT_OK
         assert not list(tmp_path.iterdir())
+
+
+class TestWhatRetryableRestsOn:
+    """`retryable` means *may the same request be made again,
+    unchanged* -- not *could a second attempt succeed*. A failure
+    where asking again is itself a new event is false even when a
+    second attempt would work."""
+
+    def test_keeping_a_profile_is_the_last_stage_of_the_routine(self) -> None:
+        """What `StageStopped: retryable` rests on.
+
+        A run that stopped never kept a profile, because keeping one
+        is the last thing the routine does, so a rerun cannot keep a
+        second (ADR-0070). Reorder the stages and that `true` becomes
+        a false claim about what a rerun writes."""
+        assert REFRESH_STAGES[-1] == "profile", REFRESH_STAGES
+
+    def test_a_refusal_is_never_offered_for_a_second_attempt(self) -> None:
+        """A refusal is recorded and not asked again (ADR-0015), so
+        every refusal in the catalogue must say so."""
+        refused = [item for item in CATALOGUE if item.outcome == "refused"]
+        assert refused
+        assert not [item.kind for item in refused if item.retryable]
 
 
 class TestTheDocumentedTableIsTheCatalogue:
