@@ -55,6 +55,8 @@ uv run kiseki report --json
 | `today` | One to three things worth knowing now, each saying why now |
 | `now` | One screen: what is worth a look, what changed, what is thin, what is wrong. No model |
 | `errors` | Every named way a command here can stop, its exit code, and whether to retry ([kiseki-errors v1](errors.md)) |
+| `graph` | What the library believes and why, as a graph; `--build` rebuilds it from what is derived now |
+| `why` | What one conclusion rests on, and which witnesses said so |
 | `suggest` | From your own evidence, pointed forward |
 | `reread` | What a newer prompt version left behind |
 | `retry` | Refusals the environment caused, not the model |

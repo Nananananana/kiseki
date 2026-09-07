@@ -25,6 +25,7 @@ from kiseki.application.today import Today
 from kiseki.config.paths import StoragePaths
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
+from kiseki.domain.evidence.graph import EvidenceGraph
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
@@ -679,5 +680,97 @@ def errors_payload() -> dict[str, Any]:
                 for failure in CATALOGUE
             ],
             "open_namespaces": list(OPEN_NAMESPACES),
+        },
+    )
+
+
+def _visual(visual: object) -> dict[str, Any] | None:
+    if visual is None:
+        return None
+    return {name: value for name, value in vars(visual).items() if value is not None}
+
+
+def graph_payload(graph: EvidenceGraph) -> dict[str, Any]:
+    """`{"nodes": [...], "edges": [...]}`, for something that draws it.
+
+    The shape a viewer asked for, and a shape that needs no blurring
+    flag: a node may not carry a coordinate at all, in its id any more
+    than in its label, so there is nothing here to coarsen. That is the
+    rule being worth something -- a document with no dangerous field is
+    better than a document with a dangerous field and a careful default
+    (ADR-0095).
+
+    `whole` travels with it. A neighbourhood is legitimately missing the
+    readings outside it, and a viewer that drew a piece as if it were
+    everything would show a conclusion resting on less than it does.
+
+    The drawing hints are here and the reasoning never reads them, which
+    is why one model can serve both.
+    """
+    return named(
+        "graph",
+        {
+            "whole": graph.whole,
+            "sources": list(graph.sources),
+            "nodes": [
+                {
+                    "id": node.id,
+                    "kind": node.kind.value,
+                    "label": node.label,
+                    "source": node.source,
+                    "occurred_at": node.occurred_at.isoformat() if node.occurred_at else None,
+                    "confidence": node.confidence,
+                    "importance": node.importance,
+                    "metadata": node.metadata,
+                    "visual": _visual(node.visual),
+                }
+                for node in graph.nodes
+            ],
+            "edges": [
+                {
+                    "id": edge.id,
+                    "source": edge.source,
+                    "target": edge.target,
+                    "kind": edge.kind,
+                    "strength": edge.strength,
+                    "confidence": edge.confidence,
+                    "evidence": list(edge.evidence),
+                    "because": list(edge.because),
+                    "metadata": edge.metadata,
+                    "visual": _visual(edge.visual),
+                }
+                for edge in graph.edges
+            ],
+        },
+    )
+
+
+def why_payload(graph: EvidenceGraph, node_id: str) -> dict[str, Any]:
+    """What one conclusion rests on, and which witnesses said so.
+
+    The question the whole structure exists to answer, as a document.
+    A reader who doubts a conclusion is handed the readings under it
+    rather than a score.
+    """
+    node = next((item for item in graph.nodes if item.id == node_id), None)
+    if node is None:
+        raise KeyError(node_id)
+    return named(
+        "why",
+        {
+            "id": node.id,
+            "kind": node.kind.value,
+            "label": node.label,
+            "confidence": node.confidence,
+            "sources": list(graph.sources_under(node_id)),
+            "rests_on": [
+                {
+                    "id": reading.id,
+                    "source": reading.source,
+                    "label": reading.label,
+                    "occurred_at": reading.occurred_at.isoformat() if reading.occurred_at else None,
+                }
+                for reading in graph.observations_under(node_id)
+            ],
         },
     )

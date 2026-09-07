@@ -27,6 +27,7 @@ from kiseki.adapters.ollama.models import (
     OllamaTextEmbedder,
 )
 from kiseki.adapters.ollama.screens import OllamaScreenshotReader
+from kiseki.adapters.sqlite.graph import SqliteEvidenceGraph
 from kiseki.adapters.sqlite.search import SqliteSearchIndex
 from kiseki.adapters.sqlite.store import (
     SCHEMA_VERSION,
@@ -94,6 +95,7 @@ from kiseki.config.paths import StoragePaths, resolve_paths, set_aside
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.comparison import ChangeKind
 from kiseki.domain.correction import Correction, CorrectionVerdict, active_exclusions
+from kiseki.domain.evidence.graph import NodeKind
 from kiseki.domain.input.daily import DailyInput
 from kiseki.domain.interests import Profile
 from kiseki.domain.note.reading import NoteReading
@@ -138,6 +140,7 @@ from kiseki.interfaces.payloads import (
     comparison_payload,
     discovery_payload,
     errors_payload,
+    graph_payload,
     insights_payload,
     lifecycle_payload,
     limits_payload,
@@ -151,6 +154,7 @@ from kiseki.interfaces.payloads import (
     suggest_payload,
     today_payload,
     trend_payload,
+    why_payload,
 )
 from kiseki.interfaces.progress import json_lines
 from kiseki.interfaces.view import render_view
@@ -233,6 +237,12 @@ def _stderr(kind: str, sentence: str) -> None:
     module and refuse a name the catalogue does not hold."""
     print(failure_line(kind, sentence), file=sys.stderr)
 
+
+WHY_STEPS = 3
+"""How far `why` walks back: conclusion, interest, reading, and one
+more in case a derivation grows a step. Chosen, not measured -- it is
+how deep this library's own chains go, and a walk that went further
+would return a neighbourhood nobody asked about."""
 
 RULE = "-" * 70
 DOTENV = Path(".env")
@@ -2188,6 +2198,80 @@ def _command_errors(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _graph_store(args: argparse.Namespace) -> SqliteEvidenceGraph:
+    return SqliteEvidenceGraph(connect(_paths_for(args).db_path))
+
+
+def _command_graph(args: argparse.Namespace) -> int:
+    """What the library believes and why, as a graph (ADR-0096).
+
+    Derived, so `--build` rebuilds it from the current readings rather
+    than adding to it: every id comes from what a node is, so building
+    twice writes the same graph. Needs no model, which is the point --
+    an orchestrator deciding whether to give this library a GPU can
+    read the whole of its reasoning first.
+    """
+    store = _graph_store(args)
+    if args.build:
+        graph = _pipeline_for(args).graph()
+        written = store.save(graph)
+        if not args.json:
+            print(RULE)
+            print(f"  built    {len(graph.nodes)} nodes, {len(graph.edges)} edges")
+            print(f"  wrote    {written} rows")
+    stored = store.all()
+    if args.json:
+        write_document(graph_payload(stored))
+        return EXIT_OK
+    nodes, edges = store.count()
+    print(RULE)
+    print(f"  {nodes} nodes, {edges} edges")
+    if stored.empty:
+        print("\n  nothing yet -- `kiseki graph --build` fills it from what is derived")
+        return EXIT_OK
+    print(f"  from     {', '.join(stored.sources) or 'nothing'}")
+    print()
+    for kind in NodeKind:
+        held = stored.of_kind(kind)
+        if held:
+            print(f"    {kind.value:<12} {len(held)}")
+    print("\n  `kiseki why <id>` says what one of them rests on")
+    return EXIT_OK
+
+
+def _command_why(args: argparse.Namespace) -> int:
+    """What one conclusion rests on, and which witnesses said so.
+
+    The question the graph exists to answer. A reader who doubts a
+    conclusion is handed the readings under it rather than a score.
+    """
+    store = _graph_store(args)
+    near = store.around(args.reference, steps=WHY_STEPS)
+    if not near.nodes:
+        _stderr("NothingStored", f"{args.reference} is not in the graph")
+        return EXIT_BAD_INPUT
+    if args.json:
+        write_document(why_payload(near, args.reference))
+        return EXIT_OK
+    node = next(item for item in near.nodes if item.id == args.reference)
+    readings = near.observations_under(args.reference)
+    print(RULE)
+    print(f"  {node.label}")
+    if node.confidence is not None:
+        print(f"  confidence     {node.confidence:.2f}")
+    print(f"  rests on       {len(readings)} readings")
+    print(f"  read from      {', '.join(near.sources_under(args.reference)) or 'nothing'}")
+    print()
+    for reading in readings:
+        when = f"{reading.occurred_at:%Y-%m-%d}" if reading.occurred_at else "undated"
+        print(f"    {when}  {reading.source:<16} {reading.id}")
+    for edge in near.neighbours(args.reference):
+        if edge.because:
+            print(f"\n  because        {', '.join(edge.because)}")
+            break
+    return EXIT_OK
+
+
 def _command_doctor(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     report = _pipeline_from(paths.db_path).privacy()
@@ -3511,6 +3595,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="machine readable, for an orchestrator that folds failures",
     )
     wrong.set_defaults(run=_command_errors)
+
+    drawing = commands.add_parser("graph", help="what the library believes and why, as a graph")
+    drawing.add_argument("--build", action="store_true", help="rebuild it from what is derived now")
+    drawing.add_argument("--json", action="store_true", help="machine readable output")
+    drawing.set_defaults(run=_command_graph)
+
+    because = commands.add_parser(
+        "why", help="what one conclusion rests on, and which witnesses said so"
+    )
+    because.add_argument("reference", help="a node id, as `kiseki graph` lists them")
+    because.add_argument("--json", action="store_true", help="machine readable output")
+    because.set_defaults(run=_command_why)
 
     screen = commands.add_parser(
         "now", help="one screen: what is worth a look, what changed, what is wrong"

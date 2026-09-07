@@ -11,6 +11,7 @@ from datetime import date, datetime
 
 from kiseki.application.captioning import DEFAULT_IMAGES_PER_STOP, representative_photo_ids
 from kiseki.application.estimating import UNKNOWN, Stage
+from kiseki.application.graph_building import build_graph
 from kiseki.application.limits import (
     ACTIVITY,
     INPUT,
@@ -38,6 +39,7 @@ from kiseki.domain.caption.caption import CaptionKey
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.correction import active_exclusions
 from kiseki.domain.discovery import DiscoveryFeed
+from kiseki.domain.evidence.graph import EvidenceGraph
 from kiseki.domain.insight import InsightReport
 from kiseki.domain.interests import Profile
 from kiseki.domain.lifecycle import LifecycleReport
@@ -632,6 +634,17 @@ class Pipeline:
             self.insights(),
             now,
         )
+
+    def graph(self) -> EvidenceGraph:
+        """Why the library concluded what it did, as a thing to walk.
+
+        Derived, so it is rebuilt from the current readings rather than
+        accumulated: every id comes from what a node *is*, so building
+        twice writes the same graph and a store updates rather than
+        duplicates. Reading a profile does not keep one (ADR-0070), so
+        this can be built as often as anybody likes.
+        """
+        return build_graph(self.profile(keep=False), self.insights())
 
     def now(self, at: datetime, wrong: tuple[str, ...] = ()) -> Now:
         """One screen from what is stored. No model is consulted.

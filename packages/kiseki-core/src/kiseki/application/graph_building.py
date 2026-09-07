@@ -42,6 +42,17 @@ build against the owner's real library found that; every synthetic
 test had topics like *camping*, which is what synthetic data is for
 and what it costs.
 
+## A reading carries when it was made
+
+`InterestEvidence` knows when it observed what it observed, and the
+first real answer read *undated* six times over. A provenance that
+cannot say when is half an answer: *these six screens* is a list,
+and *these six screens, over a fortnight in August* is a reason.
+
+Only the evidence carries it. A finding's `derived_from` names
+readings without saying when they were made, so those stay undated
+rather than being given a plausible time.
+
 ## Rebuilding is not duplicating
 
 Every id is derived from what the node is rather than from when it was
@@ -54,6 +65,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from kiseki.application.sourcing import is_reference, source_of
 from kiseki.domain.evidence.graph import (
@@ -160,7 +172,7 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
     nodes: dict[str, Node] = {}
     edges: list[Edge] = []
 
-    def observe(reference: str) -> str:
+    def observe(reference: str, when: datetime | None = None) -> str:
         node_id = _observation_id(reference, places)
         if node_id not in nodes:
             source = source_of(reference)
@@ -169,6 +181,7 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
                 kind=NodeKind.OBSERVATION,
                 label=f"a {source.label} the library read",
                 source=source.name.lower(),
+                occurred_at=when,
             )
         return node_id
 
@@ -182,7 +195,7 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
             confidence=interest.confidence,
         )
         for evidence in interest.evidence:
-            target = observe(evidence.reference)
+            target = observe(evidence.reference, evidence.observed_at)
             edges.append(
                 Edge(
                     id=f"{interest_id}|rests_on|{target}",
