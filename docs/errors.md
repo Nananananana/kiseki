@@ -57,6 +57,7 @@ and a test refuses them drifting apart.
 | `ModelUnavailable` | 4 | unavailable | yes |
 | `ModelTimedOut` | 5 | timed_out | yes |
 | `ModelTooFarAway` | 2 | refused | no |
+| `ModelWithheld` | 2 | refused | no |
 | `RecordsUnreadable` | 2 | failed | no |
 | `ArgumentsConflict` | 2 | failed | no |
 | `ArgumentUnreadable` | 2 | failed | no |
@@ -92,6 +93,23 @@ carried over:
   keeping a profile being the last stage, so a run that stopped never
   kept one and a rerun cannot keep a second (ADR-0070). A test holds
   that order.
+
+## When the caller schedules the model
+
+`KISEKI_MODEL_USE=withheld`, or `--model-use withheld`, tells this
+library not to call a model at all. Every command that needs one
+stops with `ModelWithheld` and everything else works: the
+derivations, the graph, and `kiseki cost --no-measure`, which says
+what the outstanding work would take without doing any of it.
+
+It is **refused**, not unavailable, and not retryable. An outage is
+a fact about the world that may change in a minute; this is a
+decision that answers the same way every time. A consumer told this
+was an outage would retry a policy at whatever interval it retries
+outages, forever.
+
+`kiseki llm` says which is in force, because a setting silently
+applied is the same failure as one silently ignored (ADR-0079).
 
 ## Two things a consumer should not assume
 
