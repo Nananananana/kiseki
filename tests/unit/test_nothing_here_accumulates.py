@@ -41,6 +41,7 @@ from kiseki.adapters.sqlite.store import (
 )
 from kiseki.config.paths import resolve_paths
 from kiseki.domain.caption.single import SingleCaption
+from kiseki.domain.evidence.graph import Node, NodeKind, part_of
 from kiseki.domain.photo.observation import PhotoId, PhotoObservation
 from kiseki.domain.shared.geo import GeoPoint
 from kiseki.interfaces.cli import EXIT_OK, main
@@ -201,6 +202,60 @@ class TestThrowItAwayAndBuildItAgain:
         capsys.readouterr()
         assert _graph_of(tmp_path) == first
         assert _rows(tmp_path, "graph_nodes") == len(first[0])
+
+
+class TestARebuildForgetsWhatItNoLongerProduces:
+    """The hole in the class above, found by changing the builder.
+
+    Those tests delete the derived tables before rebuilding, which is
+    not what anybody does: `kiseki graph --build` runs against whatever
+    is already stored. `save` is additive on purpose -- a producer must
+    not delete another's work -- so a node the builder **stopped**
+    emitting stayed for ever, and nine of them did.
+
+    A rebuild replaces. That is the only reason the class above is true
+    of a real library rather than of a scrubbed one."""
+
+    def test_a_node_the_builder_stops_making_is_forgotten(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _a_library(tmp_path)
+        assert main(["--data-root", str(tmp_path), "graph", "--build"]) == EXIT_OK
+        capsys.readouterr()
+
+        paths = resolve_paths({"data_root": str(tmp_path)}, dotenv=Path(".env"))
+        store = SqliteEvidenceGraph(connect(paths.db_path))
+        store.save(
+            part_of(
+                [
+                    Node(
+                        id="left:over",
+                        kind=NodeKind.OBSERVATION,
+                        label="something an older builder made",
+                        source="photograph",
+                    )
+                ],
+                [],
+            )
+        )
+        assert "left:over" in {node.id for node in store.all().nodes}
+
+        assert main(["--data-root", str(tmp_path), "graph", "--build"]) == EXIT_OK
+        capsys.readouterr()
+        assert "left:over" not in {node.id for node in store.all().nodes}
+
+    def test_the_rebuild_is_still_everything_it_should_hold(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Replacing is only right if it replaces with the whole thing;
+        an empty graph would also pass the test above."""
+        _a_library(tmp_path)
+        main(["--data-root", str(tmp_path), "graph", "--build"])
+        before = _graph_of(tmp_path)
+        main(["--data-root", str(tmp_path), "graph", "--build"])
+        capsys.readouterr()
+        assert _graph_of(tmp_path) == before
+        assert before[0]
 
 
 class TestTheTwoListsAreTheWholeDatabase:

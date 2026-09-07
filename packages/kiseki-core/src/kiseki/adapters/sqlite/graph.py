@@ -244,6 +244,14 @@ class SqliteEvidenceGraph:
                 )
         return written
 
+    def replace(self, graph: EvidenceGraph) -> int:
+        """Make this the whole graph, forgetting what is not in it."""
+        with self._connection:
+            self._connection.execute("DELETE FROM graph_edge_evidence")
+            self._connection.execute("DELETE FROM graph_edges")
+            self._connection.execute("DELETE FROM graph_nodes")
+        return self.save(graph)
+
     def forget(self, node_ids: Sequence[str]) -> int:
         """Remove these nodes; the edges follow them by cascade."""
         if not node_ids:

@@ -53,6 +53,21 @@ Only the evidence carries it. A finding's `derived_from` names
 readings without saying when they were made, so those stay undated
 rather than being given a plausible time.
 
+## A place is a thing, and a visit is a reading of it
+
+The first version made a place an observation, which lost something
+measurable: a returned-to place is cited by its interest **twice**,
+as the first visit and the last, and keying a node by the reference
+collapsed the two into one. Twenty-two of the owner's interests are
+about a place, so twenty-two of them said *rests on one reading* when
+they rest on two, and the second date was gone.
+
+So a place is an **entity** -- a thing several readings are about --
+and each visit is an **observation** with its own day, pointing
+`about` at it. The interest points `about` at the place as well,
+which is what makes *which places do I go to for this* a walk rather
+than a query somebody has to write (#391).
+
 ## A label is written here, never copied
 
 Asked for as a declaration, and it is a stronger answer than a
@@ -108,6 +123,7 @@ Bumped when what is built from the same readings changes."""
 PLACE_PREFIX = "place:"
 
 INTEREST_ID = "interest:{topic}"
+VISIT_ID = "visit:{place}:{day}"
 CONCLUSION_ID = "insight:{topic}:{kind}"
 PLACE_ID = "place-{rank}"
 
@@ -136,15 +152,6 @@ class _Places:
 
     def name(self, reference: str) -> str | None:
         return self.by_reference.get(reference)
-
-
-def _observation_id(reference: str, places: _Places) -> str:
-    """What to call the reading a reference points at.
-
-    A place reference becomes its opaque name; everything else is its
-    own reference, which is already an identifier rather than content.
-    """
-    return places.name(reference) or reference
 
 
 def _what_a_finding_rests_on(finding: Insight) -> tuple[str, ...]:
@@ -198,19 +205,67 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
 
     nodes: dict[str, Node] = {}
     edges: list[Edge] = []
+    # The days at each place, so a finding that cites the place can rest
+    # on the readings rather than on the thing.
+    visits_to: dict[str, list[str]] = {}
 
-    def observe(reference: str, when: datetime | None = None) -> str:
-        node_id = _observation_id(reference, places)
+    def entity(reference: str) -> str:
+        """The place a reading is about, named and never located."""
+        node_id = places.name(reference) or reference
         if node_id not in nodes:
-            source = source_of(reference)
             nodes[node_id] = Node(
                 id=node_id,
+                kind=NodeKind.ENTITY,
+                label=f"{node_id}, returned to",
+            )
+        return node_id
+
+    def observe(reference: str, when: datetime | None = None) -> str:
+        """One reading. A visit is keyed by its day, because a place
+        cited twice is two visits and collapsing them loses one."""
+        source = source_of(reference)
+        if reference.startswith(PLACE_PREFIX):
+            place = entity(reference)
+            if when is None:
+                # Unreachable today, and an error rather than a
+                # silent invention: a finding cites the place and is
+                # handled below, so the only caller that gets here
+                # has a date. Minting `visit:place-1:undated` would
+                # claim a visit whose day we happen not to know,
+                # which is more than the evidence says.
+                raise ValueError(
+                    f"{reference} arrived with no day; a place without one is a "
+                    "thing rather than a reading of it"
+                )
+            day = f"{when:%Y-%m-%d}"
+            node_id = VISIT_ID.format(place=place, day=day)
+            if node_id not in nodes:
+                nodes[node_id] = Node(
+                    id=node_id,
+                    kind=NodeKind.OBSERVATION,
+                    label=f"a day at {place}",
+                    source=source.name.lower(),
+                    occurred_at=when,
+                )
+                visits_to.setdefault(place, []).append(node_id)
+                edges.append(
+                    Edge(
+                        id=f"{node_id}|about|{place}",
+                        source=node_id,
+                        target=place,
+                        kind="about",
+                    )
+                )
+            return node_id
+        if reference not in nodes:
+            nodes[reference] = Node(
+                id=reference,
                 kind=NodeKind.OBSERVATION,
                 label=f"a {source.label} the library read",
                 source=source.name.lower(),
                 occurred_at=when,
             )
-        return node_id
+        return reference
 
     for interest in interests:
         topic = places.name(interest.topic) or interest.topic
@@ -221,6 +276,16 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
             label=topic,
             confidence=interest.confidence,
         )
+        if interest.topic.startswith(PLACE_PREFIX):
+            place = entity(interest.topic)
+            edges.append(
+                Edge(
+                    id=f"{interest_id}|about|{place}",
+                    source=interest_id,
+                    target=place,
+                    kind="about",
+                )
+            )
         for evidence in interest.evidence:
             target = observe(evidence.reference, evidence.observed_at)
             edges.append(
@@ -242,6 +307,23 @@ def build_graph(profile: Profile | None, insights: InsightReport | None) -> Evid
             confidence=finding.confidence,
         )
         for reference in _what_a_finding_rests_on(finding):
+            if reference.startswith(PLACE_PREFIX):
+                # A finding cites the place; what it rests on are the
+                # visits to it, which the interests above already made.
+                # Pointing at the place itself would have the finding
+                # rest on a thing rather than on a reading.
+                place = entity(reference)
+                for visit in visits_to.get(place, ()):
+                    edges.append(
+                        Edge(
+                            id=f"{conclusion_id}|derived_from|{visit}",
+                            source=conclusion_id,
+                            target=visit,
+                            kind="derived_from",
+                            because=tuple(finding.derived_from),
+                        )
+                    )
+                continue
             target = observe(reference)
             edges.append(
                 Edge(

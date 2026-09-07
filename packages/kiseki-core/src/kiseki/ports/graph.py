@@ -37,6 +37,27 @@ class EvidenceGraphRepository(Protocol):
         """
         ...
 
+    def replace(self, graph: EvidenceGraph) -> int:
+        """Make this the whole graph: store it, and forget what is
+        not in it.
+
+        Distinct from `save` because the difference is the whole
+        point. `save` is additive so a producer cannot delete
+        another's work; a **rebuild** computes the entire graph from
+        the readings, and anything the builder no longer produces is
+        stale rather than somebody else's.
+
+        Without this, a derived structure accumulates: a node the
+        builder stopped emitting stays for ever, and *nothing here
+        accumulates* becomes false in the one direction nobody
+        checks -- the checking is usually done by deleting the tables
+        first, which no user does.
+
+        With a second producer this needs scoping by who built what.
+        There is one, and the day there are two is the day to write
+        that rather than now."""
+        ...
+
     def all(self) -> EvidenceGraph:
         """Everything, as a whole graph. Convenient, and the read that
         stops being reasonable first."""
