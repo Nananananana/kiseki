@@ -41,6 +41,9 @@ NOT_COUNTED = {
     "outings": "assembled from stops, and rebuilt with them",
     "anchors": "estimated from stops, rebuilt with them, and never named (ADR-0040)",
     "theme_sets": "derived from subject readings, and rebuilt with them",
+    "graph_nodes": "the evidence graph, derived from every table above (#435)",
+    "graph_edges": "relationships between derived nodes; rebuilt with them",
+    "graph_edge_evidence": "which nodes made an edge; rebuilt with it",
 }
 """Why each one is absent from the report. A derived table is not a
 second copy of what it was derived from: counting it would tell the

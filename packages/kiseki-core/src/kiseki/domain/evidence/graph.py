@@ -358,6 +358,21 @@ class EvidenceGraph:
     nodes: tuple[Node, ...] = ()
     edges: tuple[Edge, ...] = ()
 
+    whole: bool = True
+    """Whether this is the library's graph or a piece of it.
+
+    A neighbourhood read back from storage -- everything within two
+    steps of one node, say -- is legitimately missing the observations
+    three steps away, so the rule that every conclusion reaches one
+    cannot hold of it and would be wrong to enforce. That rule is about
+    what the library *stores*, not about every view of it.
+
+    So it is checked on a whole graph and skipped on a piece, and the
+    default is the safe one: a caller assembling a graph gets the check
+    unless it says in as many words that it holds only part. Every
+    other check here holds of any subgraph and is always applied.
+    """
+
     def __post_init__(self) -> None:
         seen: dict[str, Node] = {}
         for node in self.nodes:
@@ -379,6 +394,8 @@ class EvidenceGraph:
                         "graph does not hold it; an edge that rests on something absent "
                         "is the field version of a conclusion reaching no observation"
                     )
+        if not self.whole:
+            return
         for node in self.nodes:
             if node.kind is NodeKind.CONCLUSION and not self._observations_under(node.id, seen):
                 raise ValueError(
@@ -462,12 +479,27 @@ class EvidenceGraph:
         return not self.nodes
 
 
+def part_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
+    """A piece of the graph, which does not claim to be all of it.
+
+    For a neighbourhood read back from storage. Every structural check
+    still applies -- ids unique, edges pointing at nodes it holds -- and
+    only the rule about a conclusion reaching an observation is skipped,
+    because that is a fact about the library rather than about a view.
+    """
+    return _assembled(nodes, edges, whole=False)
+
+
 def graph_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
     """Assemble a graph, dropping duplicate edges rather than storing two.
 
     Two derivations naming the same evidence is normal and says nothing
     extra; the second copy would only make a count wrong later.
     """
+    return _assembled(nodes, edges, whole=True)
+
+
+def _assembled(nodes: Iterable[Node], edges: Sequence[Edge], whole: bool) -> EvidenceGraph:
     kept: dict[tuple[str, str, str], Edge] = {}
     for edge in edges:
         kept[(edge.source, edge.target, edge.kind)] = edge
@@ -477,4 +509,5 @@ def graph_of(nodes: Iterable[Node], edges: Sequence[Edge]) -> EvidenceGraph:
     return EvidenceGraph(
         nodes=tuple(nodes),
         edges=tuple(kept[key] for key in sorted(kept)),
+        whole=whole,
     )

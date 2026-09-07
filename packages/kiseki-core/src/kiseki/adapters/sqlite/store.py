@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kiseki.adapters.sqlite.graph import GRAPH_TABLES
 from kiseki.domain.activity.daily import DailyActivity
 from kiseki.domain.anchor.anchor import Anchor
 from kiseki.domain.caption.caption import Caption, CaptionKey
@@ -41,7 +42,7 @@ from kiseki.domain.shared.geo import Distance, GeoArea, GeoPoint
 from kiseki.domain.shared.time_range import TimeRange
 from kiseki.domain.web.reading import PageReading
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -212,6 +213,7 @@ def connect(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path)
     connection.execute("PRAGMA foreign_keys = ON")
     connection.executescript(SCHEMA)
+    connection.executescript(GRAPH_TABLES)
 
     stored = connection.execute("SELECT version FROM schema_version").fetchone()
     if stored is None:
@@ -245,6 +247,9 @@ def connect(path: Path) -> sqlite3.Connection:
         if version == 9:
             _migrate_v9_to_v10(connection)
             version = 10
+        if version == 10:
+            _migrate_v10_to_v11(connection)
+            version = 11
         if version != SCHEMA_VERSION:
             connection.close()
             raise ValueError(f"database is at schema {version}, expected {SCHEMA_VERSION}")
@@ -489,6 +494,20 @@ def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
         " distance_m REAL, floors INTEGER)"
     )
     connection.execute("UPDATE schema_version SET version = ?", (6,))
+
+
+def _migrate_v10_to_v11(connection: sqlite3.Connection) -> None:
+    """The one change from 10 to 11: the evidence graph.
+
+    Three tables and nothing touched. Every node in the graph is a
+    reading or a derivation that already exists elsewhere in this
+    database, so an older library gains empty tables and loses
+    nothing; a rebuild fills them.
+
+    Additive and explicit, as every migration here is (ADR-0018).
+    """
+    connection.executescript(GRAPH_TABLES)
+    connection.execute("UPDATE schema_version SET version = ?", (11,))
 
 
 def _migrate_v9_to_v10(connection: sqlite3.Connection) -> None:

@@ -105,10 +105,10 @@ class TestTheDomainValue:
 
 
 class TestTheStore:
-    def test_the_schema_is_at_ten(self, tmp_path: Path) -> None:
+    def test_the_schema_is_at_eleven(self, tmp_path: Path) -> None:
         connection = connect(tmp_path / "k.sqlite3")
         (version,) = connection.execute("SELECT version FROM schema_version").fetchone()
-        assert version == SCHEMA_VERSION == 10
+        assert version == SCHEMA_VERSION == 11
 
     def test_a_day_survives_the_round_trip(self, tmp_path: Path) -> None:
         connection = connect(tmp_path / "k.sqlite3")
