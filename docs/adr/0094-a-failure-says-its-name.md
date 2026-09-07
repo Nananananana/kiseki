@@ -84,12 +84,18 @@ fold by, on the commonest failure there is. A parser subclass puts the
 name first and lets the usage follow. Subparsers inherit it, so naming
 one names all forty-eight.
 
-**The document names itself our way.** Sora's example used
-`"contract": "kiseki.errors/1-draft"`; this uses `schema` and `version`
-like every other document we serve, which Sora already parses from ten
-routes, plus a `by` carrying the release. Two naming schemes in one
-library is the thing that drifts. Everything Sora asked to *read* is
-there under a name it already knows.
+**The document carries two names, and they are tied together.**
+`contract` is what the family calls this document -- Sora gave every
+sibling one shape to answer in, and six of them answer in it. A
+seventh answering in its own shape would be a special case in the one
+program whose whole job is that there are none. `schema` and
+`version` are how every document here names itself (ADR-0081), and
+Sora already parses that pair from ten of our routes.
+
+They are not written twice. The version inside the contract name *is*
+the served version, and a test refuses them drifting apart -- which is
+the only real objection to carrying two names, answered rather than
+used as a reason to carry one.
 
 ## What we could not promise
 
@@ -105,6 +111,26 @@ word and lose the kind. Reported rather than papered over: the rule that
 holds is *the first line that parses as a name*, not *the first line*.
 The alternative, moving a configuration warning to stdout, would put it
 in the way of `--json`.
+
+## An outcome is a property of the kind, not of the code
+
+Worth stating on its own, because the orchestrator's manifest for
+this library says otherwise. It holds a map from exit code to
+outcome, with `2` meaning `failed`, and plans to check every
+`exit_code` in this catalogue against it.
+
+That check cannot pass, and should not. `ModelTooFarAway` exits 2
+and is a **refusal**: the model is further away than the owner
+allowed (ADR-0073), which is a decision rather than a fault, and no
+amount of waiting changes it. Six kinds now sit under exit 2 and one
+of them is not a failure, so the map stopped being a function the
+moment the second kind arrived.
+
+The map is still the right thing to keep -- it is what a consumer
+falls back to when no name could be read from stderr. It is just not
+an authority to check the catalogue against. The check that holds is
+that every code in the catalogue *appears* in the map, not that the
+outcomes agree.
 
 ## Consequences
 

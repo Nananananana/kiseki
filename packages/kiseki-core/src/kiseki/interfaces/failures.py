@@ -47,6 +47,17 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+CONTRACT = "kiseki.errors/{version}-draft"
+"""What the family calls this document, with our served version in it.
+
+The orchestrator gave every sibling one shape to answer in, and six
+of them answer in it. A seventh that answered in its own shape would
+be a special case in the one program whose whole job is that there
+are none -- so this is carried as asked, and the document also names
+itself the way every other document here does (ADR-0081). They are
+tied together rather than written twice: the version in the contract
+name is the served version, and a test refuses them drifting apart."""
+
 REFUSED = "refused"
 UNAVAILABLE = "unavailable"
 FAILED = "failed"

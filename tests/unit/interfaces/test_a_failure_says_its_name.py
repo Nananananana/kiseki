@@ -22,6 +22,7 @@ from kiseki.interfaces.cli import EXIT_BAD_INPUT, EXIT_OK, main
 from kiseki.interfaces.failures import (
     BY_KIND,
     CATALOGUE,
+    CONTRACT,
     OPEN_NAMESPACES,
     OUTCOMES,
     Failure,
@@ -137,6 +138,18 @@ class TestTheDocument:
         assert document["schema"] == "kiseki-errors"
         assert document["by"].startswith("kiseki/")
         assert document["open_namespaces"] == list(OPEN_NAMESPACES)
+
+    def test_the_two_names_for_it_cannot_drift_apart(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """`contract` is what the family calls this document and six
+        other libraries answer with; `schema` and `version` are how
+        every document here names itself. The version inside the
+        contract name is the served version, so neither can move alone."""
+        assert main(["errors", "--json"]) == EXIT_OK
+        document = json.loads(capsys.readouterr().out)
+        version = document["version"]
+        assert document["contract"] == CONTRACT.format(version=version)
 
     def test_every_entry_carries_what_a_consumer_cannot_work_out(
         self, capsys: pytest.CaptureFixture[str]

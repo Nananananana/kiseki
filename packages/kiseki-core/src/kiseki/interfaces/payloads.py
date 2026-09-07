@@ -35,7 +35,7 @@ from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
-from kiseki.interfaces.failures import CATALOGUE, OPEN_NAMESPACES
+from kiseki.interfaces.failures import CATALOGUE, CONTRACT, OPEN_NAMESPACES
 
 BLUR_DECIMALS = 2
 """Decimal places kept when blurring: roughly a kilometre grid,
@@ -655,13 +655,17 @@ def errors_payload() -> dict[str, Any]:
 
     `by` carries the library and its version, so that a consumer
     holding a copy of these codes can say which release it copied.
-    The document names itself the way every other one here does
-    (ADR-0081); a second naming scheme in one library is the thing
-    that drifts.
+
+    Two names, and on purpose. `contract` is what the family calls
+    this document and what six other libraries answer with; `schema`
+    and `version` are how every document here names itself
+    (ADR-0081). The version inside the contract name *is* the served
+    version, so the two cannot drift.
     """
     return named(
         "errors",
         {
+            "contract": CONTRACT.format(version=SERVED_VERSION),
             "by": f"kiseki/{_installed_version()}",
             "errors": [
                 {
