@@ -8,9 +8,12 @@ are where coordinates become visible: served output blurs by default
 
 from __future__ import annotations
 
+import contextlib
 import pathlib
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as metadata_version
 from typing import Any
 
 from kiseki.application.asking import Answer
@@ -32,6 +35,7 @@ from kiseki.domain.shared.geo import GeoPoint
 from kiseki.domain.shared.moment import naive
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
+from kiseki.interfaces.failures import CATALOGUE, CONTRACT, OPEN_NAMESPACES
 
 BLUR_DECIMALS = 2
 """Decimal places kept when blurring: roughly a kilometre grid,
@@ -44,6 +48,18 @@ SERVED_VERSION = 1
 """Every served document carries its contract name and this version, in
 the export's shape (ADR-0081). A reader that refuses unknown names can
 list these; a reader that pins a version notices when one moves."""
+
+
+def _installed_version() -> str:
+    """The version of this library, or a word saying it is unknown.
+
+    Running from a source tree that was never installed is normal
+    during development, and a document that refused to be written
+    there would be one the developer never sees.
+    """
+    with contextlib.suppress(PackageNotFoundError):
+        return metadata_version("kiseki")
+    return "unknown"
 
 
 def named(endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -625,5 +641,43 @@ def now_payload(screen: Now, blur: bool = True) -> dict[str, Any]:
             ],
             "wrong": list(screen.wrong),
             "unread": dict(screen.unread),
+        },
+    )
+
+
+def errors_payload() -> dict[str, Any]:
+    """Every named way a command can stop.
+
+    Written for an orchestrator that folds failures across seven
+    libraries and must say what a name means without a person having
+    transcribed it. `retryable` is the field only this library can
+    fill: a consumer inferring it from the outcome is guessing.
+
+    `by` carries the library and its version, so that a consumer
+    holding a copy of these codes can say which release it copied.
+
+    Two names, and on purpose. `contract` is what the family calls
+    this document and what six other libraries answer with; `schema`
+    and `version` are how every document here names itself
+    (ADR-0081). The version inside the contract name *is* the served
+    version, so the two cannot drift.
+    """
+    return named(
+        "errors",
+        {
+            "contract": CONTRACT.format(version=SERVED_VERSION),
+            "by": f"kiseki/{_installed_version()}",
+            "errors": [
+                {
+                    "kind": failure.kind,
+                    "exit_code": failure.exit_code,
+                    "outcome": failure.outcome,
+                    "retryable": failure.retryable,
+                    "detail": failure.detail,
+                    "detail_ja": failure.detail_ja,
+                }
+                for failure in CATALOGUE
+            ],
+            "open_namespaces": list(OPEN_NAMESPACES),
         },
     )

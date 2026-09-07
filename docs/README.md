@@ -28,7 +28,8 @@ top which of the three it is.
 | `docs/activity-record.md` | ActivityRecord and the producer contract |
 | `docs/note-record.md` | NoteRecord and the producer contract |
 | `docs/web-record.md` | WebRecord: settled, and nothing reads it yet |
-| `docs/interest-export.md` | The interest export, the one contract that leaves |
+| `docs/interest-export.md` | The interest export, the contract that carries what was learned |
+| `docs/errors.md` | The error catalogue, for a program that folds failures across libraries |
 | `docs/conformance.md` | The producer conformance specification |
 | `docs/cli.md` | The commands as they behave today |
 | `docs/adr/` | Decisions as they were made, with their reasons -- history |

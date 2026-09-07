@@ -15,7 +15,7 @@ import textwrap
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, NoReturn, TextIO
 
 from kiseki.adapters import records as records_adapter
 from kiseki.adapters.filesystem.gazetteer import FileGazetteer
@@ -129,12 +129,15 @@ from kiseki.interfaces.claims import (
     UNSEEABLE,
     outbound_lines,
 )
+from kiseki.interfaces.failures import CATALOGUE, OPEN_NAMESPACES
+from kiseki.interfaces.failures import line as failure_line
 from kiseki.interfaces.interchange import FORMATS, SUBJECTS
 from kiseki.interfaces.naming import fold_by_name, folded_note, place_names
 from kiseki.interfaces.payloads import (
     answer_payload,
     comparison_payload,
     discovery_payload,
+    errors_payload,
     insights_payload,
     lifecycle_payload,
     limits_payload,
@@ -187,6 +190,48 @@ def _exit_for(error: RuntimeError) -> int:
     if isinstance(error, ModelRefusedError):
         return EXIT_MODEL_REFUSED
     return EXIT_BAD_INPUT
+
+
+def _kind_for(error: BaseException) -> str:
+    """The catalogue name a model error leaves under.
+
+    Beside `_exit_for`, and in the same order, because the name and
+    the code answer one question: a consumer folding by name and a
+    script branching on the code must not be told different things."""
+    if isinstance(error, ModelTimedOutError):
+        return "ModelTimedOut"
+    if isinstance(error, ModelUnavailableError):
+        return "ModelUnavailable"
+    if isinstance(error, ModelRefusedError):
+        return "ModelRefused"
+    return "SettingUnusable"
+
+
+class NamedArgumentParser(argparse.ArgumentParser):
+    """A parser whose refusals lead with a name.
+
+    argparse writes a usage block and then `kiseki: error: ...`, so
+    the first line of stderr on a mistyped option was usage -- and a
+    consumer that folds by the name before the colon had nothing to
+    fold by, on the commonest failure there is. The name goes first
+    and the usage still follows, for the person at the terminal.
+
+    Subparsers inherit this class from the parser that made them, so
+    naming the top-level one names all forty-eight.
+    """
+
+    def error(self, message: str) -> NoReturn:
+        _stderr("ArgumentUnreadable", message)
+        self.print_usage(sys.stderr)
+        raise SystemExit(EXIT_BAD_INPUT)
+
+
+def _stderr(kind: str, sentence: str) -> None:
+    """Say what went wrong, with its name first.
+
+    The only way a name reaches stderr, so that a test can read this
+    module and refuse a name the catalogue does not hold."""
+    print(failure_line(kind, sentence), file=sys.stderr)
 
 
 RULE = "-" * 70
@@ -464,7 +509,7 @@ def _command_ingest(args: argparse.Namespace) -> int:
     try:
         records, which = records_adapter.reader(args.records)
     except OSError as error:
-        print(f"cannot read {args.records}: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"cannot read {args.records}: {error}")
         return EXIT_BAD_INPUT
 
     pipeline = _pipeline_for(args)
@@ -479,10 +524,10 @@ def _command_ingest(args: argparse.Namespace) -> int:
         if batch:
             stored += pipeline.ingest(_to_observations(batch))
     except OSError as error:
-        print(f"cannot read {args.records}: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"cannot read {args.records}: {error}")
         return EXIT_BAD_INPUT
     except (json.JSONDecodeError, ValueError, KeyError) as error:
-        print(f"{args.records}: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"{args.records}: {error}")
         return EXIT_BAD_INPUT
 
     print(f"{stored} photograph(s) taken in")
@@ -643,14 +688,14 @@ def _command_web(args: argparse.Namespace) -> int:
             raise ValueError("a WebRecord document is a list of readings")
         readings = _to_page_readings(document)
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"the records could not be read: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"the records could not be read: {error}")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqlitePageReadingRepository(connection)
     if args.withdraw:
         return _withdraw_pages(repository, readings, apply=args.apply)
     if args.apply:
-        print("--apply only means something with --withdraw", file=sys.stderr)
+        _stderr("ArgumentsConflict", "--apply only means something with --withdraw")
         return EXIT_BAD_INPUT
     before = {reading.reference for reading in repository.all()}
     repository.save_all(readings)
@@ -688,7 +733,7 @@ def _command_notes(args: argparse.Namespace) -> int:
             raise ValueError("a NoteRecord document is a list of readings")
         readings = _to_note_readings(document)
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"the records could not be read: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"the records could not be read: {error}")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqliteNoteReadingRepository(connection)
@@ -728,7 +773,7 @@ def _command_activity(args: argparse.Namespace) -> int:
             raise ValueError("an ActivityRecord document is a list of days")
         days = _to_days(document)
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"the records could not be read: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"the records could not be read: {error}")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqliteDailyActivityRepository(connection)
@@ -781,7 +826,7 @@ def _command_input(args: argparse.Namespace) -> int:
             raise ValueError("an InputRecord document is a list of days")
         days = _to_inputs(document)
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"the records could not be read: {error}", file=sys.stderr)
+        _stderr("RecordsUnreadable", f"the records could not be read: {error}")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     repository = SqliteDailyInputRepository(connection)
@@ -1062,7 +1107,7 @@ def _command_tell(args: argparse.Namespace) -> int:
             photos=photos.all(),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
-        print(f"the model could not answer: {error}", file=sys.stderr)
+        _stderr(_kind_for(error), f"the model could not answer: {error}")
         return _exit_for(error)
     if args.json:
         write_document(narration_payload(narration))
@@ -1082,7 +1127,7 @@ def _command_themes(args: argparse.Namespace) -> int:
             language_model=_language_model(args),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
-        print(f"the model could not answer: {error}", file=sys.stderr)
+        _stderr(_kind_for(error), f"the model could not answer: {error}")
         return _exit_for(error)
     print(RULE)
     print(f"  themes          {report.themes_made}")
@@ -1265,7 +1310,7 @@ def _command_index(args: argparse.Namespace) -> int:
             on_progress=_progress(args, "index"),
         )
     except ModelRefusedError as error:
-        print(f"the model could not answer: {error}", file=sys.stderr)
+        _stderr(_kind_for(error), f"the model could not answer: {error}")
         return _exit_for(error)
     print(RULE)
     print(f"  documents     {report.documents_total} ({report.documents_added} new)")
@@ -1317,7 +1362,7 @@ def _command_ask(args: argparse.Namespace) -> int:
         since = _parse_moment(args.since) if args.since else None
         until = _parse_moment(args.until, end_of_day=True) if args.until else None
     except ValueError as error:
-        print(f"cannot read the date: {error}", file=sys.stderr)
+        _stderr("ArgumentUnreadable", f"cannot read the date: {error}")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     try:
@@ -1342,7 +1387,7 @@ def _command_ask(args: argparse.Namespace) -> int:
             grounding=_what_the_library_knows(args),
         )
     except (ModelRefusedError, ModelUnavailableError) as error:
-        print(f"the model could not answer: {error}", file=sys.stderr)
+        _stderr(_kind_for(error), f"the model could not answer: {error}")
         return _exit_for(error)
     if args.json:
         write_document(answer_payload(answer, blur=not args.raw))
@@ -1514,7 +1559,7 @@ def _command_insights(args: argparse.Namespace) -> int:
         try:
             story = tell_insights(report, _language_model(args), language=args.lang, names=names)
         except (ModelRefusedError, ModelUnavailableError) as error:
-            print(f"the model could not answer: {error}", file=sys.stderr)
+            _stderr(_kind_for(error), f"the model could not answer: {error}")
             return _exit_for(error)
         print("\n" + story if story else "\n  no findings worth a story yet")
         return EXIT_OK
@@ -1588,7 +1633,7 @@ def _command_compare(args: argparse.Namespace) -> int:
     from datetime import timedelta as _timedelta
 
     if (args.from_date is None) != (args.to_date is None):
-        print("compare needs both --from and --to, or neither", file=sys.stderr)
+        _stderr("ArgumentsConflict", "compare needs both --from and --to, or neither")
         return EXIT_BAD_INPUT
     from_at = to_at = None
     if args.from_date is not None and args.to_date is not None:
@@ -1596,7 +1641,7 @@ def _command_compare(args: argparse.Namespace) -> int:
             from_at = _datetime.fromisoformat(args.from_date)
             to_at = _datetime.fromisoformat(args.to_date)
         except ValueError:
-            print("dates must be ISO, like 2026-06-01", file=sys.stderr)
+            _stderr("ArgumentUnreadable", "dates must be ISO, like 2026-06-01")
             return EXIT_BAD_INPUT
         if len(args.from_date) == 10:
             from_at = from_at + _timedelta(days=1) - _timedelta(microseconds=1)
@@ -1606,7 +1651,7 @@ def _command_compare(args: argparse.Namespace) -> int:
     try:
         comparison = _pipeline_from(paths.db_path).compare(from_at, to_at)
     except ValueError as error:
-        print(str(error), file=sys.stderr)
+        _stderr("ArgumentsConflict", str(error))
         return EXIT_BAD_INPUT
     if comparison is None:
         if args.json:
@@ -1669,7 +1714,7 @@ def _command_map(args: argparse.Namespace) -> int:
             args.subject, args.format, stops, report.outings, report.anchors, args.precise
         )
     except ValueError as error:
-        print(f"{error}", file=sys.stderr)
+        _stderr("ArgumentUnreadable", str(error))
         return EXIT_BAD_INPUT
 
     if args.out is not None:
@@ -1697,7 +1742,7 @@ def _command_algorithms(args: argparse.Namespace) -> int:
     try:
         chosen = _algorithms(args).stops
     except ValueError as error:
-        print(f"{error}", file=sys.stderr)
+        _stderr("SettingUnusable", str(error))
         return EXIT_BAD_INPUT
 
     print(RULE)
@@ -1844,7 +1889,7 @@ def _command_settings(args: argparse.Namespace) -> int:
     try:
         settings = _derivation(args)
     except ValueError as error:
-        print(f"{error}", file=sys.stderr)
+        _stderr("SettingUnusable", str(error))
         return EXIT_BAD_INPUT
 
     print(RULE)
@@ -2092,6 +2137,32 @@ def _faults(paths: StoragePaths, connection: sqlite3.Connection) -> dict[str, st
     return found
 
 
+def _command_errors(args: argparse.Namespace) -> int:
+    """Every named way a command here can stop (ADR-0094).
+
+    Reads nothing: no database, no paths, no model. A catalogue that
+    needed a library to exist would be one an orchestrator could not
+    read while deciding whether the library is working.
+    """
+    if args.json:
+        write_document(errors_payload())
+        return EXIT_OK
+    print(RULE)
+    print("  what can go wrong, and whether asking again could help")
+    print()
+    for failure in CATALOGUE:
+        code = "-" if failure.exit_code is None else str(failure.exit_code)
+        again = "retry" if failure.retryable else "do not retry"
+        print(f"    {failure.kind:<20} exit {code:<2} {failure.outcome:<12} {again}")
+        print(f"      {failure.detail}")
+    if OPEN_NAMESPACES:
+        print()
+        print("  names built at run time begin with:")
+        for prefix in OPEN_NAMESPACES:
+            print(f"    {prefix}")
+    return EXIT_OK
+
+
 def _command_doctor(args: argparse.Namespace) -> int:
     paths = _paths_for(args)
     report = _pipeline_from(paths.db_path).privacy()
@@ -2172,7 +2243,7 @@ def _parse_near(text: str | None) -> GeoPoint | None:
         latitude_text, longitude_text = text.split(",", 1)
         point = GeoPoint(float(latitude_text), float(longitude_text))
     except ValueError:
-        print('--near must be "lat,lon", like "34.69,135.50"', file=sys.stderr)
+        _stderr("ArgumentUnreadable", '--near must be "lat,lon", like "34.69,135.50"')
         raise SystemExit(EXIT_BAD_INPUT) from None
     return point
 
@@ -2378,7 +2449,7 @@ def _command_forget(args: argparse.Namespace) -> int:
     connection = connect(_paths_for(args).db_path)
     plan = plan_forget(connection, args.photo_ids)
     if plan.is_empty:
-        print("no such photograph is stored", file=sys.stderr)
+        _stderr("NothingStored", "no such photograph is stored")
         return EXIT_BAD_INPUT
     print(RULE)
     verb = "forgotten" if args.apply else "would forget"
@@ -2649,7 +2720,7 @@ def _command_refresh(args: argparse.Namespace) -> int:
         parsed = parser.parse_args([*base, stage, *extra])
         code: int = parsed.run(parsed)
         if code != EXIT_OK:
-            print(f"  {stage} stopped ({code}); nothing after it ran", file=sys.stderr)
+            _stderr("StageStopped", f"{stage} stopped ({code}); nothing after it ran")
             return code
     return _command_doctor(args)
 
@@ -2928,7 +2999,7 @@ def _as_markdown(tour: tuple[Any, ...], root: Path) -> str:
 
 def _command_retry(args: argparse.Namespace) -> int:
     if args.apply and args.stage is None:
-        print("retry --apply needs --stage", file=sys.stderr)
+        _stderr("ArgumentsConflict", "retry --apply needs --stage")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     print(RULE)
@@ -2949,7 +3020,7 @@ def _command_retry(args: argparse.Namespace) -> int:
 
 def _command_reread(args: argparse.Namespace) -> int:
     if args.apply and args.stage is None:
-        print("reread --apply needs --stage", file=sys.stderr)
+        _stderr("ArgumentsConflict", "reread --apply needs --stage")
         return EXIT_BAD_INPUT
     connection = connect(_paths_for(args).db_path)
     print(RULE)
@@ -2971,7 +3042,7 @@ def _command_reread(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = NamedArgumentParser(
         prog="kiseki",
         description="Reconstruct journeys from photo timelines and measure them.",
     )
@@ -3380,6 +3451,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     morning.set_defaults(run=_command_today)
 
+    wrong = commands.add_parser("errors", help="every named way a command here can stop")
+    wrong.add_argument(
+        "--json",
+        action="store_true",
+        help="machine readable, for an orchestrator that folds failures",
+    )
+    wrong.set_defaults(run=_command_errors)
+
     screen = commands.add_parser(
         "now", help="one screen: what is worth a look, what changed, what is wrong"
     )
@@ -3438,6 +3517,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if getattr(args, "run", None) is None:
+        _stderr("ArgumentsConflict", "no command was named")
         parser.print_usage(sys.stderr)
         return EXIT_BAD_INPUT
 
@@ -3446,11 +3526,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ModelRefusedByBoundaryError as refusal:
         # The one refusal that is a decision rather than a failure: the
         # model is further away than the owner allowed (ADR-0073).
-        print(str(refusal), file=sys.stderr)
+        _stderr("ModelTooFarAway", str(refusal))
         return EXIT_BAD_INPUT
     except ValueError as error:
         # A setting that would have done nothing, said at the door.
-        print(str(error), file=sys.stderr)
+        _stderr("SettingUnusable", str(error))
         return EXIT_BAD_INPUT
     return exit_code
 
