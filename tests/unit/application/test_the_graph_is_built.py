@@ -232,3 +232,20 @@ class TestTheCasesTheRealLibraryFound:
         assert observations == {"note:a"}
         assert "trend" not in observations
         assert "kiseki insights" not in observations
+
+
+class TestAReadingCarriesWhenItWasMade:
+    """*These six screens* is a list; *these six screens, over a
+    fortnight in August* is a reason. The first real answer read
+    `undated` six times over."""
+
+    def test_the_evidence_time_reaches_the_node(self) -> None:
+        graph = build_graph(_profile(_interest("camping", "note:a")), None)
+        assert graph.of_kind(NodeKind.OBSERVATION)[0].occurred_at == WHEN
+
+    def test_a_finding_that_names_a_reading_without_a_time_leaves_it_undated(self) -> None:
+        """`derived_from` names readings without saying when they were
+        made, so those stay undated rather than being given a plausible
+        time."""
+        graph = build_graph(None, _insight("camping", "note:a"))
+        assert graph.of_kind(NodeKind.OBSERVATION)[0].occurred_at is None

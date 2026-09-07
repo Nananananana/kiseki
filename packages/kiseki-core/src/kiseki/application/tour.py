@@ -42,6 +42,8 @@ TOUR: tuple[Stop, ...] = (
     Stop("today", "one to three things worth knowing now, each saying why"),
     Stop("now", "one screen: worth a look, what changed, what is thin, what is wrong"),
     Stop("errors", "every named way a command here can stop, and whether to retry"),
+    Stop("graph", "what the library believes and why, as a thing to walk"),
+    Stop("why", "what one conclusion rests on, and which witnesses said so"),
     Stop("corrections", "the owner's word against a reading, appended and applied"),
     Stop("privacy", "what is stored, in counts, and what never is"),
     Stop("limits", "what this library cannot tell you, from your own counts"),
