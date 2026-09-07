@@ -887,7 +887,7 @@ def _print_report(report: Report) -> None:
 def _command_report(args: argparse.Namespace) -> int:
     report = _pipeline_for(args).report()
     if args.json:
-        write_document(report_payload(report))
+        write_document(report_payload(report, blur=not args.raw))
     else:
         _print_report(report)
     return EXIT_OK
@@ -1002,7 +1002,7 @@ def _command_profile(args: argparse.Namespace) -> int:
     # derivation that reads the history read them (ADR-0070).
     profile = _pipeline_from(paths.db_path).profile(keep=args.keep)
     if args.json:
-        write_document(profile_payload(profile))
+        write_document(profile_payload(profile, blur=not args.raw))
     else:
         gazetteer = _gazetteer(paths)
         names = place_names((interest.topic for interest in profile.interests), gazetteer)
@@ -1183,7 +1183,7 @@ def _command_trend(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        write_document(trend_payload(report))
+        write_document(trend_payload(report, blur=not args.raw))
     else:
         _print_trend(
             report,
@@ -1493,7 +1493,7 @@ def _command_lifecycle(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        write_document(lifecycle_payload(report))
+        write_document(lifecycle_payload(report, blur=not args.raw))
         return EXIT_OK
     names = place_names((item.topic for item in report.lifecycles), _gazetteer(paths))
     print(RULE)
@@ -1546,7 +1546,7 @@ def _command_insights(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        write_document(insights_payload(report))
+        write_document(insights_payload(report, blur=not args.raw))
         return EXIT_OK
     names = place_names((item.topic for item in report.insights), _gazetteer(paths))
     print(RULE)
@@ -1661,7 +1661,7 @@ def _command_compare(args: argparse.Namespace) -> int:
             print("  not enough history: compare needs two kept profiles to pair")
         return EXIT_OK
     if args.json:
-        write_document(comparison_payload(comparison))
+        write_document(comparison_payload(comparison, blur=not args.raw))
         return EXIT_OK
     names = place_names((entry.topic for entry in comparison.entries), _gazetteer(paths))
     moved = [entry for entry in comparison.entries if entry.change is not ChangeKind.STEADY]
@@ -2212,7 +2212,7 @@ def _command_discover(args: argparse.Namespace) -> int:
             )
         return EXIT_OK
     if args.json:
-        write_document(discovery_payload(feed))
+        write_document(discovery_payload(feed, blur=not args.raw))
         return EXIT_OK
     names = place_names((entry.topic for entry in feed.entries), _gazetteer(paths))
     print(RULE)
@@ -3112,10 +3112,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = commands.add_parser("report", help="print what the measures say")
     report.add_argument("--json", action="store_true", help="machine readable output")
+    report.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     report.set_defaults(run=_command_report)
 
     profile = commands.add_parser("profile", help="read the measures as interests")
     profile.add_argument("--json", action="store_true", help="machine readable output")
+    profile.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     profile.add_argument(
         "--limit",
         type=int,
@@ -3158,6 +3164,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     trend = commands.add_parser("trend", help="read the drift between kept profiles")
     trend.add_argument("--json", action="store_true", help="machine readable output")
+    trend.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     trend.add_argument(
         "--limit",
         type=int,
@@ -3229,6 +3238,9 @@ def build_parser() -> argparse.ArgumentParser:
     lifecycle = commands.add_parser("lifecycle", help="where each topic stands in its life")
     lifecycle.add_argument("--json", action="store_true", help="machine readable output")
     lifecycle.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
+    lifecycle.add_argument(
         "--limit",
         type=int,
         default=DEFAULT_LIMIT,
@@ -3251,6 +3263,9 @@ def build_parser() -> argparse.ArgumentParser:
     insights.add_argument("--story", action="store_true", help="narrate the findings")
     insights.add_argument("--lang", default="ja", choices=["ja", "en"], help="story language")
     insights.add_argument("--json", action="store_true", help="machine readable output")
+    insights.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     insights.add_argument(
         "--limit",
         type=int,
@@ -3277,6 +3292,9 @@ def build_parser() -> argparse.ArgumentParser:
     corrections.set_defaults(run=_command_corrections)
 
     compare = commands.add_parser("compare", help="what changed between two kept readings")
+    compare.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     compare.add_argument(
         "--from",
         dest="from_date",
@@ -3367,6 +3385,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     discover = commands.add_parser("discover", help="what is worth a look, ranked")
     discover.add_argument("--json", action="store_true", help="machine readable output")
+    discover.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
     discover.set_defaults(run=_command_discover)
 
     places = commands.add_parser("places", help="what your journeys say about each place")
