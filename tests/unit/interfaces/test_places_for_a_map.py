@@ -115,3 +115,50 @@ class TestTheCommand:
         document = json.loads(out[out.index("{") :])
         assert document["schema"] == "kiseki-places"
         assert document["places"] == []
+
+
+class TestDaysSinceIsTheLibrarysOwnArithmetic:
+    """A consumer can subtract `last_seen` from today, and gets a
+    different number: `last_seen` is published as a date while
+    `/suggest` counts from the moment. A place last visited late in the
+    evening reads 645 days on one card and 646 on the other."""
+
+    def test_it_counts_from_the_moment_not_the_published_date(self) -> None:
+        from datetime import timedelta, timezone
+
+        jst = timezone(timedelta(hours=9))
+        late = datetime(2024, 12, 1, 23, 0, tzinfo=jst)
+        today = datetime(2026, 9, 8, 9, 0, tzinfo=jst)
+        place = PlaceProfile(
+            centroid=GeoPoint(34.70123, 135.50456),
+            visits=27,
+            first_seen=datetime(2024, 1, 1, tzinfo=jst),
+            last_seen=late,
+            median_gap_days=12,
+        )
+        (served,) = places_payload([place], today=today)["places"]
+        naive_subtraction = (today.date() - late.date()).days
+        assert served["days_since"] == 645
+        assert naive_subtraction == 646
+        assert served["days_since"] != naive_subtraction
+
+    def test_it_agrees_with_what_suggest_would_say(self) -> None:
+        """The same arithmetic, so two cards about one place cannot
+        disagree."""
+        from datetime import timedelta, timezone
+
+        from kiseki.domain.shared.moment import naive
+
+        jst = timezone(timedelta(hours=9))
+        late = datetime(2024, 12, 1, 23, 0, tzinfo=jst)
+        today = datetime(2026, 9, 8, 9, 0, tzinfo=jst)
+        place = PlaceProfile(
+            centroid=GeoPoint(34.70123, 135.50456),
+            visits=27,
+            first_seen=datetime(2024, 1, 1, tzinfo=jst),
+            last_seen=late,
+            median_gap_days=12,
+        )
+        as_suggest_counts = (naive(today) - naive(place.last_seen)).days
+        (served,) = places_payload([place], today=today)["places"]
+        assert served["days_since"] == as_suggest_counts

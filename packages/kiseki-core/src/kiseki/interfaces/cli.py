@@ -131,6 +131,7 @@ from kiseki.interfaces.payloads import (
     lifecycle_payload,
     limits_payload,
     narration_payload,
+    paths_payload,
     places_payload,
     privacy_payload,
     profile_payload,
@@ -429,7 +430,13 @@ def _pipeline_for(args: argparse.Namespace) -> Pipeline:
 
 
 def _command_paths(args: argparse.Namespace) -> int:
-    for name, value in vars(_paths_for(args)).items():
+    paths = _paths_for(args)
+    if args.json:
+        write_document(
+            paths_payload(paths, set_aside({"data_root": args.data_root or ""}, dotenv=DOTENV))
+        )
+        return EXIT_OK
+    for name, value in vars(paths).items():
         print(f"  {name:14} {value}")
     return EXIT_OK
 
@@ -2863,9 +2870,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command")
 
-    commands.add_parser("paths", help="show where things will be stored").set_defaults(
-        run=_command_paths
+    where = commands.add_parser("paths", help="show where things will be stored")
+    where.add_argument(
+        "--json",
+        action="store_true",
+        help="machine readable, and says which paths the data root does not hold",
     )
+    where.set_defaults(run=_command_paths)
 
     ingest = commands.add_parser("ingest", help="take in a PhotoRecord document")
     ingest.add_argument("records", type=Path)

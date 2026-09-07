@@ -8,13 +8,16 @@ are where coordinates become visible: served output blurs by default
 
 from __future__ import annotations
 
+import pathlib
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Any
 
 from kiseki.application.asking import Answer
 from kiseki.application.limits import LimitsReport
 from kiseki.application.narrative import Narration
 from kiseki.application.pipeline import PrivacyReport, Report, SuggestionSet
+from kiseki.config.paths import StoragePaths
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
 from kiseki.domain.insight import InsightReport
@@ -24,6 +27,7 @@ from kiseki.domain.services.mixing import derive_mixed
 from kiseki.domain.services.place_reading import PlaceProfile
 from kiseki.domain.services.suggesting import Suggestion
 from kiseki.domain.shared.geo import GeoPoint
+from kiseki.domain.shared.moment import naive
 from kiseki.domain.trends import TrendReport
 from kiseki.interfaces.claims import NEVER_STORED, UNSEEABLE
 
@@ -480,6 +484,7 @@ def places_payload(
     places: Sequence[PlaceProfile],
     names: Mapping[str, str] | None = None,
     blur: bool = True,
+    today: datetime | None = None,
 ) -> dict[str, Any]:
     """Every place the journeys know, for a map that draws no tiles.
 
@@ -488,9 +493,17 @@ def places_payload(
     it can draw the circle the blur actually promises. The number is
     the library's, because the blur is (ADR-0026).
 
+    `days_since` is here rather than left to the reader. A consumer can
+    subtract `last_seen` from today, and doing so gives a different
+    number: `last_seen` is published as a date while `/suggest` counts
+    from the moment, so a place last visited late in the evening reads
+    645 days on one card and 646 on the other. Same arithmetic, one
+    place, so the two surfaces cannot disagree.
+
     `name` is resolved from the owner's own gazetteer at display time
     and is a name or nothing -- never a coordinate (ADR-0040)."""
     resolved = names or {}
+    now = today if today is not None else datetime.now().astimezone()
     return named(
         "places",
         {
@@ -511,6 +524,7 @@ def places_payload(
                     "first_seen": place.first_seen.date().isoformat(),
                     "last_seen": place.last_seen.date().isoformat(),
                     "cadence_days": place.median_gap_days,
+                    "days_since": (naive(now) - naive(place.last_seen)).days,
                 }
                 for place in places
             ],
@@ -522,3 +536,36 @@ def _reference_of(place: PlaceProfile) -> str:
     """The `place:lat,lon` handle, unblurred, as the rest of the
     library writes it."""
     return f"{PLACE_PREFIX}{place.centroid.latitude:.5f},{place.centroid.longitude:.5f}"
+
+
+def paths_payload(paths: StoragePaths, set_aside: Sequence[str] = ()) -> dict[str, Any]:
+    """Where everything is, and which of it the root does not hold.
+
+    Written for the question *can I delete this profile by deleting one
+    folder?*, which a person cannot answer by reading seven lines and
+    is easy to get wrong: this library's own development root is
+    `F:/kiseki-data` with the database on `C:`, so deleting the folder
+    would leave the database behind.
+
+    `outside_root` is the answer. Empty means the root holds
+    everything and one deletion is enough; anything in it must be
+    dealt with separately, and is named so a person can be shown
+    what and why."""
+    every = {name: str(value) for name, value in vars(paths).items()}
+    root = paths.data_root.resolve()
+    outside = []
+    for name, value in vars(paths).items():
+        if name == "data_root":
+            continue
+        try:
+            pathlib.Path(value).resolve().relative_to(root)
+        except ValueError:
+            outside.append(name)
+    return named(
+        "paths",
+        {
+            **every,
+            "outside_root": outside,
+            "set_aside": list(set_aside),
+        },
+    )
