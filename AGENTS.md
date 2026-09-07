@@ -234,7 +234,7 @@ not edited to match the present.
 ## Current state
 
 - Version: v0.11.0 released. v0.12 in progress.
-- Schema: version 10.
+- Schema: version 11.
 - Commands (48): `paths`, `ingest`, `activity`, `input`, `notes`, `web`, `build`, `report`,
   `profile`, `caption`, `singles`, `screens`, `subjects`, `themes`,
   `index`, `ask`, `tell`, `trend`, `lifecycle`, `insights`, `discover`,

@@ -136,6 +136,9 @@ NOT_A_SOURCE = {
     "anchors": "estimated from stops, and removed with them",
     "theme_sets": "derived from subject readings, and removed with them",
     "corrections": "the owner's answer to a derivation, not a source of evidence",
+    "graph_nodes": "the evidence graph, derived from every source above (#435)",
+    "graph_edges": "relationships between derived nodes; removed with them",
+    "graph_edge_evidence": "which nodes made an edge; removed with it",
 }
 """Why each table is not seeded and not omitted. The same shape
 test_the_report_counts_every_table.py uses, for the same reason: the
