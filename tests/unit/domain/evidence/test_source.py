@@ -15,7 +15,9 @@ def test_every_source_has_a_label() -> None:
 
 def test_everything_is_every_source() -> None:
     assert frozenset(EvidenceSource) == EVERYTHING
-    assert len(EVERYTHING) == 8
+    assert len(EVERYTHING) == 9, (
+        "a source added here must also be reachable: see test_a_note_is_not_a_photograph"
+    )
 
 
 def test_nothing_reads_as_nothing() -> None:

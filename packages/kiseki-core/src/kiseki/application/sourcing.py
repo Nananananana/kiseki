@@ -28,7 +28,16 @@ PREFIXES: dict[str, EvidenceSource] = {
     "stay:": EvidenceSource.STAY_CAPTION,
     "single:": EvidenceSource.SINGLE_CAPTION,
     "profile:": EvidenceSource.KEPT_READING,
+    "note:": EvidenceSource.NOTE,
+    "page:": EvidenceSource.PAGE,
 }
+"""Every prefix a derivation puts in front of a reference.
+
+Checked against the source rather than kept by hand: `note:` and
+`page:` were missing for three releases, so an answer resting
+entirely on what the owner wrote and read said *read from
+photograph*. `EvidenceSource.NOTE` existed the whole time and
+nothing could return it."""
 
 
 def source_of(reference: str) -> EvidenceSource:
