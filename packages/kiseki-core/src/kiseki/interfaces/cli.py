@@ -74,6 +74,7 @@ from kiseki.application.single_captioning import (
 from kiseki.application.sourcing import read_from
 from kiseki.application.subject_extraction import SUBJECT_PROMPT_VERSION, run_subject_extraction
 from kiseki.application.theming import THEME_PROMPT_VERSION, run_theming
+from kiseki.application.today import RECENT_DAYS
 from kiseki.config.algorithm import AlgorithmSettings, resolve_algorithm_settings
 from kiseki.config.derivation import KNOWN as KNOWN_DERIVATION
 from kiseki.config.derivation import (
@@ -137,6 +138,7 @@ from kiseki.interfaces.payloads import (
     profile_payload,
     report_payload,
     suggest_payload,
+    today_payload,
     trend_payload,
 )
 from kiseki.interfaces.progress import json_lines
@@ -2403,6 +2405,35 @@ def _command_places(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _command_today(args: argparse.Namespace) -> int:
+    """One to three things worth knowing now, each saying why now.
+
+    Not `suggest` with a limit: a topic that came back after being
+    dormant is the most interesting thing in the library that day, and
+    `suggest` has no idea it exists (ADR-0092)."""
+    from datetime import datetime as _dt
+
+    paths = _paths_for(args)
+    items = _pipeline_from(paths.db_path).today(_dt.now().astimezone())
+    if args.json:
+        write_document(today_payload(items, blur=not args.raw))
+        return EXIT_OK
+    print(RULE)
+    if not items:
+        print("  nothing stands out today, which is its own answer")
+        print("  -- no place is overdue, nothing came back, and nothing")
+        print(f"     has moved in the last {RECENT_DAYS} days")
+        return EXIT_OK
+    names = place_names((item.topic for item in items), _gazetteer(paths))
+    for item in items:
+        label = names.get(item.topic, item.topic)
+        print(f"  {item.kind:<9} {label}")
+        print(f"    {item.why_today}")
+        print(f"    from `{item.source}`")
+        print()
+    return EXIT_OK
+
+
 def _command_suggest(args: argparse.Namespace) -> int:
     from datetime import datetime as _datetime
 
@@ -3241,6 +3272,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
     )
     suggest.set_defaults(run=_command_suggest)
+
+    now = commands.add_parser("today", help="one to three things worth knowing now")
+    now.add_argument("--json", action="store_true", help="machine readable output")
+    now.add_argument(
+        "--raw", action="store_true", help="keep exact coordinates in --json (default: blurred)"
+    )
+    now.set_defaults(run=_command_today)
 
     reread = commands.add_parser("reread", help="what a newer prompt version left behind")
     reread.add_argument(

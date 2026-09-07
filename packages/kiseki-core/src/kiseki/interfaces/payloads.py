@@ -17,6 +17,7 @@ from kiseki.application.asking import Answer
 from kiseki.application.limits import LimitsReport
 from kiseki.application.narrative import Narration
 from kiseki.application.pipeline import PrivacyReport, Report, SuggestionSet
+from kiseki.application.today import Today
 from kiseki.config.paths import StoragePaths
 from kiseki.domain.comparison import Comparison
 from kiseki.domain.discovery import DiscoveryFeed
@@ -567,5 +568,28 @@ def paths_payload(paths: StoragePaths, set_aside: Sequence[str] = ()) -> dict[st
             **every,
             "outside_root": outside,
             "set_aside": list(set_aside),
+        },
+    )
+
+
+def today_payload(items: Sequence[Today], blur: bool = True) -> dict[str, Any]:
+    """What is worth knowing now, each item saying why.
+
+    `why_today` is a sentence a reader can put on a card without
+    rewriting it, and `source` is the command that says the whole of
+    the thing, for a reader who disagrees with the choosing. A topic
+    can be a place, so it is blurred like every other topic."""
+    return named(
+        "today",
+        {
+            "today": [
+                {
+                    "kind": item.kind,
+                    "topic": _blur_place(item.topic, blur),
+                    "why_today": item.why_today,
+                    "source": item.source,
+                }
+                for item in items
+            ],
         },
     )

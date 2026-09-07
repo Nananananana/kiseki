@@ -69,6 +69,7 @@ ROUTES = (
     "lifecycle",
     "suggest",
     "places",
+    "today",
 )
 
 

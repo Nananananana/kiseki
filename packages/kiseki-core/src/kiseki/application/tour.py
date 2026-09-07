@@ -39,6 +39,7 @@ TOUR: tuple[Stop, ...] = (
     Stop("discover", "what is worth a look, ranked by novelty and weight"),
     Stop("compare", "what changed between two readings, with the arithmetic"),
     Stop("suggest", "somewhere to go back to, and somewhere to go"),
+    Stop("today", "one to three things worth knowing now, each saying why"),
     Stop("corrections", "the owner's word against a reading, appended and applied"),
     Stop("privacy", "what is stored, in counts, and what never is"),
     Stop("limits", "what this library cannot tell you, from your own counts"),

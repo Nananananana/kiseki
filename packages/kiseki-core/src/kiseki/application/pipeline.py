@@ -22,6 +22,7 @@ from kiseki.application.limits import (
     Span,
     limits_of,
 )
+from kiseki.application.today import Today, what_matters_today
 from kiseki.domain.analytics.analytics import (
     OutingHabits,
     PlacePreference,
@@ -617,6 +618,18 @@ class Pipeline:
         reach = derive_reach(self._outings.all())
         trips = spread_out(derive_day_trips(places, reach, today)) if reach else ()
         return SuggestionSet(suggestions=suggestions, day_trips=trips, reach=reach)
+
+    def today(self, now: datetime) -> tuple[Today, ...]:
+        """One to three things worth knowing now, each saying why.
+
+        Reads three derivations and chooses; derives nothing of its
+        own, so every item names the command that says the whole of it."""
+        return what_matters_today(
+            self.suggest(now).suggestions,
+            self.lifecycle(),
+            self.insights(),
+            now,
+        )
 
     def compare(
         self,

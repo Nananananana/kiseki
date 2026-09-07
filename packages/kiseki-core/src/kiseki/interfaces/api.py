@@ -32,6 +32,7 @@ from kiseki.interfaces.payloads import (
     profile_payload,
     report_payload,
     suggest_payload,
+    today_payload,
     trend_payload,
 )
 from kiseki.ports.models import (
@@ -184,6 +185,14 @@ class _Handler(BaseHTTPRequestHandler):
                 )
             else:
                 self._send(200, lifecycle_payload(lifecycle, blur=blur))
+        elif path == "/today":
+            self._send(
+                200,
+                today_payload(
+                    self.server.pipeline_factory().today(datetime.now().astimezone()),
+                    blur=blur,
+                ),
+            )
         elif path == "/places":
             # No gazetteer here: naming is the command line's, which has
             # the owner's file. A served place is a shape and a count.
