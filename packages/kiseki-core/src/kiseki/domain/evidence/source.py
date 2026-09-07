@@ -22,12 +22,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from enum import Enum, unique
 
-WEB = "web"
 VIDEO = "video"
-"""Reserved names for proposals/0008, v0.11. Daily activity has since
-stopped being reserved and become a member below -- which took one
-line here and one table of its own, which is the whole point of
-writing them down in advance."""
+"""Reserved for proposals/0008. Daily activity and the web have both
+since stopped being reserved and become members below -- the first
+promptly, the second three releases late, which is what the test
+beside this file now exists to prevent."""
 
 
 @unique
@@ -42,6 +41,11 @@ class EvidenceSource(Enum):
     KEPT_READING = "kept reading"
     ACTIVITY = "daily activity"
     NOTE = "note"
+    PAGE = "page reading"
+    """Late, and it should not have been. WebRecord v1 shipped in
+    v0.11 and this vocabulary did not grow with it, so every page the
+    owner read was reported as a photograph until somebody asked what
+    the library would do with a source that was not a camera."""
 
     @property
     def label(self) -> str:
