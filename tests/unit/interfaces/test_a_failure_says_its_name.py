@@ -181,6 +181,24 @@ class TestTheDocument:
         assert not list(tmp_path.iterdir())
 
 
+class TestTheDocumentedTableIsTheCatalogue:
+    """Two copies of one fact is the shape that drifts, so the table
+    in docs/errors.md is checked against the catalogue rather than
+    read alongside it."""
+
+    PAGE = Path(__file__).parents[3] / "docs" / "errors.md"
+
+    def test_every_kind_is_in_the_page(self) -> None:
+        page = self.PAGE.read_text(encoding="utf-8")
+        missing = [kind for kind in BY_KIND if f"`{kind}`" not in page]
+        assert not missing, missing
+
+    def test_the_page_names_no_kind_the_catalogue_lacks(self) -> None:
+        page = self.PAGE.read_text(encoding="utf-8")
+        named_there = set(re.findall(r"`([A-Z][A-Za-z]+)`", page))
+        assert named_there <= set(BY_KIND), sorted(named_there - set(BY_KIND))
+
+
 class TestStderrLeadsWithTheName:
     def test_a_conflicting_pair_of_options_says_which_kind_it_is(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
